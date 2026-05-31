@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ReqTracker — MONS</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="MONS logo.png" alt="MONS" class="brand-mark" />
+          <div>
+            <div class="brand-title">ReqTracker</div>
+            <div class="brand-subtitle">Управление требованиями · MONS</div>
+          </div>
+        </div>
+
+        <nav class="nav-list" aria-label="Разделы">
+          <button class="nav-item active" type="button">Реестр требований</button>
+          <button class="nav-item" type="button" disabled>Покрытие</button>
+          <button class="nav-item" type="button" disabled>Граф связей</button>
+          <button class="nav-item" type="button" disabled>Отчеты</button>
+        </nav>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <h1>Реестр требований</h1>
+            <p>Загрузка и контроль требований ТЗ. Быстрый старт на тестовых данных.</p>
+          </div>
+          <div class="topbar-actions">
+            <label class="button primary file-button">
+              <input id="excelInput" type="file" accept=".xlsx,.xls,.csv" />
+              Загрузить Excel
+            </label>
+            <button id="generateDemoButton" class="button secondary" type="button">
+              Тестовые данные
+            </button>
+          </div>
+        </header>
+
+        <section class="summary-grid" aria-label="Сводка требований">
+          <article class="metric">
+            <span class="metric-label">Всего</span>
+            <strong id="totalCount">0</strong>
+          </article>
+          <article class="metric">
+            <span class="metric-label">Approved</span>
+            <strong id="approvedCount">0</strong>
+          </article>
+          <article class="metric">
+            <span class="metric-label">Draft</span>
+            <strong id="draftCount">0</strong>
+          </article>
+          <article class="metric">
+            <span class="metric-label">High priority</span>
+            <strong id="highCount">0</strong>
+          </article>
+        </section>
+
+        <section class="toolbar" aria-label="Фильтры">
+          <button class="toolbar-toggle" id="filtersToggle" type="button" aria-expanded="false" aria-controls="filtersBody">
+            <span class="toolbar-toggle-label">Поиск и фильтры</span>
+            <span class="toolbar-toggle-icon">▼</span>
+          </button>
+          <div class="toolbar-body hidden" id="filtersBody">
+            <div class="toolbar-row">
+              <div class="search-wrap">
+                <span aria-hidden="true">⌕</span>
+                <input id="searchInput" type="search" placeholder="Поиск по коду, тексту, владельцу, источнику..." />
+              </div>
+              <button id="clearButton" class="button ghost" type="button">Очистить фильтры</button>
+            </div>
+            <div class="toolbar-row">
+              <select id="statusFilter" aria-label="Фильтр по статусу">
+                <option value="">Все статусы</option>
+              </select>
+              <select id="priorityFilter" aria-label="Фильтр по приоритету">
+                <option value="">Все приоритеты</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+              <select id="featureFilter" aria-label="Фильтр по Feature">
+                <option value="">Все Features</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section class="table-panel">
+          <div class="panel-head">
+            <div>
+              <h2>Требования</h2>
+              <p id="importStatus">Данные еще не загружены.</p>
+            </div>
+          </div>
+
+          <div class="selection-bar selection-bar--features hidden" id="featureSelectionBar">
+            <span id="featureSelectionCount"></span>
+            <div class="selection-bar-actions">
+              <button id="assignEpicBtn" class="button primary" type="button">Объединить в Epic</button>
+              <button id="removeFromEpicBtn" class="button ghost" type="button">Убрать из Epic</button>
+              <button id="clearFeatureSelectionBtn" class="button ghost" type="button">Снять выделение</button>
+            </div>
+          </div>
+
+          <div class="selection-bar hidden" id="selectionBar">
+            <span id="selectionCount"></span>
+            <div class="selection-bar-actions">
+              <button id="assignFeatureBtn" class="button primary" type="button">Объединить в Feature</button>
+              <button id="removeFeatureBtn" class="button ghost" type="button">Убрать из Feature</button>
+              <button id="clearSelectionBtn" class="button ghost" type="button">Снять выделение</button>
+            </div>
+          </div>
+
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th class="checkbox-col"><input type="checkbox" id="selectAll" /></th>
+                  <th class="sortable" data-sort="code">Код <span class="sort-icon"></span></th>
+                  <th>Текст требования</th>
+                  <th class="sortable" data-sort="feature">Feature <span class="sort-icon"></span></th>
+                  <th class="sortable" data-sort="status">Статус <span class="sort-icon"></span></th>
+                  <th class="sortable" data-sort="priority">Приоритет <span class="sort-icon"></span></th>
+                  <th class="sortable" data-sort="owner">Владелец <span class="sort-icon"></span></th>
+                  <th class="sortable" data-sort="source">Источник <span class="sort-icon"></span></th>
+                  <th class="actions-col"></th>
+                </tr>
+              </thead>
+              <tbody id="requirementsBody"></tbody>
+            </table>
+          </div>
+
+          <div id="emptyState" class="empty-state">
+            <strong>Реестр пуст</strong>
+            <span>Загрузите Excel-файл или создайте тестовый набор требований.</span>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-overlay hidden" id="epicModal" role="dialog" aria-modal="true" aria-labelledby="epicModalTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="epicModalTitle">Создать Epic</h3>
+          <button class="modal-close" id="epicModalClose" type="button" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-warning hidden" id="epicWarning"></div>
+          <label class="field">
+            <span class="field-label">Номер</span>
+            <input type="text" id="epicNumber" placeholder="E-001" />
+          </label>
+          <label class="field">
+            <span class="field-label">Наименование <span class="field-required">*</span></span>
+            <input type="text" id="epicName" placeholder="Название Epic" />
+          </label>
+          <label class="field">
+            <span class="field-label">Описание</span>
+            <textarea id="epicDescription" rows="3" placeholder="Краткое описание..."></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="button ghost" id="epicModalCancel" type="button">Отмена</button>
+          <button class="button primary" id="epicModalSave" type="button">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="requirementModal" role="dialog" aria-modal="true" aria-labelledby="requirementModalTitle">
+      <div class="modal modal-wide">
+        <div class="modal-header">
+          <h3 id="requirementModalTitle">Требование</h3>
+          <button class="modal-close" id="requirementModalClose" type="button" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-grid">
+            <label class="field">
+              <span class="field-label">Код</span>
+              <input type="text" id="reqCode" placeholder="REQ-001" />
+            </label>
+            <label class="field">
+              <span class="field-label">Статус</span>
+              <select id="reqStatus">
+                <option value="Draft">Draft</option>
+                <option value="In Review">In Review</option>
+                <option value="Approved">Approved</option>
+                <option value="Changed">Changed</option>
+                <option value="Deprecated">Deprecated</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">Приоритет</span>
+              <select id="reqPriority">
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">Владелец</span>
+              <input type="text" id="reqOwner" placeholder="Имя владельца" />
+            </label>
+            <label class="field">
+              <span class="field-label">Источник</span>
+              <input type="text" id="reqSource" placeholder="ТЗ v1.0" />
+            </label>
+            <label class="field">
+              <span class="field-label">Feature</span>
+              <select id="reqFeature">
+                <option value="">— без Feature —</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span class="field-label">Текст требования <span class="field-required">*</span></span>
+            <textarea id="reqText" rows="5" placeholder="Система должна..."></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="button ghost" id="requirementModalCancel" type="button">Отмена</button>
+          <button class="button primary" id="requirementModalSave" type="button">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="featureModal" role="dialog" aria-modal="true" aria-labelledby="featureModalTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="featureModalTitle">Создать Feature</h3>
+          <button class="modal-close" id="featureModalClose" type="button" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-warning hidden" id="featureWarning"></div>
+          <label class="field">
+            <span class="field-label">Номер</span>
+            <input type="text" id="featureNumber" placeholder="Например, F-001" />
+          </label>
+          <label class="field">
+            <span class="field-label">Наименование <span class="field-required">*</span></span>
+            <input type="text" id="featureName" placeholder="Название Feature" />
+          </label>
+          <label class="field">
+            <span class="field-label">Описание</span>
+            <textarea id="featureDescription" placeholder="Краткое описание функциональности..." rows="3"></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="button ghost" id="featureModalCancel" type="button">Отмена</button>
+          <button class="button primary" id="featureModalSave" type="button">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
