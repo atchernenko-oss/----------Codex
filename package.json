@@ -1,0 +1,9 @@
+{
+  "name": "reqtracker",
+  "version": "1.0.0",
+  "description": "ReqTracker MVP — отслеживание требований ТЗ",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -136,7 +136,7 @@ document.querySelector("#epicModalClose").addEventListener("click", closeEpicMod
 document.querySelector("#epicModalCancel").addEventListener("click", closeEpicModal);
 document.querySelector("#epicModalSave").addEventListener("click", saveEpic);
 document.querySelector("#epicModal").addEventListener("click", (e) => {
-  if (e.target === document.querySelector("#epicModal")) closeEpicModal();
+  if (e.target === document.querySelector("#epicModal") && !window.getSelection().toString()) closeEpicModal();
 });
 document.querySelector("#epicName").addEventListener("keydown", (e) => {
   if (e.key === "Enter") saveEpic();
@@ -195,7 +195,7 @@ elements.requirementModalClose.addEventListener("click", closeRequirementModal);
 elements.requirementModalCancel.addEventListener("click", closeRequirementModal);
 elements.requirementModalSave.addEventListener("click", saveRequirement);
 elements.requirementModal.addEventListener("click", (e) => {
-  if (e.target === elements.requirementModal) closeRequirementModal();
+  if (e.target === elements.requirementModal && !window.getSelection().toString()) closeRequirementModal();
 });
 
 elements.assignFeatureBtn.addEventListener("click", openFeatureModal);
@@ -204,10 +204,61 @@ elements.featureModalClose.addEventListener("click", closeFeatureModal);
 elements.featureModalCancel.addEventListener("click", closeFeatureModal);
 elements.featureModalSave.addEventListener("click", saveFeature);
 elements.featureModal.addEventListener("click", (e) => {
-  if (e.target === elements.featureModal) closeFeatureModal();
+  if (e.target === elements.featureModal && !window.getSelection().toString()) closeFeatureModal();
 });
 elements.featureName.addEventListener("keydown", (e) => {
   if (e.key === "Enter") saveFeature();
+});
+
+document.querySelectorAll(".modal-overlay .modal").forEach((modal) => {
+  modal.addEventListener("mousedown", (e) => {
+    if (!e.target.closest("input, textarea, select, button, a, [tabindex], label")) {
+      e.preventDefault();
+    }
+  });
+});
+
+document.addEventListener("keydown", (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const openModal = document.querySelector(".modal-overlay:not(.hidden)");
+  if (!openModal) return;
+
+  const active = document.activeElement;
+  const activeIsEditable =
+    active &&
+    (active.tagName === "INPUT" || active.tagName === "TEXTAREA") &&
+    openModal.contains(active);
+  const target = activeIsEditable
+    ? active
+    : openModal.querySelector("textarea") ||
+      openModal.querySelector('input[type="text"]');
+  if (!target) return;
+
+  if (e.key === "a" || e.key === "A") {
+    e.preventDefault();
+    target.focus();
+    target.select();
+  } else if (e.key === "c" || e.key === "C") {
+    if (!activeIsEditable) return;
+    const selected = active.value.substring(active.selectionStart, active.selectionEnd);
+    if (selected) {
+      e.preventDefault();
+      navigator.clipboard.writeText(selected).catch(() => {
+        document.execCommand("copy");
+      });
+    }
+  } else if (e.key === "v" || e.key === "V") {
+    if (!activeIsEditable) {
+      e.preventDefault();
+      target.focus();
+      navigator.clipboard.readText().then((text) => {
+        const s = target.selectionStart;
+        const end = target.selectionEnd;
+        target.value = target.value.substring(0, s) + text + target.value.substring(end);
+        target.selectionStart = target.selectionEnd = s + text.length;
+      }).catch(() => {});
+    }
+  }
 });
 elements.clearSelectionBtn.addEventListener("click", () => {
   state.selectedIds = new Set();

@@ -703,9 +703,16 @@ tr.selected td {
   padding: 24px;
 }
 
+.modal,
+.modal-header h3,
+.modal-body {
+  user-select: text;
+}
+
 .field {
   display: grid;
   gap: 6px;
+  cursor: text;
 }
 
 .field-label {
@@ -713,6 +720,7 @@ tr.selected td {
   font-weight: 700;
   color: var(--ink);
   letter-spacing: 0.02em;
+  cursor: default;
 }
 
 .field-required {
