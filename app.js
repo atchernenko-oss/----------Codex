@@ -62,6 +62,13 @@ const elements = {
   featureNumber: document.querySelector("#featureNumber"),
   featureName: document.querySelector("#featureName"),
   featureDescription: document.querySelector("#featureDescription"),
+  featureAutoNumber: document.querySelector("#featureAutoNumber"),
+  autoNumberModal: document.querySelector("#autoNumberModal"),
+  autoNumberClose: document.querySelector("#autoNumberClose"),
+  autoNumberCancel: document.querySelector("#autoNumberCancel"),
+  autoNumberGap: document.querySelector("#autoNumberGap"),
+  autoNumberNext: document.querySelector("#autoNumberNext"),
+  autoNumberText: document.querySelector("#autoNumberText"),
 };
 
 const columnAliases = {
@@ -209,57 +216,67 @@ elements.featureModal.addEventListener("click", (e) => {
 elements.featureName.addEventListener("keydown", (e) => {
   if (e.key === "Enter") saveFeature();
 });
+elements.featureAutoNumber.addEventListener("click", autoAssignFeatureNumber);
+elements.autoNumberClose.addEventListener("click", closeAutoNumberModal);
+elements.autoNumberCancel.addEventListener("click", closeAutoNumberModal);
+elements.autoNumberGap.addEventListener("click", () => {
+  elements.featureNumber.value = padNum(pendingGapNumber);
+  closeAutoNumberModal();
+});
+elements.autoNumberNext.addEventListener("click", () => {
+  elements.featureNumber.value = padNum(pendingNextNumber);
+  closeAutoNumberModal();
+});
 
-document.querySelectorAll(".modal-overlay .modal").forEach((modal) => {
-  modal.addEventListener("mousedown", (e) => {
+// Подключает поддержку Ctrl+A/C/V и удержание фокуса для модального окна.
+// Вызывать для каждой новой модалки при создании.
+function enableModalKeyboard(overlayEl) {
+  overlayEl.querySelector(".modal").addEventListener("mousedown", (e) => {
     if (!e.target.closest("input, textarea, select, button, a, [tabindex], label")) {
       e.preventDefault();
     }
   });
-});
 
-document.addEventListener("keydown", (e) => {
-  if (!(e.ctrlKey || e.metaKey)) return;
-  const openModal = document.querySelector(".modal-overlay:not(.hidden)");
-  if (!openModal) return;
+  overlayEl.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const active = document.activeElement;
+    const isEditable =
+      active &&
+      (active.tagName === "INPUT" || active.tagName === "TEXTAREA") &&
+      overlayEl.contains(active);
+    const target = isEditable
+      ? active
+      : overlayEl.querySelector('input[type="text"]') ||
+        overlayEl.querySelector("textarea");
+    if (!target) return;
 
-  const active = document.activeElement;
-  const activeIsEditable =
-    active &&
-    (active.tagName === "INPUT" || active.tagName === "TEXTAREA") &&
-    openModal.contains(active);
-  const target = activeIsEditable
-    ? active
-    : openModal.querySelector("textarea") ||
-      openModal.querySelector('input[type="text"]');
-  if (!target) return;
-
-  if (e.key === "a" || e.key === "A") {
-    e.preventDefault();
-    target.focus();
-    target.select();
-  } else if (e.key === "c" || e.key === "C") {
-    if (!activeIsEditable) return;
-    const selected = active.value.substring(active.selectionStart, active.selectionEnd);
-    if (selected) {
-      e.preventDefault();
-      navigator.clipboard.writeText(selected).catch(() => {
-        document.execCommand("copy");
-      });
-    }
-  } else if (e.key === "v" || e.key === "V") {
-    if (!activeIsEditable) {
+    if (e.key === "a" || e.key === "A") {
       e.preventDefault();
       target.focus();
-      navigator.clipboard.readText().then((text) => {
-        const s = target.selectionStart;
-        const end = target.selectionEnd;
-        target.value = target.value.substring(0, s) + text + target.value.substring(end);
-        target.selectionStart = target.selectionEnd = s + text.length;
-      }).catch(() => {});
+      target.select();
+    } else if ((e.key === "c" || e.key === "C") && isEditable) {
+      const sel = active.value.substring(active.selectionStart, active.selectionEnd);
+      if (sel) {
+        e.preventDefault();
+        navigator.clipboard.writeText(sel).catch(() => document.execCommand("copy"));
+      }
+    } else if (e.key === "v" || e.key === "V") {
+      if (!isEditable) {
+        e.preventDefault();
+        target.focus();
+        navigator.clipboard.readText().then((text) => {
+          const s = target.selectionStart, end = target.selectionEnd;
+          target.value = target.value.substring(0, s) + text + target.value.substring(end);
+          target.selectionStart = target.selectionEnd = s + text.length;
+        }).catch(() => {});
+      }
     }
-  }
-});
+  });
+}
+
+enableModalKeyboard(elements.requirementModal);
+enableModalKeyboard(elements.featureModal);
+enableModalKeyboard(document.querySelector("#epicModal"));
 elements.clearSelectionBtn.addEventListener("click", () => {
   state.selectedIds = new Set();
   render();
@@ -438,6 +455,8 @@ function clearRequirements() {
 
 let editingRequirementId = null;
 let editingFeatureId = null;
+let pendingGapNumber = null;
+let pendingNextNumber = null;
 
 function openRequirementModal(req) {
   editingRequirementId = req.id;
@@ -524,19 +543,64 @@ function openFeatureModal() {
   elements.featureDescription.value = "";
   elements.featureName.classList.remove("input-error");
   elements.featureModal.classList.remove("hidden");
-  elements.featureNumber.focus();
+  requestAnimationFrame(() => elements.featureNumber.focus());
 }
 
 function openFeatureEditModal(featureObj) {
   editingFeatureId = featureObj.id;
   document.querySelector("#featureModalTitle").textContent = "Редактировать Feature";
   elements.featureWarning.classList.add("hidden");
-  elements.featureNumber.value = featureObj.number;
+  const num = featureObj.number || '';
+  elements.featureNumber.value = num.startsWith('F-') ? num.slice(2) : num;
   elements.featureName.value = featureObj.name;
   elements.featureDescription.value = featureObj.description;
   elements.featureName.classList.remove("input-error");
   elements.featureModal.classList.remove("hidden");
-  elements.featureNumber.focus();
+  requestAnimationFrame(() => elements.featureNumber.focus());
+}
+
+function padNum(n) {
+  return String(n).padStart(3, '0');
+}
+
+function autoAssignFeatureNumber() {
+  const used = state.features
+    .map(f => parseInt((f.number || '').replace(/^F-/, ''), 10))
+    .filter(n => Number.isFinite(n) && n > 0);
+
+  const sorted = [...new Set(used)].sort((a, b) => a - b);
+
+  if (sorted.length === 0) {
+    elements.featureNumber.value = '001';
+    return;
+  }
+
+  const max = sorted[sorted.length - 1];
+  const next = max + 1;
+
+  let gap = null;
+  for (let i = 1; i < max; i++) {
+    if (!sorted.includes(i)) { gap = i; break; }
+  }
+
+  if (gap === null) {
+    elements.featureNumber.value = padNum(next);
+    return;
+  }
+
+  pendingGapNumber = gap;
+  pendingNextNumber = next;
+  elements.autoNumberText.textContent =
+    `Обнаружен пропущенный номер: ${padNum(gap)}. Как присвоить номер новой Feature?`;
+  elements.autoNumberGap.textContent = `Занять свободный: ${padNum(gap)}`;
+  elements.autoNumberNext.textContent = `Следующий по порядку: ${padNum(next)}`;
+  elements.autoNumberModal.classList.remove('hidden');
+}
+
+function closeAutoNumberModal() {
+  elements.autoNumberModal.classList.add('hidden');
+  pendingGapNumber = null;
+  pendingNextNumber = null;
 }
 
 function closeFeatureModal() {
@@ -545,7 +609,8 @@ function closeFeatureModal() {
 }
 
 function saveFeature() {
-  const number = elements.featureNumber.value.trim();
+  const rawNumber = elements.featureNumber.value.trim();
+  const number = rawNumber ? `F-${rawNumber}` : '';
   const name = elements.featureName.value.trim();
   const description = elements.featureDescription.value.trim();
 
@@ -912,7 +977,7 @@ function openEpicModal() {
   document.querySelector("#epicDescription").value = "";
   document.querySelector("#epicName").classList.remove("input-error");
   document.querySelector("#epicModal").classList.remove("hidden");
-  document.querySelector("#epicNumber").focus();
+  requestAnimationFrame(() => document.querySelector("#epicNumber").focus());
 }
 
 function openEpicEditModal(epicObj) {
@@ -924,7 +989,7 @@ function openEpicEditModal(epicObj) {
   document.querySelector("#epicDescription").value = epicObj.description;
   document.querySelector("#epicName").classList.remove("input-error");
   document.querySelector("#epicModal").classList.remove("hidden");
-  document.querySelector("#epicNumber").focus();
+  requestAnimationFrame(() => document.querySelector("#epicNumber").focus());
 }
 
 function closeEpicModal() {
