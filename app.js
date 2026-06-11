@@ -211,6 +211,7 @@ elements.requirementsBody.addEventListener("change", (event) => {
   updateSelectAllState();
 });
 
+document.querySelector("#addRequirementBtn").addEventListener("click", () => openRequirementModal(null));
 elements.requirementModalClose.addEventListener("click", closeRequirementModal);
 elements.requirementModalCancel.addEventListener("click", closeRequirementModal);
 elements.requirementModalSave.addEventListener("click", saveRequirement);
@@ -551,14 +552,15 @@ let pendingNextNumber = null;
 let pendingNumberTarget = null;
 
 function openRequirementModal(req) {
-  editingRequirementId = req.id;
-  elements.requirementModalTitle.textContent = `Требование ${req.code}`;
-  elements.reqCode.value = (req.code || '').replace(/^REQ-/i, '');
-  elements.reqText.value = req.text;
-  elements.reqStatus.value = req.status;
-  elements.reqPriority.value = req.priority;
-  populateOwnerSelect(req.owner || "");
-  elements.reqSource.value = req.source;
+  const isNew = req === null;
+  editingRequirementId = isNew ? null : req.id;
+  elements.requirementModalTitle.textContent = isNew ? "Новое требование" : `Требование ${req.code}`;
+  elements.reqCode.value = isNew ? "" : (req.code || '').replace(/^REQ-/i, '');
+  elements.reqText.value = isNew ? "" : req.text;
+  elements.reqStatus.value = isNew ? "Draft" : req.status;
+  elements.reqPriority.value = isNew ? "Medium" : req.priority;
+  populateOwnerSelect(isNew ? "" : (req.owner || ""));
+  elements.reqSource.value = isNew ? "" : req.source;
 
   elements.reqFeature.innerHTML = '<option value="">— без Feature —</option>';
   for (const f of state.features) {
@@ -567,12 +569,15 @@ function openRequirementModal(req) {
     opt.textContent = f.label;
     elements.reqFeature.append(opt);
   }
-  elements.reqFeature.value = req.feature || "";
+  elements.reqFeature.value = isNew ? "" : (req.feature || "");
+
+  const usSection = document.querySelector(".us-req-section");
+  if (usSection) usSection.classList.toggle("hidden", isNew);
 
   elements.reqText.classList.remove("input-error");
   elements.requirementModal.classList.remove("hidden");
   elements.reqText.focus();
-  updateReqUSCount();
+  if (!isNew) updateReqUSCount();
 }
 
 function closeRequirementModal() {
@@ -588,19 +593,33 @@ function saveRequirement() {
     return;
   }
 
-  state.requirements = state.requirements.map((item) => {
-    if (item.id !== editingRequirementId) return item;
-    return {
-      ...item,
-      code: elements.reqCode.value.trim() ? `REQ-${elements.reqCode.value.trim()}` : item.code,
+  if (editingRequirementId === null) {
+    const rawCode = elements.reqCode.value.trim();
+    state.requirements.push({
+      id: crypto.randomUUID(),
+      code: rawCode ? `REQ-${rawCode}` : "",
       text,
       status: elements.reqStatus.value,
       priority: elements.reqPriority.value,
       owner: elements.reqOwner.value.trim(),
       source: elements.reqSource.value.trim(),
       feature: elements.reqFeature.value,
-    };
-  });
+    });
+  } else {
+    state.requirements = state.requirements.map((item) => {
+      if (item.id !== editingRequirementId) return item;
+      return {
+        ...item,
+        code: elements.reqCode.value.trim() ? `REQ-${elements.reqCode.value.trim()}` : item.code,
+        text,
+        status: elements.reqStatus.value,
+        priority: elements.reqPriority.value,
+        owner: elements.reqOwner.value.trim(),
+        source: elements.reqSource.value.trim(),
+        feature: elements.reqFeature.value,
+      };
+    });
+  }
 
   saveRequirements(state.requirements);
   closeRequirementModal();
