@@ -1,6 +1,7 @@
 const STORAGE_KEY = "reqtracker.requirements.v1";
 const FEATURES_KEY = "reqtracker.features.v1";
 const EPICS_KEY = "reqtracker.epics.v1";
+const OWNERS_KEY = "reqtracker.owners.v1";
 
 const state = {
   requirements: loadRequirements(),
@@ -14,6 +15,7 @@ const state = {
   selectedIds: new Set(),
   epics: loadEpics(),
   selectedFeatureIds: new Set(),
+  owners: loadOwners(),
 };
 
 const elements = {
@@ -46,6 +48,7 @@ const elements = {
   reqStatus: document.querySelector("#reqStatus"),
   reqPriority: document.querySelector("#reqPriority"),
   reqOwner: document.querySelector("#reqOwner"),
+  openOwnersBtn: document.querySelector("#openOwnersBtn"),
   reqSource: document.querySelector("#reqSource"),
   reqFeature: document.querySelector("#reqFeature"),
   reqText: document.querySelector("#reqText"),
@@ -281,11 +284,27 @@ function enableModalKeyboard(overlayEl) {
 enableModalKeyboard(elements.requirementModal);
 enableModalKeyboard(elements.featureModal);
 enableModalKeyboard(document.querySelector("#epicModal"));
+enableModalKeyboard(document.querySelector("#ownersModal"));
 
 function padNumberField(el) {
   const v = el.value.trim();
   if (v && /^\d+$/.test(v)) el.value = padNum(parseInt(v, 10));
 }
+
+elements.openOwnersBtn.addEventListener("click", openOwnersModal);
+document.querySelector("#openOwnersDirectoryBtn").addEventListener("click", openOwnersModal);
+document.querySelector("#ownersModalClose").addEventListener("click", closeOwnersModal);
+document.querySelector("#ownersModal").addEventListener("click", (e) => {
+  if (e.target === document.querySelector("#ownersModal") && !window.getSelection().toString()) closeOwnersModal();
+});
+document.querySelector("#ownerAddBtn").addEventListener("click", addOwner);
+document.querySelector("#ownerAddInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") addOwner();
+});
+document.querySelector("#ownersList").addEventListener("click", (e) => {
+  const btn = e.target.closest(".owner-delete-btn");
+  if (btn) deleteOwner(btn.dataset.owner);
+});
 
 elements.featureNumber.addEventListener("blur", () => padNumberField(elements.featureNumber));
 elements.reqCode.addEventListener("blur", () => padNumberField(elements.reqCode));
@@ -296,6 +315,7 @@ elements.clearSelectionBtn.addEventListener("click", () => {
   render();
 });
 
+mergeOwners(state.requirements.map(r => r.owner));
 render();
 
 async function handleFileUpload(event) {
@@ -318,6 +338,7 @@ async function handleFileUpload(event) {
     state.requirements = parsed;
     state.selectedIds = new Set();
     saveRequirements(parsed);
+    mergeOwners(parsed.map(r => r.owner));
     setStatus(`Загружено ${parsed.length} требований из файла "${file.name}".`);
     render();
   } catch (error) {
@@ -444,6 +465,7 @@ function generateDemoData() {
   state.requirements = demo;
   state.selectedIds = new Set();
   saveRequirements(demo);
+  mergeOwners(demo.map(r => r.owner));
   setStatus("Сгенерирован демонстрационный набор из 6 требований.");
   render();
 }
@@ -480,7 +502,7 @@ function openRequirementModal(req) {
   elements.reqText.value = req.text;
   elements.reqStatus.value = req.status;
   elements.reqPriority.value = req.priority;
-  elements.reqOwner.value = req.owner;
+  populateOwnerSelect(req.owner || "");
   elements.reqSource.value = req.source;
 
   elements.reqFeature.innerHTML = '<option value="">— без Feature —</option>';
@@ -1080,6 +1102,82 @@ function saveEpics(epics) {
 
 function loadEpics() {
   try { return JSON.parse(localStorage.getItem(EPICS_KEY)) || []; } catch { return []; }
+}
+
+function loadOwners() {
+  try { return JSON.parse(localStorage.getItem(OWNERS_KEY)) || []; } catch { return []; }
+}
+
+function saveOwners(owners) {
+  localStorage.setItem(OWNERS_KEY, JSON.stringify(owners));
+}
+
+function mergeOwners(names) {
+  const newOwners = [...new Set(names)].filter(n => n && !state.owners.includes(n));
+  if (newOwners.length === 0) return;
+  state.owners.push(...newOwners);
+  saveOwners(state.owners);
+}
+
+function populateOwnerSelect(currentValue) {
+  elements.reqOwner.innerHTML = '<option value="">— без владельца —</option>';
+  const list = currentValue && !state.owners.includes(currentValue)
+    ? [...state.owners, currentValue]
+    : state.owners;
+  for (const owner of list) {
+    const opt = document.createElement("option");
+    opt.value = owner;
+    opt.textContent = owner;
+    elements.reqOwner.append(opt);
+  }
+  elements.reqOwner.value = currentValue;
+}
+
+function openOwnersModal() {
+  renderOwnersList();
+  document.querySelector("#ownerAddInput").value = "";
+  document.querySelector("#ownersModal").classList.remove("hidden");
+  requestAnimationFrame(() => document.querySelector("#ownerAddInput").focus());
+}
+
+function closeOwnersModal() {
+  document.querySelector("#ownersModal").classList.add("hidden");
+  const currentVal = elements.reqOwner.value;
+  populateOwnerSelect(currentVal);
+}
+
+function renderOwnersList() {
+  const list = document.querySelector("#ownersList");
+  list.innerHTML = "";
+  if (state.owners.length === 0) {
+    list.innerHTML = '<li class="owners-empty">Список пуст. Добавьте владельца ниже.</li>';
+    return;
+  }
+  for (const owner of state.owners) {
+    const li = document.createElement("li");
+    li.className = "owner-item";
+    li.innerHTML = `<span class="owner-name">${escapeHtml(owner)}</span>
+      <button class="owner-delete-btn button ghost" data-owner="${escapeHtml(owner)}" type="button">✕</button>`;
+    list.append(li);
+  }
+}
+
+function addOwner() {
+  const input = document.querySelector("#ownerAddInput");
+  const name = input.value.trim();
+  if (!name) return;
+  if (state.owners.includes(name)) { input.select(); return; }
+  state.owners.push(name);
+  saveOwners(state.owners);
+  renderOwnersList();
+  input.value = "";
+  input.focus();
+}
+
+function deleteOwner(name) {
+  state.owners = state.owners.filter(o => o !== name);
+  saveOwners(state.owners);
+  renderOwnersList();
 }
 
 function getFeatureNumber(label) {

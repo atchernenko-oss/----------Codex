@@ -23,6 +23,8 @@
           <button class="nav-item" type="button" disabled>Покрытие</button>
           <button class="nav-item" type="button" disabled>Граф связей</button>
           <button class="nav-item" type="button" disabled>Отчеты</button>
+          <span class="nav-section-label">Справочники</span>
+          <button class="nav-item" type="button" id="openOwnersDirectoryBtn">Владельцы</button>
         </nav>
       </aside>
 
@@ -212,8 +214,8 @@
               </select>
             </label>
             <label class="field">
-              <span class="field-label">Владелец</span>
-              <input type="text" id="reqOwner" placeholder="Имя владельца" />
+              <span class="field-label">Владелец <button type="button" id="openOwnersBtn" class="field-label-btn" title="Справочник владельцев">✎</button></span>
+              <select id="reqOwner"></select>
             </label>
             <label class="field">
               <span class="field-label">Источник</span>
@@ -283,6 +285,22 @@
           <button class="button ghost" id="autoNumberCancel" type="button">Отмена</button>
           <button class="button secondary" id="autoNumberGap" type="button"></button>
           <button class="button primary" id="autoNumberNext" type="button"></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay hidden modal-overlay--top" id="ownersModal" role="dialog" aria-modal="true" aria-labelledby="ownersModalTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="ownersModalTitle">Справочник владельцев</h3>
+          <button class="modal-close" id="ownersModalClose" type="button" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="modal-body">
+          <ul id="ownersList" class="owners-list"></ul>
+          <div class="add-owner-row">
+            <input type="text" id="ownerAddInput" placeholder="Имя владельца" />
+            <button type="button" id="ownerAddBtn" class="button primary">Добавить</button>
+          </div>
         </div>
       </div>
     </div>
