@@ -429,6 +429,7 @@ th.sortable:hover {
 td {
   color: #1a2d46;
   font-size: 14px;
+  vertical-align: middle;
 }
 
 tr:hover td {
