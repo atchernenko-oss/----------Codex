@@ -619,6 +619,10 @@ tr.selected td {
   max-width: 640px;
 }
 
+.modal-wider {
+  max-width: 820px;
+}
+
 .modal-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
