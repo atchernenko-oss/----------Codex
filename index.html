@@ -155,7 +155,11 @@
           <div class="modal-warning hidden" id="epicWarning"></div>
           <label class="field">
             <span class="field-label">Номер</span>
-            <input type="text" id="epicNumber" placeholder="E-001" />
+            <div class="field-prefix-wrap">
+              <span class="field-prefix">E-</span>
+              <input type="text" id="epicNumber" placeholder="001" />
+              <button type="button" id="epicAutoNumber" class="button ghost field-auto-btn" title="Автоматически задать номер">№</button>
+            </div>
           </label>
           <label class="field">
             <span class="field-label">Наименование <span class="field-required">*</span></span>
@@ -183,7 +187,11 @@
           <div class="modal-grid">
             <label class="field">
               <span class="field-label">Код</span>
-              <input type="text" id="reqCode" placeholder="REQ-001" />
+              <div class="field-prefix-wrap">
+                <span class="field-prefix">REQ-</span>
+                <input type="text" id="reqCode" placeholder="001" />
+                <button type="button" id="reqAutoCode" class="button ghost field-auto-btn" title="Автоматически задать код">№</button>
+              </div>
             </label>
             <label class="field">
               <span class="field-label">Статус</span>

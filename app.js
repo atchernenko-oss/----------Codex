@@ -63,6 +63,8 @@ const elements = {
   featureName: document.querySelector("#featureName"),
   featureDescription: document.querySelector("#featureDescription"),
   featureAutoNumber: document.querySelector("#featureAutoNumber"),
+  epicAutoNumber: document.querySelector("#epicAutoNumber"),
+  reqAutoCode: document.querySelector("#reqAutoCode"),
   autoNumberModal: document.querySelector("#autoNumberModal"),
   autoNumberClose: document.querySelector("#autoNumberClose"),
   autoNumberCancel: document.querySelector("#autoNumberCancel"),
@@ -217,14 +219,16 @@ elements.featureName.addEventListener("keydown", (e) => {
   if (e.key === "Enter") saveFeature();
 });
 elements.featureAutoNumber.addEventListener("click", autoAssignFeatureNumber);
+elements.epicAutoNumber.addEventListener("click", autoAssignEpicNumber);
+elements.reqAutoCode.addEventListener("click", autoAssignReqCode);
 elements.autoNumberClose.addEventListener("click", closeAutoNumberModal);
 elements.autoNumberCancel.addEventListener("click", closeAutoNumberModal);
 elements.autoNumberGap.addEventListener("click", () => {
-  elements.featureNumber.value = padNum(pendingGapNumber);
+  if (pendingNumberTarget) pendingNumberTarget.value = padNum(pendingGapNumber);
   closeAutoNumberModal();
 });
 elements.autoNumberNext.addEventListener("click", () => {
-  elements.featureNumber.value = padNum(pendingNextNumber);
+  if (pendingNumberTarget) pendingNumberTarget.value = padNum(pendingNextNumber);
   closeAutoNumberModal();
 });
 
@@ -277,6 +281,16 @@ function enableModalKeyboard(overlayEl) {
 enableModalKeyboard(elements.requirementModal);
 enableModalKeyboard(elements.featureModal);
 enableModalKeyboard(document.querySelector("#epicModal"));
+
+function padNumberField(el) {
+  const v = el.value.trim();
+  if (v && /^\d+$/.test(v)) el.value = padNum(parseInt(v, 10));
+}
+
+elements.featureNumber.addEventListener("blur", () => padNumberField(elements.featureNumber));
+elements.reqCode.addEventListener("blur", () => padNumberField(elements.reqCode));
+document.querySelector("#epicNumber").addEventListener("blur", () => padNumberField(document.querySelector("#epicNumber")));
+
 elements.clearSelectionBtn.addEventListener("click", () => {
   state.selectedIds = new Set();
   render();
@@ -457,11 +471,12 @@ let editingRequirementId = null;
 let editingFeatureId = null;
 let pendingGapNumber = null;
 let pendingNextNumber = null;
+let pendingNumberTarget = null;
 
 function openRequirementModal(req) {
   editingRequirementId = req.id;
   elements.requirementModalTitle.textContent = `Требование ${req.code}`;
-  elements.reqCode.value = req.code;
+  elements.reqCode.value = (req.code || '').replace(/^REQ-/i, '');
   elements.reqText.value = req.text;
   elements.reqStatus.value = req.status;
   elements.reqPriority.value = req.priority;
@@ -499,7 +514,7 @@ function saveRequirement() {
     if (item.id !== editingRequirementId) return item;
     return {
       ...item,
-      code: elements.reqCode.value.trim() || item.code,
+      code: elements.reqCode.value.trim() ? `REQ-${elements.reqCode.value.trim()}` : item.code,
       text,
       status: elements.reqStatus.value,
       priority: elements.reqPriority.value,
@@ -563,15 +578,16 @@ function padNum(n) {
   return String(n).padStart(3, '0');
 }
 
-function autoAssignFeatureNumber() {
-  const used = state.features
-    .map(f => parseInt((f.number || '').replace(/^F-/, ''), 10))
+function autoAssignNumber(targetEl, rawNums, prefix) {
+  const re = new RegExp(`^${prefix}`, 'i');
+  const used = rawNums
+    .map(s => parseInt((s || '').replace(re, ''), 10))
     .filter(n => Number.isFinite(n) && n > 0);
 
   const sorted = [...new Set(used)].sort((a, b) => a - b);
 
   if (sorted.length === 0) {
-    elements.featureNumber.value = '001';
+    targetEl.value = '001';
     return;
   }
 
@@ -584,23 +600,40 @@ function autoAssignFeatureNumber() {
   }
 
   if (gap === null) {
-    elements.featureNumber.value = padNum(next);
+    targetEl.value = padNum(next);
     return;
   }
 
   pendingGapNumber = gap;
   pendingNextNumber = next;
+  pendingNumberTarget = targetEl;
   elements.autoNumberText.textContent =
-    `Обнаружен пропущенный номер: ${padNum(gap)}. Как присвоить номер новой Feature?`;
+    `Обнаружен пропущенный номер: ${padNum(gap)}. Как присвоить номер?`;
   elements.autoNumberGap.textContent = `Занять свободный: ${padNum(gap)}`;
   elements.autoNumberNext.textContent = `Следующий по порядку: ${padNum(next)}`;
   elements.autoNumberModal.classList.remove('hidden');
+}
+
+function autoAssignFeatureNumber() {
+  const nums = state.features.filter(f => f.id !== editingFeatureId).map(f => f.number || '');
+  autoAssignNumber(elements.featureNumber, nums, 'F-');
+}
+
+function autoAssignEpicNumber() {
+  const nums = state.epics.filter(e => e.id !== editingEpicId).map(e => e.number || '');
+  autoAssignNumber(document.querySelector("#epicNumber"), nums, 'E-');
+}
+
+function autoAssignReqCode() {
+  const nums = state.requirements.filter(r => r.id !== editingRequirementId).map(r => r.code || '');
+  autoAssignNumber(elements.reqCode, nums, 'REQ-');
 }
 
 function closeAutoNumberModal() {
   elements.autoNumberModal.classList.add('hidden');
   pendingGapNumber = null;
   pendingNextNumber = null;
+  pendingNumberTarget = null;
 }
 
 function closeFeatureModal() {
@@ -984,7 +1017,8 @@ function openEpicEditModal(epicObj) {
   editingEpicId = epicObj.id;
   document.querySelector("#epicModalTitle").textContent = "Редактировать Epic";
   document.querySelector("#epicWarning").classList.add("hidden");
-  document.querySelector("#epicNumber").value = epicObj.number;
+  const epicNum = epicObj.number || '';
+  document.querySelector("#epicNumber").value = epicNum.startsWith('E-') ? epicNum.slice(2) : epicNum;
   document.querySelector("#epicName").value = epicObj.name;
   document.querySelector("#epicDescription").value = epicObj.description;
   document.querySelector("#epicName").classList.remove("input-error");
@@ -998,7 +1032,8 @@ function closeEpicModal() {
 }
 
 function saveEpic() {
-  const number = document.querySelector("#epicNumber").value.trim();
+  const rawEpicNum = document.querySelector("#epicNumber").value.trim();
+  const number = rawEpicNum ? `E-${rawEpicNum}` : '';
   const name = document.querySelector("#epicName").value.trim();
   const description = document.querySelector("#epicDescription").value.trim();
   if (!name) {
