@@ -323,6 +323,18 @@ document.querySelector("#usListModal").addEventListener("click", (e) => {
 });
 document.querySelector("#usListAddBtn").addEventListener("click", () => openUSEditModal(null));
 document.querySelector("#addRuleBtn").addEventListener("click", () => addRuleField("", true));
+document.querySelector("#addScenarioStepBtn").addEventListener("click", () => addScenarioStep("", true));
+document.querySelector("#addAltScenarioStepBtn").addEventListener("click", () => addAltScenarioStep("", true));
+document.querySelector("#addAltScenarioBtn").addEventListener("click", () => {
+  document.querySelector("#usAltScenarioSection").classList.remove("hidden");
+  document.querySelector("#addAltScenarioBtn").classList.add("hidden");
+  addAltScenarioStep("", true);
+});
+document.querySelector("#removeAltScenarioBtn").addEventListener("click", () => {
+  document.querySelector("#usAltScenarioList").innerHTML = "";
+  document.querySelector("#usAltScenarioSection").classList.add("hidden");
+  document.querySelector("#addAltScenarioBtn").classList.remove("hidden");
+});
 document.querySelector("#usListItems").addEventListener("click", (e) => {
   const editBtn = e.target.closest(".us-edit-btn");
   if (editBtn) {
@@ -1294,6 +1306,8 @@ function renderUSList() {
         </div>
       </div>
       ${us.text ? `<div class="us-item-text">${escapeHtml(us.text)}</div>` : ''}
+      ${us.scenario?.length ? `<div class="us-item-scenario-block"><span class="us-item-scenario-label">Основной сценарий</span><ol class="us-item-scenario">${us.scenario.map(s => `<li class="us-item-scenario-step">${escapeHtml(s)}</li>`).join('')}</ol></div>` : ''}
+      ${us.altScenario?.length ? `<div class="us-item-scenario-block"><span class="us-item-scenario-label">Альтернативный сценарий</span><ol class="us-item-scenario">${us.altScenario.map(s => `<li class="us-item-scenario-step">${escapeHtml(s)}</li>`).join('')}</ol></div>` : ''}
       ${us.rules?.length ? `<ul class="us-item-rules">${us.rules.map(r => `<li class="us-item-rule">${escapeHtml(r)}</li>`).join('')}</ul>` : ''}
     `;
     list.append(li);
@@ -1313,6 +1327,8 @@ function openUSEditModal(us) {
     document.querySelector("#usStatus").value = us.status;
     document.querySelector("#usPriority").value = us.priority;
     populateRulesList(us.rules || []);
+    populateScenarioList(us.scenario || []);
+    showAltScenario(us.altScenario?.length ? us.altScenario : null);
   } else {
     editingUSId = null;
     document.querySelector("#usEditModalTitle").textContent = "Новая User Story";
@@ -1324,6 +1340,8 @@ function openUSEditModal(us) {
     document.querySelector("#usStatus").value = "Draft";
     document.querySelector("#usPriority").value = "Medium";
     populateRulesList([]);
+    populateScenarioList([]);
+    showAltScenario(null);
   }
   updateUSCombined();
   document.querySelector("#usTitle").classList.remove("input-error");
@@ -1351,6 +1369,12 @@ function saveUserStory() {
   const rules = [...document.querySelectorAll("#usRulesList .us-rule-input")]
     .map(inp => inp.value.trim())
     .filter(Boolean);
+  const scenario = [...document.querySelectorAll("#usScenarioList .us-scenario-input")]
+    .map(inp => inp.value.trim())
+    .filter(Boolean);
+  const altScenario = [...document.querySelectorAll("#usAltScenarioList .us-alt-scenario-input")]
+    .map(inp => inp.value.trim())
+    .filter(Boolean);
   const us = {
     id: editingUSId || crypto.randomUUID(),
     requirementId: currentUSRequirementId,
@@ -1361,6 +1385,8 @@ function saveUserStory() {
     goal,
     text: buildUSText(role, action, goal),
     rules,
+    scenario,
+    altScenario,
     status: document.querySelector("#usStatus").value,
     priority: document.querySelector("#usPriority").value,
   };
@@ -1447,4 +1473,73 @@ function populateRulesList(rules) {
   document.querySelector("#usRulesList").innerHTML = "";
   const items = rules.length ? rules : [""];
   for (const rule of items) addRuleField(rule);
+}
+
+function addScenarioStep(value = "", shouldFocus = false) {
+  const list = document.querySelector("#usScenarioList");
+  const li = document.createElement("li");
+  li.className = "us-scenario-item";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "us-scenario-input";
+  input.placeholder = "Описание шага...";
+  input.value = value;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "us-rule-remove";
+  btn.title = "Удалить шаг";
+  btn.textContent = "✕";
+  btn.addEventListener("click", () => {
+    li.remove();
+    if (document.querySelectorAll("#usScenarioList .us-scenario-item").length === 0) {
+      addScenarioStep();
+    }
+  });
+  li.append(input, btn);
+  list.append(li);
+  if (shouldFocus) input.focus();
+}
+
+function populateScenarioList(steps) {
+  document.querySelector("#usScenarioList").innerHTML = "";
+  const items = steps.length ? steps : [""];
+  for (const step of items) addScenarioStep(step);
+}
+
+function addAltScenarioStep(value = "", shouldFocus = false) {
+  const list = document.querySelector("#usAltScenarioList");
+  const li = document.createElement("li");
+  li.className = "us-scenario-item";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "us-alt-scenario-input";
+  input.placeholder = "Описание шага...";
+  input.value = value;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "us-rule-remove";
+  btn.title = "Удалить шаг";
+  btn.textContent = "✕";
+  btn.addEventListener("click", () => {
+    li.remove();
+    if (document.querySelectorAll("#usAltScenarioList .us-scenario-item").length === 0) {
+      addAltScenarioStep();
+    }
+  });
+  li.append(input, btn);
+  list.append(li);
+  if (shouldFocus) input.focus();
+}
+
+function populateAltScenarioList(steps) {
+  document.querySelector("#usAltScenarioList").innerHTML = "";
+  for (const step of steps) addAltScenarioStep(step);
+}
+
+function showAltScenario(steps) {
+  const hasData = steps?.length > 0;
+  document.querySelector("#usAltScenarioSection").classList.toggle("hidden", !hasData);
+  document.querySelector("#addAltScenarioBtn").classList.toggle("hidden", hasData);
+  if (hasData) populateAltScenarioList(steps);
+  else document.querySelector("#usAltScenarioList").innerHTML = "";
 }

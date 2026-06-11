@@ -365,11 +365,26 @@
             <textarea id="usCombined" class="us-combined-field" rows="2" readonly placeholder="Заполните поля выше"></textarea>
           </label>
           <div class="field">
-            <div class="us-rules-header">
-              <span class="field-label">Бизнес-правила</span>
-              <button type="button" id="addRuleBtn" class="us-add-rule-btn">+ Правило</button>
-            </div>
+            <span class="field-label">Бизнес-правила</span>
             <ul id="usRulesList" class="us-rules-list"></ul>
+            <button type="button" id="addRuleBtn" class="us-add-rule-btn">+ Правило</button>
+          </div>
+          <div class="field us-scenarios-block">
+            <span class="field-label">Сценарии</span>
+            <div class="us-scenario-section">
+              <span class="us-scenario-section-title">Основной сценарий</span>
+              <ol id="usScenarioList" class="us-scenario-list"></ol>
+              <button type="button" id="addScenarioStepBtn" class="us-add-rule-btn">+ Шаг</button>
+            </div>
+            <div class="us-scenario-section hidden" id="usAltScenarioSection">
+              <div class="us-scenario-section-header">
+                <span class="us-scenario-section-title">Альтернативный сценарий</span>
+                <button type="button" id="removeAltScenarioBtn" class="us-scenario-remove-btn" title="Убрать">✕</button>
+              </div>
+              <ol id="usAltScenarioList" class="us-scenario-list"></ol>
+              <button type="button" id="addAltScenarioStepBtn" class="us-add-rule-btn">+ Шаг</button>
+            </div>
+            <button type="button" id="addAltScenarioBtn" class="us-add-alt-btn">+ Альтернативный сценарий</button>
           </div>
           <div class="modal-grid">
             <label class="field">
