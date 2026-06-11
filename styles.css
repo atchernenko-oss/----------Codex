@@ -1044,7 +1044,7 @@ tr.selected td {
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 @media (max-width: 900px) {
@@ -1390,48 +1390,101 @@ tr.selected td {
 }
 
 .us-scenarios-block {
-  gap: 10px !important;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #f8fbff;
+  gap: 8px !important;
   cursor: default;
 }
 
 .us-scenario-section {
   display: grid;
-  gap: 6px;
-  padding: 10px 12px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(13, 27, 46, 0.07);
+}
+
+.us-scenario-section--main {
+  border-top: 3px solid var(--accent);
+}
+
+#usAltScenarioSection {
+  border-top: 3px solid #2a7a6e;
 }
 
 .us-scenario-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.us-scenario-section--main .us-scenario-section-header {
+  background: linear-gradient(90deg, #ddeaf8 0%, #eef5fc 100%);
+}
+
+#usAltScenarioSection .us-scenario-section-header {
+  background: linear-gradient(90deg, #daf0ec 0%, #eef8f6 100%);
 }
 
 .us-scenario-section-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 11px;
-  font-weight: 700;
-  color: var(--accent-strong);
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
+}
+
+.us-scenario-section--main .us-scenario-section-title {
+  color: var(--accent-strong);
+}
+
+.us-scenario-section--main .us-scenario-section-title::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+#usAltScenarioSection .us-scenario-section-title {
+  color: #1d5c54;
+}
+
+#usAltScenarioSection .us-scenario-section-title::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: #2a7a6e;
+  transform: rotate(45deg);
+  flex-shrink: 0;
+}
+
+.us-scenario-section-body {
+  padding: 12px 14px 0 !important;
+}
+
+.us-scenario-add-btn {
+  margin: 8px 14px 12px !important;
 }
 
 .us-scenario-remove-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border: none;
   border-radius: 4px;
   background: transparent;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
@@ -1442,23 +1495,26 @@ tr.selected td {
 }
 
 .us-add-alt-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  justify-self: start;
-  padding: 4px 12px;
-  min-height: 28px;
-  border: 1px dashed var(--accent);
-  border-radius: 4px;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  min-height: 40px;
+  border: 1.5px dashed #a0c0e8;
+  border-radius: 8px;
   background: transparent;
   color: var(--accent);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .us-add-alt-btn:hover {
   background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .us-scenario-list {
@@ -1479,17 +1535,19 @@ tr.selected td {
 
 .us-scenario-item::before {
   content: counter(scenario-counter);
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
+  width: 24px;
   height: 24px;
   border-radius: 50%;
   background: var(--accent);
   color: #fff;
   font-size: 11px;
   font-weight: 800;
+  line-height: 1;
   flex-shrink: 0;
+  align-self: center;
 }
 
 .us-scenario-item input {
