@@ -1,6 +1,7 @@
 const STORAGE_KEY = "reqtracker.requirements.v1";
 const FEATURES_KEY = "reqtracker.features.v1";
 const EPICS_KEY = "reqtracker.epics.v1";
+const OWNERS_KEY = "reqtracker.owners.v1";
 
 const state = {
   requirements: loadRequirements(),
@@ -14,6 +15,7 @@ const state = {
   selectedIds: new Set(),
   epics: loadEpics(),
   selectedFeatureIds: new Set(),
+  owners: loadOwners(),
 };
 
 const elements = {
@@ -46,6 +48,7 @@ const elements = {
   reqStatus: document.querySelector("#reqStatus"),
   reqPriority: document.querySelector("#reqPriority"),
   reqOwner: document.querySelector("#reqOwner"),
+  openOwnersBtn: document.querySelector("#openOwnersBtn"),
   reqSource: document.querySelector("#reqSource"),
   reqFeature: document.querySelector("#reqFeature"),
   reqText: document.querySelector("#reqText"),
@@ -62,6 +65,15 @@ const elements = {
   featureNumber: document.querySelector("#featureNumber"),
   featureName: document.querySelector("#featureName"),
   featureDescription: document.querySelector("#featureDescription"),
+  featureAutoNumber: document.querySelector("#featureAutoNumber"),
+  epicAutoNumber: document.querySelector("#epicAutoNumber"),
+  reqAutoCode: document.querySelector("#reqAutoCode"),
+  autoNumberModal: document.querySelector("#autoNumberModal"),
+  autoNumberClose: document.querySelector("#autoNumberClose"),
+  autoNumberCancel: document.querySelector("#autoNumberCancel"),
+  autoNumberGap: document.querySelector("#autoNumberGap"),
+  autoNumberNext: document.querySelector("#autoNumberNext"),
+  autoNumberText: document.querySelector("#autoNumberText"),
 };
 
 const columnAliases = {
@@ -209,62 +221,101 @@ elements.featureModal.addEventListener("click", (e) => {
 elements.featureName.addEventListener("keydown", (e) => {
   if (e.key === "Enter") saveFeature();
 });
+elements.featureAutoNumber.addEventListener("click", autoAssignFeatureNumber);
+elements.epicAutoNumber.addEventListener("click", autoAssignEpicNumber);
+elements.reqAutoCode.addEventListener("click", autoAssignReqCode);
+elements.autoNumberClose.addEventListener("click", closeAutoNumberModal);
+elements.autoNumberCancel.addEventListener("click", closeAutoNumberModal);
+elements.autoNumberGap.addEventListener("click", () => {
+  if (pendingNumberTarget) pendingNumberTarget.value = padNum(pendingGapNumber);
+  closeAutoNumberModal();
+});
+elements.autoNumberNext.addEventListener("click", () => {
+  if (pendingNumberTarget) pendingNumberTarget.value = padNum(pendingNextNumber);
+  closeAutoNumberModal();
+});
 
-document.querySelectorAll(".modal-overlay .modal").forEach((modal) => {
-  modal.addEventListener("mousedown", (e) => {
+// Подключает поддержку Ctrl+A/C/V и удержание фокуса для модального окна.
+// Вызывать для каждой новой модалки при создании.
+function enableModalKeyboard(overlayEl) {
+  overlayEl.querySelector(".modal").addEventListener("mousedown", (e) => {
     if (!e.target.closest("input, textarea, select, button, a, [tabindex], label")) {
       e.preventDefault();
     }
   });
-});
 
-document.addEventListener("keydown", (e) => {
-  if (!(e.ctrlKey || e.metaKey)) return;
-  const openModal = document.querySelector(".modal-overlay:not(.hidden)");
-  if (!openModal) return;
+  overlayEl.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const active = document.activeElement;
+    const isEditable =
+      active &&
+      (active.tagName === "INPUT" || active.tagName === "TEXTAREA") &&
+      overlayEl.contains(active);
+    const target = isEditable
+      ? active
+      : overlayEl.querySelector('input[type="text"]') ||
+        overlayEl.querySelector("textarea");
+    if (!target) return;
 
-  const active = document.activeElement;
-  const activeIsEditable =
-    active &&
-    (active.tagName === "INPUT" || active.tagName === "TEXTAREA") &&
-    openModal.contains(active);
-  const target = activeIsEditable
-    ? active
-    : openModal.querySelector("textarea") ||
-      openModal.querySelector('input[type="text"]');
-  if (!target) return;
-
-  if (e.key === "a" || e.key === "A") {
-    e.preventDefault();
-    target.focus();
-    target.select();
-  } else if (e.key === "c" || e.key === "C") {
-    if (!activeIsEditable) return;
-    const selected = active.value.substring(active.selectionStart, active.selectionEnd);
-    if (selected) {
-      e.preventDefault();
-      navigator.clipboard.writeText(selected).catch(() => {
-        document.execCommand("copy");
-      });
-    }
-  } else if (e.key === "v" || e.key === "V") {
-    if (!activeIsEditable) {
+    if (e.key === "a" || e.key === "A") {
       e.preventDefault();
       target.focus();
-      navigator.clipboard.readText().then((text) => {
-        const s = target.selectionStart;
-        const end = target.selectionEnd;
-        target.value = target.value.substring(0, s) + text + target.value.substring(end);
-        target.selectionStart = target.selectionEnd = s + text.length;
-      }).catch(() => {});
+      target.select();
+    } else if ((e.key === "c" || e.key === "C") && isEditable) {
+      const sel = active.value.substring(active.selectionStart, active.selectionEnd);
+      if (sel) {
+        e.preventDefault();
+        navigator.clipboard.writeText(sel).catch(() => document.execCommand("copy"));
+      }
+    } else if (e.key === "v" || e.key === "V") {
+      if (!isEditable) {
+        e.preventDefault();
+        target.focus();
+        navigator.clipboard.readText().then((text) => {
+          const s = target.selectionStart, end = target.selectionEnd;
+          target.value = target.value.substring(0, s) + text + target.value.substring(end);
+          target.selectionStart = target.selectionEnd = s + text.length;
+        }).catch(() => {});
+      }
     }
-  }
+  });
+}
+
+enableModalKeyboard(elements.requirementModal);
+enableModalKeyboard(elements.featureModal);
+enableModalKeyboard(document.querySelector("#epicModal"));
+enableModalKeyboard(document.querySelector("#ownersModal"));
+
+function padNumberField(el) {
+  const v = el.value.trim();
+  if (v && /^\d+$/.test(v)) el.value = padNum(parseInt(v, 10));
+}
+
+elements.openOwnersBtn.addEventListener("click", openOwnersModal);
+document.querySelector("#openOwnersDirectoryBtn").addEventListener("click", openOwnersModal);
+document.querySelector("#ownersModalClose").addEventListener("click", closeOwnersModal);
+document.querySelector("#ownersModal").addEventListener("click", (e) => {
+  if (e.target === document.querySelector("#ownersModal") && !window.getSelection().toString()) closeOwnersModal();
 });
+document.querySelector("#ownerAddBtn").addEventListener("click", addOwner);
+document.querySelector("#ownerAddInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") addOwner();
+});
+document.querySelector("#ownersList").addEventListener("click", (e) => {
+  const btn = e.target.closest(".owner-delete-btn");
+  if (btn) deleteOwner(btn.dataset.owner);
+});
+
+elements.featureNumber.addEventListener("blur", () => padNumberField(elements.featureNumber));
+elements.reqCode.addEventListener("blur", () => padNumberField(elements.reqCode));
+document.querySelector("#epicNumber").addEventListener("blur", () => padNumberField(document.querySelector("#epicNumber")));
+
 elements.clearSelectionBtn.addEventListener("click", () => {
   state.selectedIds = new Set();
   render();
 });
 
+mergeOwners(state.requirements.map(r => r.owner));
 render();
 
 async function handleFileUpload(event) {
@@ -287,6 +338,7 @@ async function handleFileUpload(event) {
     state.requirements = parsed;
     state.selectedIds = new Set();
     saveRequirements(parsed);
+    mergeOwners(parsed.map(r => r.owner));
     setStatus(`Загружено ${parsed.length} требований из файла "${file.name}".`);
     render();
   } catch (error) {
@@ -413,6 +465,7 @@ function generateDemoData() {
   state.requirements = demo;
   state.selectedIds = new Set();
   saveRequirements(demo);
+  mergeOwners(demo.map(r => r.owner));
   setStatus("Сгенерирован демонстрационный набор из 6 требований.");
   render();
 }
@@ -438,15 +491,18 @@ function clearRequirements() {
 
 let editingRequirementId = null;
 let editingFeatureId = null;
+let pendingGapNumber = null;
+let pendingNextNumber = null;
+let pendingNumberTarget = null;
 
 function openRequirementModal(req) {
   editingRequirementId = req.id;
   elements.requirementModalTitle.textContent = `Требование ${req.code}`;
-  elements.reqCode.value = req.code;
+  elements.reqCode.value = (req.code || '').replace(/^REQ-/i, '');
   elements.reqText.value = req.text;
   elements.reqStatus.value = req.status;
   elements.reqPriority.value = req.priority;
-  elements.reqOwner.value = req.owner;
+  populateOwnerSelect(req.owner || "");
   elements.reqSource.value = req.source;
 
   elements.reqFeature.innerHTML = '<option value="">— без Feature —</option>';
@@ -480,7 +536,7 @@ function saveRequirement() {
     if (item.id !== editingRequirementId) return item;
     return {
       ...item,
-      code: elements.reqCode.value.trim() || item.code,
+      code: elements.reqCode.value.trim() ? `REQ-${elements.reqCode.value.trim()}` : item.code,
       text,
       status: elements.reqStatus.value,
       priority: elements.reqPriority.value,
@@ -524,19 +580,82 @@ function openFeatureModal() {
   elements.featureDescription.value = "";
   elements.featureName.classList.remove("input-error");
   elements.featureModal.classList.remove("hidden");
-  elements.featureNumber.focus();
+  requestAnimationFrame(() => elements.featureNumber.focus());
 }
 
 function openFeatureEditModal(featureObj) {
   editingFeatureId = featureObj.id;
   document.querySelector("#featureModalTitle").textContent = "Редактировать Feature";
   elements.featureWarning.classList.add("hidden");
-  elements.featureNumber.value = featureObj.number;
+  const num = featureObj.number || '';
+  elements.featureNumber.value = num.startsWith('F-') ? num.slice(2) : num;
   elements.featureName.value = featureObj.name;
   elements.featureDescription.value = featureObj.description;
   elements.featureName.classList.remove("input-error");
   elements.featureModal.classList.remove("hidden");
-  elements.featureNumber.focus();
+  requestAnimationFrame(() => elements.featureNumber.focus());
+}
+
+function padNum(n) {
+  return String(n).padStart(3, '0');
+}
+
+function autoAssignNumber(targetEl, rawNums, prefix) {
+  const re = new RegExp(`^${prefix}`, 'i');
+  const used = rawNums
+    .map(s => parseInt((s || '').replace(re, ''), 10))
+    .filter(n => Number.isFinite(n) && n > 0);
+
+  const sorted = [...new Set(used)].sort((a, b) => a - b);
+
+  if (sorted.length === 0) {
+    targetEl.value = '001';
+    return;
+  }
+
+  const max = sorted[sorted.length - 1];
+  const next = max + 1;
+
+  let gap = null;
+  for (let i = 1; i < max; i++) {
+    if (!sorted.includes(i)) { gap = i; break; }
+  }
+
+  if (gap === null) {
+    targetEl.value = padNum(next);
+    return;
+  }
+
+  pendingGapNumber = gap;
+  pendingNextNumber = next;
+  pendingNumberTarget = targetEl;
+  elements.autoNumberText.textContent =
+    `Обнаружен пропущенный номер: ${padNum(gap)}. Как присвоить номер?`;
+  elements.autoNumberGap.textContent = `Занять свободный: ${padNum(gap)}`;
+  elements.autoNumberNext.textContent = `Следующий по порядку: ${padNum(next)}`;
+  elements.autoNumberModal.classList.remove('hidden');
+}
+
+function autoAssignFeatureNumber() {
+  const nums = state.features.filter(f => f.id !== editingFeatureId).map(f => f.number || '');
+  autoAssignNumber(elements.featureNumber, nums, 'F-');
+}
+
+function autoAssignEpicNumber() {
+  const nums = state.epics.filter(e => e.id !== editingEpicId).map(e => e.number || '');
+  autoAssignNumber(document.querySelector("#epicNumber"), nums, 'E-');
+}
+
+function autoAssignReqCode() {
+  const nums = state.requirements.filter(r => r.id !== editingRequirementId).map(r => r.code || '');
+  autoAssignNumber(elements.reqCode, nums, 'REQ-');
+}
+
+function closeAutoNumberModal() {
+  elements.autoNumberModal.classList.add('hidden');
+  pendingGapNumber = null;
+  pendingNextNumber = null;
+  pendingNumberTarget = null;
 }
 
 function closeFeatureModal() {
@@ -545,7 +664,8 @@ function closeFeatureModal() {
 }
 
 function saveFeature() {
-  const number = elements.featureNumber.value.trim();
+  const rawNumber = elements.featureNumber.value.trim();
+  const number = rawNumber ? `F-${rawNumber}` : '';
   const name = elements.featureName.value.trim();
   const description = elements.featureDescription.value.trim();
 
@@ -912,19 +1032,20 @@ function openEpicModal() {
   document.querySelector("#epicDescription").value = "";
   document.querySelector("#epicName").classList.remove("input-error");
   document.querySelector("#epicModal").classList.remove("hidden");
-  document.querySelector("#epicNumber").focus();
+  requestAnimationFrame(() => document.querySelector("#epicNumber").focus());
 }
 
 function openEpicEditModal(epicObj) {
   editingEpicId = epicObj.id;
   document.querySelector("#epicModalTitle").textContent = "Редактировать Epic";
   document.querySelector("#epicWarning").classList.add("hidden");
-  document.querySelector("#epicNumber").value = epicObj.number;
+  const epicNum = epicObj.number || '';
+  document.querySelector("#epicNumber").value = epicNum.startsWith('E-') ? epicNum.slice(2) : epicNum;
   document.querySelector("#epicName").value = epicObj.name;
   document.querySelector("#epicDescription").value = epicObj.description;
   document.querySelector("#epicName").classList.remove("input-error");
   document.querySelector("#epicModal").classList.remove("hidden");
-  document.querySelector("#epicNumber").focus();
+  requestAnimationFrame(() => document.querySelector("#epicNumber").focus());
 }
 
 function closeEpicModal() {
@@ -933,7 +1054,8 @@ function closeEpicModal() {
 }
 
 function saveEpic() {
-  const number = document.querySelector("#epicNumber").value.trim();
+  const rawEpicNum = document.querySelector("#epicNumber").value.trim();
+  const number = rawEpicNum ? `E-${rawEpicNum}` : '';
   const name = document.querySelector("#epicName").value.trim();
   const description = document.querySelector("#epicDescription").value.trim();
   if (!name) {
@@ -980,6 +1102,82 @@ function saveEpics(epics) {
 
 function loadEpics() {
   try { return JSON.parse(localStorage.getItem(EPICS_KEY)) || []; } catch { return []; }
+}
+
+function loadOwners() {
+  try { return JSON.parse(localStorage.getItem(OWNERS_KEY)) || []; } catch { return []; }
+}
+
+function saveOwners(owners) {
+  localStorage.setItem(OWNERS_KEY, JSON.stringify(owners));
+}
+
+function mergeOwners(names) {
+  const newOwners = [...new Set(names)].filter(n => n && !state.owners.includes(n));
+  if (newOwners.length === 0) return;
+  state.owners.push(...newOwners);
+  saveOwners(state.owners);
+}
+
+function populateOwnerSelect(currentValue) {
+  elements.reqOwner.innerHTML = '<option value="">— без владельца —</option>';
+  const list = currentValue && !state.owners.includes(currentValue)
+    ? [...state.owners, currentValue]
+    : state.owners;
+  for (const owner of list) {
+    const opt = document.createElement("option");
+    opt.value = owner;
+    opt.textContent = owner;
+    elements.reqOwner.append(opt);
+  }
+  elements.reqOwner.value = currentValue;
+}
+
+function openOwnersModal() {
+  renderOwnersList();
+  document.querySelector("#ownerAddInput").value = "";
+  document.querySelector("#ownersModal").classList.remove("hidden");
+  requestAnimationFrame(() => document.querySelector("#ownerAddInput").focus());
+}
+
+function closeOwnersModal() {
+  document.querySelector("#ownersModal").classList.add("hidden");
+  const currentVal = elements.reqOwner.value;
+  populateOwnerSelect(currentVal);
+}
+
+function renderOwnersList() {
+  const list = document.querySelector("#ownersList");
+  list.innerHTML = "";
+  if (state.owners.length === 0) {
+    list.innerHTML = '<li class="owners-empty">Список пуст. Добавьте владельца ниже.</li>';
+    return;
+  }
+  for (const owner of state.owners) {
+    const li = document.createElement("li");
+    li.className = "owner-item";
+    li.innerHTML = `<span class="owner-name">${escapeHtml(owner)}</span>
+      <button class="owner-delete-btn button ghost" data-owner="${escapeHtml(owner)}" type="button">✕</button>`;
+    list.append(li);
+  }
+}
+
+function addOwner() {
+  const input = document.querySelector("#ownerAddInput");
+  const name = input.value.trim();
+  if (!name) return;
+  if (state.owners.includes(name)) { input.select(); return; }
+  state.owners.push(name);
+  saveOwners(state.owners);
+  renderOwnersList();
+  input.value = "";
+  input.focus();
+}
+
+function deleteOwner(name) {
+  state.owners = state.owners.filter(o => o !== name);
+  saveOwners(state.owners);
+  renderOwnersList();
 }
 
 function getFeatureNumber(label) {

@@ -23,6 +23,8 @@
           <button class="nav-item" type="button" disabled>Покрытие</button>
           <button class="nav-item" type="button" disabled>Граф связей</button>
           <button class="nav-item" type="button" disabled>Отчеты</button>
+          <span class="nav-section-label">Справочники</span>
+          <button class="nav-item" type="button" id="openOwnersDirectoryBtn">Владельцы</button>
         </nav>
       </aside>
 
@@ -155,7 +157,11 @@
           <div class="modal-warning hidden" id="epicWarning"></div>
           <label class="field">
             <span class="field-label">Номер</span>
-            <input type="text" id="epicNumber" placeholder="E-001" />
+            <div class="field-prefix-wrap">
+              <span class="field-prefix">E-</span>
+              <input type="text" id="epicNumber" placeholder="001" />
+              <button type="button" id="epicAutoNumber" class="button ghost field-auto-btn" title="Автоматически задать номер">№</button>
+            </div>
           </label>
           <label class="field">
             <span class="field-label">Наименование <span class="field-required">*</span></span>
@@ -183,7 +189,11 @@
           <div class="modal-grid">
             <label class="field">
               <span class="field-label">Код</span>
-              <input type="text" id="reqCode" placeholder="REQ-001" />
+              <div class="field-prefix-wrap">
+                <span class="field-prefix">REQ-</span>
+                <input type="text" id="reqCode" placeholder="001" />
+                <button type="button" id="reqAutoCode" class="button ghost field-auto-btn" title="Автоматически задать код">№</button>
+              </div>
             </label>
             <label class="field">
               <span class="field-label">Статус</span>
@@ -204,8 +214,8 @@
               </select>
             </label>
             <label class="field">
-              <span class="field-label">Владелец</span>
-              <input type="text" id="reqOwner" placeholder="Имя владельца" />
+              <span class="field-label">Владелец <button type="button" id="openOwnersBtn" class="field-label-btn" title="Справочник владельцев">✎</button></span>
+              <select id="reqOwner"></select>
             </label>
             <label class="field">
               <span class="field-label">Источник</span>
@@ -240,7 +250,11 @@
           <div class="modal-warning hidden" id="featureWarning"></div>
           <label class="field">
             <span class="field-label">Номер</span>
-            <input type="text" id="featureNumber" placeholder="Например, F-001" />
+            <div class="field-prefix-wrap">
+              <span class="field-prefix">F-</span>
+              <input type="text" id="featureNumber" placeholder="001" />
+              <button type="button" id="featureAutoNumber" class="button ghost field-auto-btn" title="Автоматически задать номер">№</button>
+            </div>
           </label>
           <label class="field">
             <span class="field-label">Наименование <span class="field-required">*</span></span>
@@ -254,6 +268,39 @@
         <div class="modal-footer">
           <button class="button ghost" id="featureModalCancel" type="button">Отмена</button>
           <button class="button primary" id="featureModalSave" type="button">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="autoNumberModal" role="dialog" aria-modal="true" aria-labelledby="autoNumberTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="autoNumberTitle">Автономер Feature</h3>
+          <button class="modal-close" id="autoNumberClose" type="button" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="modal-body">
+          <p id="autoNumberText" style="margin:0;font-size:14px;line-height:1.5;color:var(--ink)"></p>
+        </div>
+        <div class="modal-footer">
+          <button class="button ghost" id="autoNumberCancel" type="button">Отмена</button>
+          <button class="button secondary" id="autoNumberGap" type="button"></button>
+          <button class="button primary" id="autoNumberNext" type="button"></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay hidden modal-overlay--top" id="ownersModal" role="dialog" aria-modal="true" aria-labelledby="ownersModalTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="ownersModalTitle">Справочник владельцев</h3>
+          <button class="modal-close" id="ownersModalClose" type="button" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="modal-body">
+          <ul id="ownersList" class="owners-list"></ul>
+          <div class="add-owner-row">
+            <input type="text" id="ownerAddInput" placeholder="Имя владельца" />
+            <button type="button" id="ownerAddBtn" class="button primary">Добавить</button>
+          </div>
         </div>
       </div>
     </div>

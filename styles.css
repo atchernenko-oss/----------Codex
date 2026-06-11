@@ -112,6 +112,17 @@ select {
   opacity: 0.38;
 }
 
+.nav-section-label {
+  display: block;
+  margin-top: 12px;
+  padding: 0 12px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(160, 192, 232, 0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .workspace {
   min-width: 0;
   padding: 28px;
@@ -610,7 +621,7 @@ tr.selected td {
 
 .modal-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
@@ -637,6 +648,10 @@ tr.selected td {
   .modal-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.modal-overlay--top {
+  z-index: 101;
 }
 
 .modal-overlay {
@@ -757,6 +772,63 @@ tr.selected td {
   border-color: var(--danger);
 }
 
+.field-prefix-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-prefix {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 14px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.field .field-prefix-wrap input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+.field-label-btn {
+  margin-left: 6px;
+  padding: 2px 5px;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.field-label-btn:hover {
+  background: var(--bg);
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.field-auto-btn {
+  padding: 0 10px;
+  min-width: 36px;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.field .field-prefix-wrap input:focus {
+  border-color: var(--accent);
+  background: #fff;
+}
+
 .modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -822,7 +894,7 @@ tr.selected td {
 }
 
 .epic-group-row td {
-  background: #0d2240 !important;
+  background: #3a6799 !important;
   padding: 10px 14px !important;
   border-top: 2px solid #4d9fff !important;
   border-bottom: 1px solid #1a3a60 !important;
@@ -1029,4 +1101,67 @@ tr.selected td {
   .button {
     width: 100%;
   }
+}
+
+.owners-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.owner-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.owner-name {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.owner-delete-btn {
+  padding: 2px 8px;
+  min-height: 28px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.owners-empty {
+  font-size: 13px;
+  color: var(--muted);
+  padding: 8px 12px;
+}
+
+.add-owner-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.add-owner-row input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.add-owner-row input:focus {
+  border-color: var(--accent);
+  background: #fff;
 }
