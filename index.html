@@ -132,6 +132,7 @@
                   <th class="sortable" data-sort="priority">Приоритет <span class="sort-icon"></span></th>
                   <th class="sortable" data-sort="owner">Владелец <span class="sort-icon"></span></th>
                   <th class="sortable" data-sort="source">Источник <span class="sort-icon"></span></th>
+                  <th class="us-col">US</th>
                   <th class="actions-col"></th>
                 </tr>
               </thead>
@@ -232,6 +233,13 @@
             <span class="field-label">Текст требования <span class="field-required">*</span></span>
             <textarea id="reqText" rows="5" placeholder="Система должна..."></textarea>
           </label>
+          <div class="field us-req-section">
+            <span class="field-label">User Stories</span>
+            <div class="us-req-row">
+              <span id="reqUSCount" class="us-req-count">0 US</span>
+              <button type="button" id="openUSFromReqBtn" class="button ghost">Управлять →</button>
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button class="button ghost" id="requirementModalCancel" type="button">Отмена</button>
@@ -301,6 +309,91 @@
             <input type="text" id="ownerAddInput" placeholder="Имя владельца" />
             <button type="button" id="ownerAddBtn" class="button primary">Добавить</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay hidden modal-overlay--top" id="usListModal" role="dialog" aria-modal="true" aria-labelledby="usListModalTitle">
+      <div class="modal modal-wide">
+        <div class="modal-header">
+          <h3 id="usListModalTitle">User Stories</h3>
+          <button class="modal-close" id="usListModalClose" type="button" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="modal-body">
+          <ul id="usListItems" class="us-list"></ul>
+        </div>
+        <div class="modal-footer">
+          <button class="button ghost" id="usListModalCancel" type="button">Закрыть</button>
+          <button class="button primary" id="usListAddBtn" type="button">+ Добавить User Story</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay hidden modal-overlay--top2" id="usEditModal" role="dialog" aria-modal="true" aria-labelledby="usEditModalTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="usEditModalTitle">Новая User Story</h3>
+          <button class="modal-close" id="usEditModalClose" type="button" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="modal-body modal-body--scroll">
+          <label class="field">
+            <span class="field-label">Номер</span>
+            <div class="field-prefix-wrap">
+              <span class="field-prefix">US-</span>
+              <input type="text" id="usNumber" placeholder="001" />
+              <button type="button" id="usAutoNumber" class="button ghost field-auto-btn" title="Автоматически задать номер">№</button>
+            </div>
+          </label>
+          <label class="field">
+            <span class="field-label">Заголовок <span class="field-required">*</span></span>
+            <input type="text" id="usTitle" placeholder="Краткое название" />
+          </label>
+          <label class="field">
+            <span class="field-label">Как (роль)</span>
+            <input type="text" id="usRole" placeholder="пользователь / администратор..." />
+          </label>
+          <label class="field">
+            <span class="field-label">Я хочу (действие)</span>
+            <input type="text" id="usAction" placeholder="войти в систему..." />
+          </label>
+          <label class="field">
+            <span class="field-label">Чтобы (ценность)</span>
+            <input type="text" id="usGoal" placeholder="получить доступ к данным..." />
+          </label>
+          <label class="field">
+            <span class="field-label">Текст user story (авто)</span>
+            <textarea id="usCombined" class="us-combined-field" rows="2" readonly placeholder="Заполните поля выше"></textarea>
+          </label>
+          <div class="field">
+            <div class="us-rules-header">
+              <span class="field-label">Бизнес-правила</span>
+              <button type="button" id="addRuleBtn" class="us-add-rule-btn">+ Правило</button>
+            </div>
+            <ul id="usRulesList" class="us-rules-list"></ul>
+          </div>
+          <div class="modal-grid">
+            <label class="field">
+              <span class="field-label">Статус</span>
+              <select id="usStatus">
+                <option value="Draft">Draft</option>
+                <option value="In Review">In Review</option>
+                <option value="Approved">Approved</option>
+                <option value="Done">Done</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">Приоритет</span>
+              <select id="usPriority">
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="button ghost" id="usEditModalCancel" type="button">Отмена</button>
+          <button class="button primary" id="usEditModalSave" type="button">Сохранить</button>
         </div>
       </div>
     </div>

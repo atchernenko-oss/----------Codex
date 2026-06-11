@@ -2,6 +2,7 @@ const STORAGE_KEY = "reqtracker.requirements.v1";
 const FEATURES_KEY = "reqtracker.features.v1";
 const EPICS_KEY = "reqtracker.epics.v1";
 const OWNERS_KEY = "reqtracker.owners.v1";
+const US_KEY = "reqtracker.userstories.v1";
 
 const state = {
   requirements: loadRequirements(),
@@ -16,6 +17,7 @@ const state = {
   epics: loadEpics(),
   selectedFeatureIds: new Set(),
   owners: loadOwners(),
+  userStories: loadUserStories(),
 };
 
 const elements = {
@@ -169,6 +171,12 @@ elements.requirementsBody.addEventListener("click", (event) => {
     return;
   }
 
+  const usBtn = event.target.closest(".us-count-btn");
+  if (usBtn) {
+    openUSListModal(usBtn.dataset.reqId);
+    return;
+  }
+
   const editBtn = event.target.closest(".row-edit-btn");
   if (editBtn) {
     const req = state.requirements.find((r) => r.id === editBtn.dataset.id);
@@ -285,6 +293,8 @@ enableModalKeyboard(elements.requirementModal);
 enableModalKeyboard(elements.featureModal);
 enableModalKeyboard(document.querySelector("#epicModal"));
 enableModalKeyboard(document.querySelector("#ownersModal"));
+enableModalKeyboard(document.querySelector("#usListModal"));
+enableModalKeyboard(document.querySelector("#usEditModal"));
 
 function padNumberField(el) {
   const v = el.value.trim();
@@ -304,6 +314,37 @@ document.querySelector("#ownerAddInput").addEventListener("keydown", (e) => {
 document.querySelector("#ownersList").addEventListener("click", (e) => {
   const btn = e.target.closest(".owner-delete-btn");
   if (btn) deleteOwner(btn.dataset.owner);
+});
+
+document.querySelector("#usListModalClose").addEventListener("click", closeUSListModal);
+document.querySelector("#usListModalCancel").addEventListener("click", closeUSListModal);
+document.querySelector("#usListModal").addEventListener("click", (e) => {
+  if (e.target === document.querySelector("#usListModal") && !window.getSelection().toString()) closeUSListModal();
+});
+document.querySelector("#usListAddBtn").addEventListener("click", () => openUSEditModal(null));
+document.querySelector("#addRuleBtn").addEventListener("click", () => addRuleField("", true));
+document.querySelector("#usListItems").addEventListener("click", (e) => {
+  const editBtn = e.target.closest(".us-edit-btn");
+  if (editBtn) {
+    const us = state.userStories.find(s => s.id === editBtn.dataset.usId);
+    if (us) openUSEditModal(us);
+    return;
+  }
+  const deleteBtn = e.target.closest(".us-delete-btn");
+  if (deleteBtn) deleteUserStory(deleteBtn.dataset.usId);
+});
+document.querySelector("#usEditModalClose").addEventListener("click", closeUSEditModal);
+document.querySelector("#usEditModalCancel").addEventListener("click", closeUSEditModal);
+document.querySelector("#usEditModal").addEventListener("click", (e) => {
+  if (e.target === document.querySelector("#usEditModal") && !window.getSelection().toString()) closeUSEditModal();
+});
+document.querySelector("#usEditModalSave").addEventListener("click", saveUserStory);
+document.querySelector("#usAutoNumber").addEventListener("click", autoAssignUSNumber);
+document.querySelector("#usNumber").addEventListener("blur", () => padNumberField(document.querySelector("#usNumber")));
+document.querySelector("#usTitle").addEventListener("keydown", (e) => { if (e.key === "Enter") saveUserStory(); });
+document.querySelector("#openUSFromReqBtn").addEventListener("click", () => openUSListModal(editingRequirementId));
+["usRole", "usAction", "usGoal"].forEach(id => {
+  document.querySelector(`#${id}`).addEventListener("input", updateUSCombined);
 });
 
 elements.featureNumber.addEventListener("blur", () => padNumberField(elements.featureNumber));
@@ -491,6 +532,8 @@ function clearRequirements() {
 
 let editingRequirementId = null;
 let editingFeatureId = null;
+let editingUSId = null;
+let currentUSRequirementId = null;
 let pendingGapNumber = null;
 let pendingNextNumber = null;
 let pendingNumberTarget = null;
@@ -517,6 +560,7 @@ function openRequirementModal(req) {
   elements.reqText.classList.remove("input-error");
   elements.requirementModal.classList.remove("hidden");
   elements.reqText.focus();
+  updateReqUSCount();
 }
 
 function closeRequirementModal() {
@@ -852,7 +896,7 @@ function buildEpicHeaderRow(epicLabel, epicObj, count) {
   row.className = "epic-group-row";
   row.innerHTML = `
     <td class="checkbox-cell"></td>
-    <td colspan="8"><div class="epic-group-cell">
+    <td colspan="9"><div class="epic-group-cell">
       <span class="epic-tag">${numberHtml}<span class="epic-tag-name">${nameText}</span></span>
       <span class="epic-count">${count} тр.</span>${editBtn}
     </div></td>
@@ -884,7 +928,7 @@ function buildFeatureHeaderRow(featureLabel, featureObj, count) {
     : "feature-group-row feature-group-row--ungrouped";
   row.innerHTML = `
     <td class="checkbox-cell">${checkboxHtml}</td>
-    <td colspan="8"><div class="feature-group-cell">${tagHtml}<span class="feature-count">${count} тр.</span></div></td>
+    <td colspan="9"><div class="feature-group-cell">${tagHtml}<span class="feature-count">${count} тр.</span></div></td>
   `;
   return row;
 }
@@ -905,6 +949,7 @@ function buildRequirementRow(item) {
     <td><span class="badge ${priorityClass(item.priority)}">${escapeHtml(item.priority)}</span></td>
     <td>${escapeHtml(item.owner)}</td>
     <td>${escapeHtml(item.source)}</td>
+    <td class="us-cell">${buildUSCell(item.id)}</td>
     <td class="row-actions-cell">
       <button class="row-edit-btn" data-id="${escapeHtml(item.id)}" title="Редактировать" type="button"><span class="edit-icon">✏</span></button>
       <button class="row-delete-btn" data-id="${escapeHtml(item.id)}" title="Удалить" type="button">🗑</button>
@@ -1005,8 +1050,10 @@ function loadFeatures() {
 
 function deleteRequirement(id) {
   state.requirements = state.requirements.filter((r) => r.id !== id);
+  state.userStories = state.userStories.filter((us) => us.requirementId !== id);
   state.selectedIds.delete(id);
   saveRequirements(state.requirements);
+  saveUserStories(state.userStories);
   render();
 }
 
@@ -1192,4 +1239,212 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function loadUserStories() {
+  try { return JSON.parse(localStorage.getItem(US_KEY)) || []; } catch { return []; }
+}
+
+function saveUserStories(us) {
+  localStorage.setItem(US_KEY, JSON.stringify(us));
+}
+
+function buildUSCell(reqId) {
+  const count = state.userStories.filter(us => us.requirementId === reqId).length;
+  return count > 0
+    ? `<button class="us-count-btn us-count-btn--has" data-req-id="${escapeHtml(reqId)}" title="${count} user ${count === 1 ? 'story' : 'stories'}" type="button">${count}</button>`
+    : `<button class="us-count-btn" data-req-id="${escapeHtml(reqId)}" title="Добавить User Story" type="button">+</button>`;
+}
+
+function openUSListModal(reqId) {
+  if (!reqId) return;
+  currentUSRequirementId = reqId;
+  const req = state.requirements.find(r => r.id === reqId);
+  document.querySelector("#usListModalTitle").textContent = `User Stories: ${req?.code || ''}`;
+  renderUSList();
+  document.querySelector("#usListModal").classList.remove("hidden");
+}
+
+function closeUSListModal() {
+  document.querySelector("#usListModal").classList.add("hidden");
+  currentUSRequirementId = null;
+  updateReqUSCount();
+}
+
+function renderUSList() {
+  const list = document.querySelector("#usListItems");
+  list.innerHTML = "";
+  const items = state.userStories.filter(us => us.requirementId === currentUSRequirementId);
+  if (items.length === 0) {
+    list.innerHTML = '<li class="us-empty">Нет user stories. Нажмите «+ Добавить User Story».</li>';
+    return;
+  }
+  for (const us of items) {
+    const li = document.createElement("li");
+    li.className = "us-item";
+    li.innerHTML = `
+      <div class="us-item-header">
+        ${us.number ? `<span class="us-item-number">${escapeHtml(us.number)}</span>` : ''}
+        <span class="us-item-title">${escapeHtml(us.title)}</span>
+        <div class="us-item-actions">
+          <span class="badge ${statusClass(us.status)}">${escapeHtml(us.status)}</span>
+          <span class="badge ${priorityClass(us.priority)}">${escapeHtml(us.priority)}</span>
+          <button class="us-edit-btn row-edit-btn" data-us-id="${escapeHtml(us.id)}" type="button" title="Редактировать"><span class="edit-icon">✏</span></button>
+          <button class="us-delete-btn row-delete-btn" data-us-id="${escapeHtml(us.id)}" type="button" title="Удалить">🗑</button>
+        </div>
+      </div>
+      ${us.text ? `<div class="us-item-text">${escapeHtml(us.text)}</div>` : ''}
+      ${us.rules?.length ? `<ul class="us-item-rules">${us.rules.map(r => `<li class="us-item-rule">${escapeHtml(r)}</li>`).join('')}</ul>` : ''}
+    `;
+    list.append(li);
+  }
+}
+
+function openUSEditModal(us) {
+  if (us) {
+    editingUSId = us.id;
+    document.querySelector("#usEditModalTitle").textContent = "Редактировать User Story";
+    const num = us.number || '';
+    document.querySelector("#usNumber").value = num.startsWith('US-') ? num.slice(3) : num;
+    document.querySelector("#usTitle").value = us.title;
+    document.querySelector("#usRole").value = us.role || "";
+    document.querySelector("#usAction").value = us.action || "";
+    document.querySelector("#usGoal").value = us.goal || "";
+    document.querySelector("#usStatus").value = us.status;
+    document.querySelector("#usPriority").value = us.priority;
+    populateRulesList(us.rules || []);
+  } else {
+    editingUSId = null;
+    document.querySelector("#usEditModalTitle").textContent = "Новая User Story";
+    document.querySelector("#usNumber").value = "";
+    document.querySelector("#usTitle").value = "";
+    document.querySelector("#usRole").value = "";
+    document.querySelector("#usAction").value = "";
+    document.querySelector("#usGoal").value = "";
+    document.querySelector("#usStatus").value = "Draft";
+    document.querySelector("#usPriority").value = "Medium";
+    populateRulesList([]);
+  }
+  updateUSCombined();
+  document.querySelector("#usTitle").classList.remove("input-error");
+  document.querySelector("#usEditModal").classList.remove("hidden");
+  requestAnimationFrame(() => document.querySelector("#usTitle").focus());
+}
+
+function closeUSEditModal() {
+  document.querySelector("#usEditModal").classList.add("hidden");
+  editingUSId = null;
+}
+
+function saveUserStory() {
+  const title = document.querySelector("#usTitle").value.trim();
+  if (!title) {
+    document.querySelector("#usTitle").classList.add("input-error");
+    document.querySelector("#usTitle").focus();
+    return;
+  }
+  const rawNum = document.querySelector("#usNumber").value.trim();
+  const number = rawNum ? `US-${rawNum}` : '';
+  const role = document.querySelector("#usRole").value.trim();
+  const action = document.querySelector("#usAction").value.trim();
+  const goal = document.querySelector("#usGoal").value.trim();
+  const rules = [...document.querySelectorAll("#usRulesList .us-rule-input")]
+    .map(inp => inp.value.trim())
+    .filter(Boolean);
+  const us = {
+    id: editingUSId || crypto.randomUUID(),
+    requirementId: currentUSRequirementId,
+    number,
+    title,
+    role,
+    action,
+    goal,
+    text: buildUSText(role, action, goal),
+    rules,
+    status: document.querySelector("#usStatus").value,
+    priority: document.querySelector("#usPriority").value,
+  };
+  if (editingUSId) {
+    state.userStories = state.userStories.map(s => s.id === editingUSId ? us : s);
+  } else {
+    state.userStories.push(us);
+  }
+  saveUserStories(state.userStories);
+  closeUSEditModal();
+  renderUSList();
+  updateReqUSCount();
+  render();
+}
+
+function deleteUserStory(id) {
+  state.userStories = state.userStories.filter(s => s.id !== id);
+  saveUserStories(state.userStories);
+  renderUSList();
+  updateReqUSCount();
+  render();
+}
+
+function updateReqUSCount() {
+  const el = document.querySelector("#reqUSCount");
+  if (!el || !editingRequirementId) return;
+  const count = state.userStories.filter(us => us.requirementId === editingRequirementId).length;
+  el.textContent = `${count} US`;
+}
+
+function autoAssignUSNumber() {
+  const nums = state.userStories.filter(us => us.id !== editingUSId).map(us => us.number || '');
+  autoAssignNumber(document.querySelector("#usNumber"), nums, 'US-');
+}
+
+function buildUSText(role, action, goal) {
+  let text = "";
+  if (role) text += `Как ${role}`;
+  if (action) {
+    text += text ? ", я хочу " : "Я хочу ";
+    text += action;
+  }
+  if (goal) {
+    text += text ? ", чтобы " : "Чтобы ";
+    text += goal;
+  }
+  return text ? text + "." : "";
+}
+
+function updateUSCombined() {
+  const role = document.querySelector("#usRole").value.trim();
+  const action = document.querySelector("#usAction").value.trim();
+  const goal = document.querySelector("#usGoal").value.trim();
+  document.querySelector("#usCombined").value = buildUSText(role, action, goal);
+}
+
+function addRuleField(value = "", shouldFocus = false) {
+  const list = document.querySelector("#usRulesList");
+  const index = list.children.length + 1;
+  const li = document.createElement("li");
+  li.className = "us-rule-item";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "us-rule-input";
+  input.placeholder = `Правило ${index}...`;
+  input.value = value;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "us-rule-remove";
+  btn.title = "Удалить правило";
+  btn.textContent = "✕";
+  btn.addEventListener("click", () => {
+    li.remove();
+    if (document.querySelectorAll("#usRulesList .us-rule-item").length === 0) {
+      addRuleField();
+    }
+  });
+  li.append(input, btn);
+  list.append(li);
+  if (shouldFocus) input.focus();
+}
+
+function populateRulesList(rules) {
+  document.querySelector("#usRulesList").innerHTML = "";
+  const items = rules.length ? rules : [""];
+  for (const rule of items) addRuleField(rule);
 }
