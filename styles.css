@@ -615,11 +615,11 @@ tr.selected td {
   border-color: #a0c0e8;
 }
 
-.modal-wide {
+.modal.modal-wide {
   max-width: 640px;
 }
 
-.modal-wider {
+.modal.modal-wider {
   max-width: 820px;
 }
 
