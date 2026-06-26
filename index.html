@@ -19,10 +19,12 @@
         </div>
 
         <nav class="nav-list" aria-label="Разделы">
-          <button class="nav-item active" type="button">Реестр требований</button>
-          <button class="nav-item" type="button" disabled>Покрытие</button>
-          <button class="nav-item" type="button" disabled>Граф связей</button>
-          <button class="nav-item" type="button" disabled>Отчеты</button>
+          <button class="nav-item active" type="button" data-view="requirements">Реестр требований</button>
+          <span class="nav-section-label">Просмотр</span>
+          <button class="nav-item" type="button" data-view="epics">Эпики</button>
+          <button class="nav-item" type="button" data-view="features">Фичи</button>
+          <button class="nav-item" type="button" data-view="userStories">User Stories</button>
+          <button class="nav-item" type="button" data-view="testCases">Тест-кейсы</button>
           <span class="nav-section-label">Справочники</span>
           <button class="nav-item" type="button" id="openOwnersDirectoryBtn">Владельцы</button>
         </nav>
@@ -145,6 +147,22 @@
             <strong>Реестр пуст</strong>
             <span>Загрузите Excel-файл или создайте тестовый набор требований.</span>
           </div>
+        </section>
+
+        <section class="view-panel hidden" id="epicsView">
+          <div class="view-content" id="epicsViewContent"></div>
+        </section>
+
+        <section class="view-panel hidden" id="featuresView">
+          <div class="view-content" id="featuresViewContent"></div>
+        </section>
+
+        <section class="view-panel hidden" id="userStoriesView">
+          <div class="view-content" id="userStoriesViewContent"></div>
+        </section>
+
+        <section class="view-panel hidden" id="testCasesView">
+          <div class="view-content" id="testCasesViewContent"></div>
         </section>
       </main>
     </div>

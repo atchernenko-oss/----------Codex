@@ -1,3 +1,5 @@
+let currentView = 'requirements';
+
 const STORAGE_KEY = "reqtracker.requirements.v1";
 const FEATURES_KEY = "reqtracker.features.v1";
 const EPICS_KEY = "reqtracker.epics.v1";
@@ -521,11 +523,42 @@ function generateDemoData() {
     },
   ].map((item) => ({ id: crypto.randomUUID(), ...item }));
 
+  // Фичи
+  const f1id = crypto.randomUUID(), f2id = crypto.randomUUID();
+  const demoFeatures = [
+    { id: f1id, number: "F-001", name: "Импорт и реестр", description: "Загрузка и отображение требований", label: "F-001 Импорт и реестр", epic: "E-001 MVP" },
+    { id: f2id, number: "F-002", name: "Управление статусами", description: "Отслеживание изменений и артефактов", label: "F-002 Управление статусами", epic: "E-001 MVP" },
+  ];
+  // Привязываем требования к фичам
+  demo[0].feature = demoFeatures[0].label;
+  demo[1].feature = demoFeatures[0].label;
+  demo[2].feature = demoFeatures[0].label;
+  demo[3].feature = demoFeatures[0].label;
+  demo[4].feature = demoFeatures[1].label;
+  demo[5].feature = demoFeatures[1].label;
+
+  // Эпик
+  const demoEpics = [
+    { id: crypto.randomUUID(), number: "E-001", name: "MVP", description: "Минимальный жизнеспособный продукт", label: "E-001 MVP" },
+  ];
+
+  // User Stories
+  const demoUS = [
+    { id: crypto.randomUUID(), requirementId: demo[0].id, number: "US-001", title: "Загрузить Excel с требованиями", role: "аналитик", action: "загружаю Excel-файл", goal: "быстро наполнить реестр требованиями", text: "Как аналитик, я хочу загружать Excel-файл, чтобы быстро наполнить реестр требованиями", rules: ["Поддерживаемые форматы: .xlsx, .xls", "Максимальный размер файла: 10 МБ"], criteria: ["Файл загружен без ошибок", "Требования появились в реестре"], scenario: ["Открыть страницу реестра", "Нажать «Загрузить Excel»", "Выбрать файл", "Подтвердить импорт"], altScenario: ["Файл содержит ошибки формата", "Система показывает сообщение об ошибке"], status: "Draft", priority: "High", owner: "Бизнес-аналитик" },
+    { id: crypto.randomUUID(), requirementId: demo[1].id, number: "US-002", title: "Искать требования по тексту", role: "аналитик", action: "ввожу текст в поиск", goal: "быстро находить нужное требование", text: "Как аналитик, я хочу вводить текст в поиск, чтобы быстро находить нужное требование", rules: ["Поиск нечувствителен к регистру"], criteria: ["Список фильтруется мгновенно"], scenario: ["Ввести текст в поле поиска", "Список требований обновился"], altScenario: [], status: "Approved", priority: "Medium", owner: "Системный аналитик" },
+  ];
+
   state.requirements = demo;
+  state.features = demoFeatures;
+  state.epics = demoEpics;
+  state.userStories = demoUS;
   state.selectedIds = new Set();
   saveRequirements(demo);
+  saveFeatures(demoFeatures);
+  saveEpics(demoEpics);
+  saveUserStories(demoUS);
   mergeOwners(demo.map(r => r.owner));
-  setStatus("Сгенерирован демонстрационный набор из 6 требований.");
+  setStatus("Сгенерирован демонстрационный набор: 6 требований, 2 фичи, 1 эпик, 2 US.");
   render();
 }
 
@@ -798,6 +831,7 @@ function render() {
   renderSelectionBar();
   renderFeatureSelectionBar();
   updateSortIcons();
+  reRenderCurrentView();
 }
 
 function renderSelectionBar() {
@@ -1453,6 +1487,7 @@ function saveUserStory() {
   renderUSList();
   updateReqUSCount();
   render();
+  reRenderCurrentView();
 }
 
 function deleteUserStory(id) {
@@ -1699,6 +1734,7 @@ function saveTCModal() {
   saveTestCases(state.testCases);
   closeTCModal();
   renderUSList();
+  reRenderCurrentView();
 }
 
 function makeTCScreenshotRow(previewClass, initialSrc) {
@@ -1839,6 +1875,297 @@ document.querySelector("#usListItems").addEventListener("click", e => {
   if (!us) return;
   const steps = btn.dataset.scenarioType === 'main' ? us.scenario : us.altScenario;
   openTCModal(us.id, btn.dataset.scenarioType, steps || [], us.title);
+});
+
+// ═══════════════════════════════════════════════
+// VIEWS — Эпики / Фичи / User Stories / Тест-кейсы
+// ═══════════════════════════════════════════════
+
+function switchView(name) {
+  currentView = name;
+  const isReq = name === 'requirements';
+  document.querySelector('.summary-grid').classList.toggle('hidden', !isReq);
+  document.querySelector('.toolbar').classList.toggle('hidden', !isReq);
+  document.querySelector('.table-panel').classList.toggle('hidden', !isReq);
+  document.querySelector('.topbar-actions').classList.toggle('hidden', !isReq);
+  ['epics', 'features', 'userStories', 'testCases'].forEach(v => {
+    document.querySelector(`#${v}View`).classList.toggle('hidden', v !== name);
+  });
+  document.querySelectorAll('.nav-item[data-view]').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === name)
+  );
+  const meta = {
+    requirements: ['Реестр требований', 'Загрузка и контроль требований ТЗ. Быстрый старт на тестовых данных.'],
+    epics:        ['Эпики',        'Иерархия: Эпики → Фичи → Требования → User Stories'],
+    features:     ['Фичи',         'Фичи и связанные с ними требования'],
+    userStories:  ['User Stories', 'User Stories в разрезе требований'],
+    testCases:    ['Тест-кейсы',   'Тест-кейсы в разрезе User Stories'],
+  };
+  const [h1, p] = meta[name] || meta.requirements;
+  document.querySelector('.topbar h1').textContent = h1;
+  document.querySelector('.topbar p').textContent = p;
+  reRenderCurrentView();
+}
+
+function reRenderCurrentView() {
+  if (currentView === 'epics')        renderEpicsView();
+  else if (currentView === 'features')     renderFeaturesView();
+  else if (currentView === 'userStories')  renderUSView();
+  else if (currentView === 'testCases')    renderTCView();
+}
+
+// ── helpers ──────────────────────────────────────
+
+function vtTypeBadge(type) {
+  const labels = { epic: 'Эпик', feature: 'Фича', req: 'REQ', us: 'US', tc: 'TC' };
+  return `<span class="vt-type vt-type--${type}">${labels[type] || type}</span>`;
+}
+
+function vtCountTag(n, label) {
+  if (!n) return `<span class="vt-count vt-count--zero">0 ${label}</span>`;
+  return `<span class="vt-count">${n} ${label}</span>`;
+}
+
+function vtEmpty(msg) {
+  return `<p class="vt-empty">${msg}</p>`;
+}
+
+function vtReqNode(req) {
+  const usCount = state.userStories.filter(u => u.requirementId === req.id).length;
+  const usBtn = usCount > 0
+    ? `<button class="vt-nav-btn" data-action="view-us" data-req-id="${req.id}">${usCount} US →</button>`
+    : `<span class="vt-count vt-count--zero">0 US</span>`;
+  return `<div class="vt-node vt-node--req">
+    <div class="vt-row">
+      <div class="vt-row-spacer"></div>
+      ${vtTypeBadge('req')}
+      <span class="vt-code">${escapeHtml(req.code)}</span>
+      <span class="vt-text">${escapeHtml(req.text)}</span>
+      <span class="badge ${statusClass(req.status)}">${escapeHtml(req.status)}</span>
+      ${usBtn}
+      <button class="vt-edit-btn" data-action="edit-req" data-req-id="${req.id}" title="Редактировать">✎</button>
+    </div>
+  </div>`;
+}
+
+function vtFeatureNode(feature, showEpic) {
+  const reqs = state.requirements.filter(r => r.feature === feature.label);
+  const id = feature.id;
+  const epicTag = showEpic && feature.epic
+    ? `<span class="vt-meta-tag">${escapeHtml(feature.epic)}</span>` : '';
+  return `<div class="vt-node vt-node--feature">
+    <div class="vt-row">
+      <button class="vt-toggle" data-toggle="vt-c-f-${id}">▼</button>
+      ${vtTypeBadge('feature')}
+      <span class="vt-title">${escapeHtml(feature.label || feature.name)}</span>
+      ${epicTag}
+      ${vtCountTag(reqs.length, 'треб.')}
+      <button class="vt-edit-btn" data-action="edit-feature" data-feature-id="${id}" title="Редактировать">✎</button>
+    </div>
+    <div class="vt-children" id="vt-c-f-${id}">
+      ${reqs.length ? reqs.map(vtReqNode).join('') : vtEmpty('Нет требований')}
+    </div>
+  </div>`;
+}
+
+function vtEpicNode(epic) {
+  const features = state.features.filter(f => f.epic === epic.label);
+  const id = epic.id;
+  const reqCount = features.reduce((n, f) =>
+    n + state.requirements.filter(r => r.feature === f.label).length, 0);
+  return `<div class="vt-node vt-node--epic">
+    <div class="vt-row">
+      <button class="vt-toggle" data-toggle="vt-c-e-${id}">▼</button>
+      ${vtTypeBadge('epic')}
+      <span class="vt-title">${escapeHtml(epic.label || epic.name)}</span>
+      ${vtCountTag(features.length, 'фич')}
+      ${vtCountTag(reqCount, 'треб.')}
+      <button class="vt-edit-btn" data-action="edit-epic" data-epic-id="${id}" title="Редактировать">✎</button>
+    </div>
+    <div class="vt-children" id="vt-c-e-${id}">
+      ${features.length ? features.map(f => vtFeatureNode(f, false)).join('') : vtEmpty('Нет фич')}
+    </div>
+  </div>`;
+}
+
+// ── render functions ─────────────────────────────
+
+function renderEpicsView() {
+  const el = document.querySelector('#epicsViewContent');
+  const parts = [];
+  for (const epic of state.epics) parts.push(vtEpicNode(epic));
+  const noEpicFeatures = state.features.filter(f => !f.epic || !state.epics.find(e => e.label === f.epic));
+  if (noEpicFeatures.length) {
+    parts.push(`<div class="vt-orphan-group">
+      <div class="vt-orphan-label">Фичи без эпика</div>
+      ${noEpicFeatures.map(f => vtFeatureNode(f, false)).join('')}
+    </div>`);
+  }
+  const noFeatReqs = state.requirements.filter(r => !r.feature || !state.features.find(f => f.label === r.feature));
+  if (noFeatReqs.length) {
+    parts.push(`<div class="vt-orphan-group">
+      <div class="vt-orphan-label">Требования без фичи</div>
+      ${noFeatReqs.map(vtReqNode).join('')}
+    </div>`);
+  }
+  el.innerHTML = parts.length ? parts.join('') : vtEmpty('Нет данных. Создайте требования, фичи и эпики в реестре.');
+}
+
+function renderFeaturesView() {
+  const el = document.querySelector('#featuresViewContent');
+  const parts = state.features.map(f => vtFeatureNode(f, true));
+  const noFeatReqs = state.requirements.filter(r => !r.feature || !state.features.find(f => f.label === r.feature));
+  if (noFeatReqs.length) {
+    parts.push(`<div class="vt-orphan-group">
+      <div class="vt-orphan-label">Требования без фичи</div>
+      ${noFeatReqs.map(vtReqNode).join('')}
+    </div>`);
+  }
+  el.innerHTML = parts.length ? parts.join('') : vtEmpty('Нет фич. Создайте требования и объедините их в фичи в реестре.');
+}
+
+function renderUSView() {
+  const el = document.querySelector('#userStoriesViewContent');
+  if (!state.userStories.length) {
+    el.innerHTML = vtEmpty('Нет User Stories. Откройте реестр → кнопку US у требования.');
+    return;
+  }
+  const reqIds = [...new Set(state.userStories.map(u => u.requirementId))];
+  el.innerHTML = reqIds.map(reqId => {
+    const req = state.requirements.find(r => r.id === reqId);
+    const stories = state.userStories.filter(u => u.requirementId === reqId);
+    const reqLabel = req
+      ? `${vtTypeBadge('req')}<span class="vt-code">${escapeHtml(req.code)}</span><span class="vt-text">${escapeHtml(req.text)}</span>`
+      : `${vtTypeBadge('req')}<span class="vt-text vt-text--muted">Требование удалено</span>`;
+    const editReqBtn = req
+      ? `<button class="vt-edit-btn" data-action="edit-req" data-req-id="${req.id}" title="Редактировать">✎</button>` : '';
+    const usNodes = stories.map(us => {
+      const mainTC = state.testCases.filter(t => t.usId === us.id && t.scenarioType === 'main').length;
+      const altTC  = state.testCases.filter(t => t.usId === us.id && t.scenarioType === 'alt').length;
+      const mainRow = us.scenario?.length ? `<div class="vt-us-scenario-row">
+          <span class="vt-us-scenario-label">Основной&nbsp;сценарий</span>
+          <span class="vt-count">${us.scenario.length} шаг${us.scenario.length === 1 ? '' : 'ов'}</span>
+          ${mainTC ? `<button class="vt-nav-btn" data-action="goto-tc" data-us-id="${us.id}">TC: ${mainTC}</button>`
+                   : '<span class="vt-count vt-count--zero">TC: 0</span>'}
+        </div>` : '';
+      const altRow  = us.altScenario?.length ? `<div class="vt-us-scenario-row">
+          <span class="vt-us-scenario-label">Альтернативный&nbsp;сценарий</span>
+          <span class="vt-count">${us.altScenario.length} шаг${us.altScenario.length === 1 ? '' : 'ов'}</span>
+          ${altTC ? `<button class="vt-nav-btn" data-action="goto-tc" data-us-id="${us.id}">TC: ${altTC}</button>`
+                  : '<span class="vt-count vt-count--zero">TC: 0</span>'}
+        </div>` : '';
+      return `<div class="vt-node vt-node--us">
+        <div class="vt-row">
+          ${vtTypeBadge('us')}
+          <span class="vt-code">${escapeHtml(us.number || '')}</span>
+          <span class="vt-title">${escapeHtml(us.title || '')}</span>
+          ${us.status ? `<span class="badge ${statusClass(us.status)}">${escapeHtml(us.status)}</span>` : ''}
+          ${us.priority ? `<span class="badge ${priorityClass(us.priority)}">${escapeHtml(us.priority)}</span>` : ''}
+          <button class="vt-edit-btn" data-action="edit-us" data-us-id="${us.id}" title="Редактировать">✎</button>
+        </div>
+        ${mainRow || altRow ? `<div class="vt-us-scenarios">${mainRow}${altRow}</div>` : ''}
+      </div>`;
+    }).join('');
+    return `<div class="vt-group">
+      <div class="vt-group-head">
+        <button class="vt-toggle" data-toggle="vt-c-r-${reqId}">▼</button>
+        ${reqLabel}
+        ${vtCountTag(stories.length, 'US')}
+        ${editReqBtn}
+      </div>
+      <div class="vt-children vt-children--group" id="vt-c-r-${reqId}">${usNodes}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderTCView() {
+  const el = document.querySelector('#testCasesViewContent');
+  if (!state.testCases.length) {
+    el.innerHTML = vtEmpty('Нет тест-кейсов. Откройте User Story и создайте TC из сценариев.');
+    return;
+  }
+  const usIds = [...new Set(state.testCases.map(t => t.usId))];
+  const tcStatusMap = { Draft: 'Draft', Pass: 'Approved', Fail: 'High', Blocked: 'Medium' };
+  el.innerHTML = usIds.map(usId => {
+    const us = state.userStories.find(u => u.id === usId);
+    const tcs = state.testCases.filter(t => t.usId === usId);
+    const usLabel = us
+      ? `${vtTypeBadge('us')}<span class="vt-code">${escapeHtml(us.number || '')}</span><span class="vt-title">${escapeHtml(us.title || '')}</span>`
+      : `${vtTypeBadge('us')}<span class="vt-title vt-text--muted">User Story удалена</span>`;
+    const editUSBtn = us
+      ? `<button class="vt-edit-btn" data-action="edit-us" data-us-id="${us.id}" title="Редактировать">✎</button>` : '';
+    const tcNodes = tcs.map(tc => {
+      const steps = tc.steps?.length || 0;
+      const scenLabel = tc.scenarioType === 'main' ? 'основной' : 'альтернативный';
+      const date = tc.createdAt ? new Date(tc.createdAt).toLocaleDateString('ru-RU') : '';
+      return `<div class="vt-node vt-node--tc">
+        <div class="vt-row">
+          ${vtTypeBadge('tc')}
+          <span class="vt-title">${escapeHtml(tc.title)}</span>
+          <span class="badge ${tcStatusMap[tc.status] || 'Draft'}">${escapeHtml(tc.status)}</span>
+          <span class="vt-meta-tag">${scenLabel}</span>
+          ${vtCountTag(steps, steps === 1 ? 'шаг' : 'шагов')}
+          ${date ? `<span class="vt-date">${date}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="vt-group">
+      <div class="vt-group-head">
+        <button class="vt-toggle" data-toggle="vt-c-u-${usId}">▼</button>
+        ${usLabel}
+        ${vtCountTag(tcs.length, 'TC')}
+        ${editUSBtn}
+      </div>
+      <div class="vt-children vt-children--group" id="vt-c-u-${usId}">${tcNodes}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── event delegation ─────────────────────────────
+
+function handleVtClick(e) {
+  // toggle expand/collapse
+  const toggleBtn = e.target.closest('[data-toggle]');
+  if (toggleBtn) {
+    const target = document.querySelector(`#${toggleBtn.dataset.toggle}`);
+    if (target) {
+      const collapsed = target.classList.toggle('hidden');
+      toggleBtn.textContent = collapsed ? '▶' : '▼';
+    }
+    return;
+  }
+  // action buttons
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  if (action === 'edit-req') {
+    const req = state.requirements.find(r => r.id === btn.dataset.reqId);
+    if (req) openRequirementModal(req);
+  } else if (action === 'edit-feature') {
+    const f = state.features.find(f => f.id === btn.dataset.featureId);
+    if (f) openFeatureEditModal(f);
+  } else if (action === 'edit-epic') {
+    const ep = state.epics.find(e => e.id === btn.dataset.epicId);
+    if (ep) openEpicEditModal(ep);
+  } else if (action === 'view-us') {
+    openUSListModal(btn.dataset.reqId);
+  } else if (action === 'edit-us') {
+    const us = state.userStories.find(u => u.id === btn.dataset.usId);
+    if (us) { currentUSRequirementId = us.requirementId; openUSEditModal(us); }
+  } else if (action === 'goto-tc') {
+    switchView('testCases');
+    // после рендера найти нужную группу и проскроллить
+    const groupEl = document.querySelector(`#vt-c-u-${btn.dataset.usId}`);
+    if (groupEl) groupEl.closest('.vt-group')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+['epicsViewContent', 'featuresViewContent', 'userStoriesViewContent', 'testCasesViewContent'].forEach(id => {
+  document.querySelector(`#${id}`).addEventListener('click', handleVtClick);
+});
+
+document.querySelectorAll('.nav-item[data-view]').forEach(btn => {
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
 });
 
 document.querySelectorAll('.modal--resizable').forEach(modal => {
