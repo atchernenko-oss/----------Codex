@@ -3402,7 +3402,71 @@ function buildReqTreeNode(req) {
 
 // ── Render ────────────────────────────────────────────────────────────────────
 
-const NODE_W = 148, NODE_H = 44, NODE_SEP_H = 60, NODE_SEP_V = 16;
+const NODE_W = 148, NODE_H = 54, NODE_SEP_H = 60, NODE_SEP_V = 16;
+const NODE_TEXT_PAD = 10; // горизонтальный отступ текста внутри узла
+
+let _measureCtx = null;
+function measureText(text, fontSize, fontWeight = 'normal') {
+  if (!_measureCtx) {
+    const c = document.createElement('canvas');
+    _measureCtx = c.getContext('2d');
+  }
+  _measureCtx.font = `${fontWeight} ${fontSize}px Inter,"Segoe UI",sans-serif`;
+  return _measureCtx.measureText(text).width;
+}
+
+function buildWordLines(words, maxWidth, fontSize, fontWeight) {
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (measureText(test, fontSize, fontWeight) > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function fitTextInNode(textSel, text, centerY, opts = {}) {
+  const { maxLines = 2, initFontSize = 11, minFontSize = 8, fontWeight = 'normal', lineH = 13 } = opts;
+  const maxW = NODE_W - NODE_TEXT_PAD * 2;
+  const x = NODE_W / 2;
+
+  textSel.text('');
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  if (!words.length) return;
+
+  let fontSize = initFontSize;
+  let lines;
+
+  do {
+    lines = buildWordLines(words, maxW, fontSize, fontWeight);
+    if (lines.length <= maxLines || fontSize <= minFontSize) break;
+    fontSize--;
+  } while (true);
+
+  // Обрезаем лишние строки с многоточием
+  if (lines.length > maxLines) {
+    lines = lines.slice(0, maxLines);
+    let last = lines[maxLines - 1];
+    while (last.length > 1 && measureText(last + '…', fontSize, fontWeight) > maxW) {
+      last = last.slice(0, -1);
+    }
+    lines[maxLines - 1] = last + '…';
+  }
+
+  textSel.style('font-size', fontSize + 'px');
+
+  // Центрируем блок по вертикали относительно centerY
+  const startY = centerY - (lines.length - 1) * lineH / 2;
+  lines.forEach((ln, i) => {
+    textSel.append('tspan').attr('x', x).attr('y', startY + i * lineH).text(ln);
+  });
+}
 
 function renderGraphView() {
   const container = document.querySelector('#graphContainer');
@@ -3462,7 +3526,8 @@ function renderGraphView() {
     .attr('class', d => `graph-node gn-${d.data.type}`)
     .attr('transform', d => `translate(${d.y - NODE_W / 2},${d.x - NODE_H / 2})`)
     .style('cursor', 'pointer')
-    .on('click', (ev, d) => { ev.stopPropagation(); highlightGraphNode(d.data.id); });
+    .on('click',    (ev, d) => { ev.stopPropagation(); highlightGraphNode(d.data.id); })
+    .on('dblclick', (ev, d) => { ev.stopPropagation(); openEntityModal(d.data); });
 
   // Rect
   nodeG.append('rect')
@@ -3470,17 +3535,21 @@ function renderGraphView() {
     .attr('width', NODE_W).attr('height', NODE_H)
     .attr('rx', 6).attr('ry', 6);
 
-  // Label (code/number)
+  // Label (code/number) — одна строка, bold
   nodeG.append('text')
     .attr('class', 'gn-label')
-    .attr('x', NODE_W / 2).attr('y', NODE_H / 2 - 7)
-    .text(d => d.data.label);
+    .each(function(d) {
+      fitTextInNode(d3.select(this), d.data.label, NODE_H / 2 - 9,
+        { maxLines: 1, initFontSize: 11, minFontSize: 8, fontWeight: '600', lineH: 13 });
+    });
 
-  // Sub-label (name/title)
+  // Sub-label (name/title) — до 2 строк с переносом
   nodeG.append('text')
     .attr('class', 'gn-sublabel')
-    .attr('x', NODE_W / 2).attr('y', NODE_H / 2 + 9)
-    .text(d => d.data.sublabel);
+    .each(function(d) {
+      fitTextInNode(d3.select(this), d.data.sublabel, NODE_H / 2 + 10,
+        { maxLines: 2, initFontSize: 10, minFontSize: 8, fontWeight: 'normal', lineH: 13 });
+    });
 
   // Initial fit — рассчитываем из D3-данных, не из getBBox (не работает в headless)
   const W = container.clientWidth  || svg.node().clientWidth  || 1100;
@@ -3498,6 +3567,15 @@ function renderGraphView() {
   const tx = (W - bW * scale) / 2 - minY * scale;
   const ty = (H - bH * scale) / 2 - minX * scale;
   svg.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+}
+
+function openEntityModal(nodeData) {
+  const { type, data } = nodeData;
+  if (type === 'epic')         openEpicEditModal(data);
+  else if (type === 'feature') openFeatureEditModal(data);
+  else if (type === 'req')     openRequirementModal(data);
+  else if (type === 'us')      openUSEditModal(data);
+  else if (type === 'tc')      openTCEditModal(data);
 }
 
 function highlightGraphNode(clickedId) {
