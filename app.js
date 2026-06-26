@@ -467,99 +467,382 @@ function normalizePriority(value) {
 }
 
 function generateDemoData() {
-  const demo = [
-    {
-      code: "REQ-001",
-      text: "Система должна поддерживать импорт требований из Excel-файлов формата XLSX.",
-      status: "Approved",
-      priority: "High",
-      owner: "Бизнес-аналитик",
-      source: "ТЗ v1.0",
-      feature: "",
-    },
-    {
-      code: "REQ-002",
-      text: "Пользователь должен видеть реестр требований с поиском по коду и тексту.",
-      status: "Approved",
-      priority: "High",
-      owner: "Системный аналитик",
-      source: "ТЗ v1.0",
-      feature: "",
-    },
-    {
-      code: "REQ-003",
-      text: "Каждое требование должно иметь статус, приоритет, владельца и источник.",
-      status: "In Review",
-      priority: "Medium",
-      owner: "Project Owner",
-      source: "Workshop",
-      feature: "",
-    },
-    {
-      code: "REQ-004",
-      text: "Система должна позволять формировать тестовые данные для демонстрации MVP.",
-      status: "Draft",
-      priority: "Medium",
-      owner: "QA Engineer",
-      source: "MVP Scope",
-      feature: "",
-    },
-    {
-      code: "REQ-005",
-      text: "После изменения требования связанные артефакты должны помечаться как потенциально устаревшие.",
-      status: "Changed",
-      priority: "High",
-      owner: "System Analyst",
-      source: "Architecture",
-      feature: "",
-    },
-    {
-      code: "REQ-006",
-      text: "Импорт должен сохранять исходный источник требования для последующего аудита.",
-      status: "Draft",
-      priority: "Low",
-      owner: "Business Analyst",
-      source: "Audit Policy",
-      feature: "",
-    },
-  ].map((item) => ({ id: crypto.randomUUID(), ...item }));
-
-  // Фичи
-  const f1id = crypto.randomUUID(), f2id = crypto.randomUUID();
-  const demoFeatures = [
-    { id: f1id, number: "F-001", name: "Импорт и реестр", description: "Загрузка и отображение требований", label: "F-001 Импорт и реестр", epic: "E-001 MVP" },
-    { id: f2id, number: "F-002", name: "Управление статусами", description: "Отслеживание изменений и артефактов", label: "F-002 Управление статусами", epic: "E-001 MVP" },
-  ];
-  // Привязываем требования к фичам
-  demo[0].feature = demoFeatures[0].label;
-  demo[1].feature = demoFeatures[0].label;
-  demo[2].feature = demoFeatures[0].label;
-  demo[3].feature = demoFeatures[0].label;
-  demo[4].feature = demoFeatures[1].label;
-  demo[5].feature = demoFeatures[1].label;
-
-  // Эпик
+  // ─── Epics ───────────────────────────────────────────────────────────────
+  const eIds = [crypto.randomUUID(), crypto.randomUUID()];
   const demoEpics = [
-    { id: crypto.randomUUID(), number: "E-001", name: "MVP", description: "Минимальный жизнеспособный продукт", label: "E-001 MVP" },
+    { id: eIds[0], number: 'E-001', name: 'Личный кабинет',  description: 'Авторизация, профиль и настройки пользователя', label: 'E-001 Личный кабинет' },
+    { id: eIds[1], number: 'E-002', name: 'Платежи',         description: 'Переводы, история операций и шаблоны',            label: 'E-002 Платежи' },
   ];
 
-  // User Stories
+  // ─── Features ────────────────────────────────────────────────────────────
+  const fIds = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()];
+  const demoFeatures = [
+    { id: fIds[0], number: 'F-001', name: 'Авторизация',          description: 'Вход в систему и управление сессией',              label: 'F-001 Авторизация',          epic: demoEpics[0].label },
+    { id: fIds[1], number: 'F-002', name: 'Управление профилем',  description: 'Редактирование личных данных и смена пароля',       label: 'F-002 Управление профилем',  epic: demoEpics[0].label },
+    { id: fIds[2], number: 'F-003', name: 'Переводы',             description: 'Внутренние и внешние денежные переводы',           label: 'F-003 Переводы',             epic: demoEpics[1].label },
+    { id: fIds[3], number: 'F-004', name: 'История операций',     description: 'Просмотр, поиск и фильтрация транзакций',          label: 'F-004 История операций',     epic: demoEpics[1].label },
+  ];
+
+  // ─── Requirements (2 на фичу) ─────────────────────────────────────────────
+  const rIds = Array.from({ length: 8 }, () => crypto.randomUUID());
+  const demoReqs = [
+    { id: rIds[0], code: 'REQ-001', text: 'Пользователь должен иметь возможность войти в систему по логину и паролю.',                       status: 'Approved',  priority: 'High',   owner: 'Бизнес-аналитик',    source: 'ТЗ v1.0',      feature: demoFeatures[0].label },
+    { id: rIds[1], code: 'REQ-002', text: 'Система должна поддерживать двухфакторную аутентификацию через SMS.',                            status: 'Approved',  priority: 'High',   owner: 'Системный аналитик', source: 'ТЗ v1.0',      feature: demoFeatures[0].label },
+    { id: rIds[2], code: 'REQ-003', text: 'Пользователь может просматривать и редактировать личные данные профиля.',                         status: 'In Review', priority: 'Medium', owner: 'Project Owner',      source: 'Workshop',     feature: demoFeatures[1].label },
+    { id: rIds[3], code: 'REQ-004', text: 'Система должна позволять пользователю сменить пароль с подтверждением по e-mail.',               status: 'Draft',     priority: 'Medium', owner: 'Системный аналитик', source: 'Workshop',     feature: demoFeatures[1].label },
+    { id: rIds[4], code: 'REQ-005', text: 'Пользователь должен иметь возможность переводить средства между своими счетами.',                status: 'Approved',  priority: 'High',   owner: 'Бизнес-аналитик',    source: 'MVP Scope',    feature: demoFeatures[2].label },
+    { id: rIds[5], code: 'REQ-006', text: 'Система должна поддерживать переводы на внешние карты по номеру карты или телефона.',            status: 'In Review', priority: 'High',   owner: 'QA Engineer',        source: 'MVP Scope',    feature: demoFeatures[2].label },
+    { id: rIds[6], code: 'REQ-007', text: 'Пользователь должен видеть полную историю своих операций с пагинацией.',                         status: 'Approved',  priority: 'Medium', owner: 'Бизнес-аналитик',    source: 'ТЗ v1.0',      feature: demoFeatures[3].label },
+    { id: rIds[7], code: 'REQ-008', text: 'Система должна поддерживать поиск и фильтрацию операций по дате, сумме и типу.',                 status: 'Changed',   priority: 'Medium', owner: 'Системный аналитик', source: 'Architecture', feature: demoFeatures[3].label },
+  ];
+
+  // ─── User Stories (1–2 на требование) ────────────────────────────────────
+  const uIds = Array.from({ length: 13 }, () => crypto.randomUUID());
   const demoUS = [
-    { id: crypto.randomUUID(), requirementId: demo[0].id, number: "US-001", title: "Загрузить Excel с требованиями", role: "аналитик", action: "загружаю Excel-файл", goal: "быстро наполнить реестр требованиями", text: "Как аналитик, я хочу загружать Excel-файл, чтобы быстро наполнить реестр требованиями", rules: ["Поддерживаемые форматы: .xlsx, .xls", "Максимальный размер файла: 10 МБ"], criteria: ["Файл загружен без ошибок", "Требования появились в реестре"], scenario: ["Открыть страницу реестра", "Нажать «Загрузить Excel»", "Выбрать файл", "Подтвердить импорт"], altScenario: ["Файл содержит ошибки формата", "Система показывает сообщение об ошибке"], status: "Draft", priority: "High", owner: "Бизнес-аналитик" },
-    { id: crypto.randomUUID(), requirementId: demo[1].id, number: "US-002", title: "Искать требования по тексту", role: "аналитик", action: "ввожу текст в поиск", goal: "быстро находить нужное требование", text: "Как аналитик, я хочу вводить текст в поиск, чтобы быстро находить нужное требование", rules: ["Поиск нечувствителен к регистру"], criteria: ["Список фильтруется мгновенно"], scenario: ["Ввести текст в поле поиска", "Список требований обновился"], altScenario: [], status: "Approved", priority: "Medium", owner: "Системный аналитик" },
+    // REQ-001 — 2 US
+    {
+      id: uIds[0], requirementId: rIds[0], number: 'US-001',
+      title: 'Войти с корректными учётными данными',
+      role: 'пользователь', action: 'ввожу логин и пароль', goal: 'получить доступ к личному кабинету',
+      text: 'Как пользователь, я хочу вводить логин и пароль, чтобы получить доступ к личному кабинету',
+      rules: ['Логин — e-mail или номер телефона', 'Пароль: минимум 8 символов', 'Блокировка после 5 неудачных попыток'],
+      criteria: ['Успешный вход перенаправляет на главную страницу', 'Сессия сохраняется 30 минут'],
+      scenario: ['Открыть страницу входа', 'Ввести корректный логин', 'Ввести корректный пароль', 'Нажать «Войти»'],
+      altScenario: ['Ввести неверный пароль 5 раз подряд', 'Аккаунт блокируется на 15 минут'],
+      status: 'Approved', priority: 'High', owner: 'Бизнес-аналитик',
+    },
+    {
+      id: uIds[1], requirementId: rIds[0], number: 'US-002',
+      title: 'Получить понятное сообщение при неверном пароле',
+      role: 'пользователь', action: 'ввожу неверный пароль', goal: 'понять причину отказа',
+      text: 'Как пользователь, я хочу видеть понятное сообщение об ошибке, чтобы не путаться в причинах отказа',
+      rules: ['Сообщение не должно раскрывать, что именно неверно — логин или пароль'],
+      criteria: ['Отображается «Неверный логин или пароль»', 'Поле логина не сбрасывается'],
+      scenario: ['Ввести корректный логин', 'Ввести неверный пароль', 'Нажать «Войти»', 'Убедиться в наличии ошибки'],
+      altScenario: [],
+      status: 'Approved', priority: 'Medium', owner: 'QA Engineer',
+    },
+    // REQ-002 — 2 US
+    {
+      id: uIds[2], requirementId: rIds[1], number: 'US-003',
+      title: 'Получить SMS-код и войти через 2FA',
+      role: 'пользователь', action: 'завершаю первый шаг входа', goal: 'подтвердить личность через SMS',
+      text: 'Как пользователь, я хочу получать SMS с кодом, чтобы пройти второй фактор аутентификации',
+      rules: ['Код действителен 3 минуты', 'Повторная отправка — не чаще 1 раза в 60 секунд'],
+      criteria: ['SMS приходит в течение 30 секунд', 'После ввода кода открывается кабинет'],
+      scenario: ['Пройти первый шаг входа', 'Получить SMS', 'Ввести код', 'Нажать «Подтвердить»'],
+      altScenario: ['Ввести неверный код', 'Система показывает ошибку и предлагает повторить'],
+      status: 'Approved', priority: 'High', owner: 'Системный аналитик',
+    },
+    {
+      id: uIds[3], requirementId: rIds[1], number: 'US-004',
+      title: 'Запросить повторную отправку SMS',
+      role: 'пользователь', action: 'нажимаю «Отправить повторно»', goal: 'получить новый код если старый не пришёл',
+      text: 'Как пользователь, я хочу запрашивать повторный код, чтобы завершить вход если SMS задержалась',
+      rules: ['Кнопка активируется через 60 секунд', 'Максимум 3 повторных запроса'],
+      criteria: ['Кнопка неактивна с обратным отсчётом', 'После нажатия приходит новый код'],
+      scenario: ['Дождаться истечения 60 секунд', 'Нажать «Отправить повторно»', 'Получить новый SMS'],
+      altScenario: [],
+      status: 'Draft', priority: 'Medium', owner: 'QA Engineer',
+    },
+    // REQ-003 — 1 US
+    {
+      id: uIds[4], requirementId: rIds[2], number: 'US-005',
+      title: 'Изменить номер телефона в профиле',
+      role: 'пользователь', action: 'редактирую профиль', goal: 'обновить контактный номер телефона',
+      text: 'Как пользователь, я хочу изменить номер телефона с подтверждением по SMS',
+      rules: ['Новый номер подтверждается SMS', 'Старый номер остаётся активным до подтверждения'],
+      criteria: ['Номер обновлён в профиле', 'Уведомление отправлено на старый номер'],
+      scenario: ['Открыть профиль', 'Нажать «Изменить телефон»', 'Ввести новый номер', 'Подтвердить SMS'],
+      altScenario: ['Ввести некорректный номер', 'Система выводит ошибку валидации'],
+      status: 'In Review', priority: 'Medium', owner: 'Project Owner',
+    },
+    // REQ-004 — 2 US
+    {
+      id: uIds[5], requirementId: rIds[3], number: 'US-006',
+      title: 'Сменить пароль из настроек профиля',
+      role: 'пользователь', action: 'меняю пароль', goal: 'повысить безопасность аккаунта',
+      text: 'Как пользователь, я хочу менять пароль в настройках, чтобы поддерживать безопасность',
+      rules: ['Требуется текущий пароль', 'Новый пароль: минимум 8 символов + цифра'],
+      criteria: ['Пароль изменён', 'Все активные сессии завершены', 'Уведомление на email'],
+      scenario: ['Открыть «Безопасность»', 'Ввести текущий пароль', 'Ввести новый пароль дважды', 'Сохранить'],
+      altScenario: ['Новые пароли не совпадают', 'Отображается ошибка валидации'],
+      status: 'Draft', priority: 'High', owner: 'Системный аналитик',
+    },
+    {
+      id: uIds[6], requirementId: rIds[3], number: 'US-007',
+      title: 'Восстановить пароль через e-mail',
+      role: 'пользователь', action: 'нажимаю «Забыл пароль»', goal: 'восстановить доступ к аккаунту',
+      text: 'Как пользователь, я хочу восстанавливать пароль через email, чтобы не терять доступ',
+      rules: ['Ссылка действительна 15 минут', 'Ссылка одноразовая'],
+      criteria: ['Письмо приходит в течение 2 минут', 'После смены пароля старые сессии завершены'],
+      scenario: ['Нажать «Забыл пароль»', 'Ввести email', 'Перейти по ссылке из письма', 'Задать новый пароль'],
+      altScenario: ['Email не зарегистрирован', 'Система не раскрывает информацию о наличии аккаунта'],
+      status: 'Draft', priority: 'Medium', owner: 'QA Engineer',
+    },
+    // REQ-005 — 1 US
+    {
+      id: uIds[7], requirementId: rIds[4], number: 'US-008',
+      title: 'Перевести средства между своими счетами',
+      role: 'клиент', action: 'выбираю счета и сумму', goal: 'перераспределить средства',
+      text: 'Как клиент, я хочу переводить деньги между своими счетами, чтобы управлять балансом',
+      rules: ['Сумма не может превышать текущий остаток', 'Минимальная сумма: 1 рубль'],
+      criteria: ['Оба баланса обновляются мгновенно', 'Операция отражается в истории'],
+      scenario: ['Открыть «Переводы»', 'Выбрать счёт-источник и счёт-получатель', 'Ввести сумму', 'Подтвердить'],
+      altScenario: ['Сумма превышает остаток', 'Система выводит ошибку недостаточности средств'],
+      status: 'Approved', priority: 'High', owner: 'Бизнес-аналитик',
+    },
+    // REQ-006 — 2 US
+    {
+      id: uIds[8], requirementId: rIds[5], number: 'US-009',
+      title: 'Перевести деньги по номеру карты',
+      role: 'клиент', action: 'ввожу номер карты получателя', goal: 'отправить деньги другому человеку',
+      text: 'Как клиент, я хочу переводить деньги по номеру карты, чтобы отправлять средства другим людям',
+      rules: ['Номер карты: 16 цифр', 'Лимит: 100 000 руб/сутки', 'Подтверждение через SMS'],
+      criteria: ['Получатель видит поступление в течение 1 секунды', 'Квитанция отображается после подтверждения'],
+      scenario: ['Выбрать «Перевод по карте»', 'Ввести номер карты', 'Ввести сумму', 'Подтвердить SMS-кодом'],
+      altScenario: ['Карта получателя заблокирована', 'Система выводит ошибку'],
+      status: 'In Review', priority: 'High', owner: 'Бизнес-аналитик',
+    },
+    {
+      id: uIds[9], requirementId: rIds[5], number: 'US-010',
+      title: 'Перевести деньги по номеру телефона через СБП',
+      role: 'клиент', action: 'ввожу номер телефона получателя', goal: 'быстро отправить деньги без реквизитов',
+      text: 'Как клиент, я хочу переводить деньги по телефону через СБП, чтобы не вводить реквизиты карты',
+      rules: ['Используется СБП', 'Лимит: 1 000 000 руб/сутки'],
+      criteria: ['Перевод зачислен в течение 15 секунд', 'Уведомление отправлено обоим участникам'],
+      scenario: ['Выбрать «Перевод по телефону»', 'Ввести номер', 'Выбрать банк получателя', 'Подтвердить'],
+      altScenario: ['Номер не привязан к СБП', 'Предложить альтернативные способы'],
+      status: 'In Review', priority: 'High', owner: 'Системный аналитик',
+    },
+    // REQ-007 — 1 US
+    {
+      id: uIds[10], requirementId: rIds[6], number: 'US-011',
+      title: 'Просмотреть историю операций за период',
+      role: 'клиент', action: 'открываю историю операций', goal: 'контролировать расходы',
+      text: 'Как клиент, я хочу просматривать историю операций по счёту, чтобы контролировать расходы',
+      rules: ['История доступна за последние 3 года', 'Пагинация по 20 записей'],
+      criteria: ['Список загружается за < 2 сек', 'Каждая операция содержит дату, сумму, описание'],
+      scenario: ['Открыть «История»', 'Выбрать счёт', 'Выбрать период', 'Просмотреть список'],
+      altScenario: ['Нет операций за период', 'Отображается сообщение «Нет данных»'],
+      status: 'Approved', priority: 'Medium', owner: 'Бизнес-аналитик',
+    },
+    // REQ-008 — 2 US
+    {
+      id: uIds[11], requirementId: rIds[7], number: 'US-012',
+      title: 'Найти операцию по сумме',
+      role: 'клиент', action: 'ввожу сумму в поиск', goal: 'быстро найти конкретную транзакцию',
+      text: 'Как клиент, я хочу искать операции по сумме, чтобы быстро находить нужную транзакцию',
+      rules: ['Поиск поддерживает точное совпадение и диапазон', 'Нечувствителен к разделителю тысяч'],
+      criteria: ['Результаты отображаются мгновенно', 'Показан счётчик найденных операций'],
+      scenario: ['Открыть историю', 'Ввести сумму в поиск', 'Убедиться что список отфильтрован'],
+      altScenario: ['Ничего не найдено', 'Сообщение «Ничего не найдено»'],
+      status: 'Changed', priority: 'Medium', owner: 'QA Engineer',
+    },
+    {
+      id: uIds[12], requirementId: rIds[7], number: 'US-013',
+      title: 'Фильтровать историю по типу операции',
+      role: 'клиент', action: 'выбираю тип в фильтре', goal: 'видеть только нужный вид транзакций',
+      text: 'Как клиент, я хочу фильтровать операции по типу, чтобы анализировать расходы по категориям',
+      rules: ['Типы: Переводы, Оплата, Начисления, Комиссии', 'Можно выбрать несколько'],
+      criteria: ['После выбора список обновляется', 'Активные фильтры визуально выделены'],
+      scenario: ['Открыть историю', 'Нажать «Фильтры»', 'Выбрать «Переводы»', 'Применить'],
+      altScenario: [],
+      status: 'Changed', priority: 'Low', owner: 'Системный аналитик',
+    },
   ];
 
-  state.requirements = demo;
-  state.features = demoFeatures;
-  state.epics = demoEpics;
-  state.userStories = demoUS;
-  state.selectedIds = new Set();
-  saveRequirements(demo);
+  // ─── Test Cases ───────────────────────────────────────────────────────────
+  const now = new Date().toISOString();
+  const demoTC = [
+    // US-001
+    {
+      id: crypto.randomUUID(), usId: uIds[0], scenarioType: 'main',
+      title: 'TC: Успешный вход по логину и паролю',
+      status: 'Pass',
+      steps: [
+        { text: 'Открыть страницу входа /login',           expected: 'Форма входа отображается',                           actual: 'Форма отображена корректно',          screenshotExpected: null, screenshotActual: null },
+        { text: 'Ввести корректный логин',                  expected: 'Поле логина заполнено',                              actual: 'Введён user@test.ru',                 screenshotExpected: null, screenshotActual: null },
+        { text: 'Ввести корректный пароль и нажать «Войти»', expected: 'Переход на главную страницу /dashboard',           actual: 'Переход выполнен, пользователь авторизован', screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    {
+      id: crypto.randomUUID(), usId: uIds[0], scenarioType: 'alt',
+      title: 'TC: Блокировка после 5 неудачных попыток',
+      status: 'Pass',
+      steps: [
+        { text: 'Ввести верный логин и неверный пароль 5 раз подряд', expected: 'После 5-й попытки — сообщение о блокировке', actual: '«Аккаунт заблокирован на 15 минут» отображено', screenshotExpected: null, screenshotActual: null },
+        { text: 'Попытаться войти с правильными данными',   expected: 'Вход невозможен, таймер обратного отсчёта',          actual: 'Таймер показан, форма недоступна',    screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    // US-002
+    {
+      id: crypto.randomUUID(), usId: uIds[1], scenarioType: 'main',
+      title: 'TC: Сообщение об ошибке при неверном пароле',
+      status: 'Pass',
+      steps: [
+        { text: 'Ввести корректный логин и неверный пароль', expected: 'Форма принимает данные',                             actual: 'Данные введены',                      screenshotExpected: null, screenshotActual: null },
+        { text: 'Нажать «Войти»',                            expected: 'Отображается «Неверный логин или пароль»',            actual: 'Сообщение отображено',               screenshotExpected: null, screenshotActual: null },
+        { text: 'Убедиться, что поле логина не сброшено',    expected: 'Логин остаётся в поле',                              actual: 'Логин сохранён',                      screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    // US-003
+    {
+      id: crypto.randomUUID(), usId: uIds[2], scenarioType: 'main',
+      title: 'TC: Получение и ввод SMS-кода',
+      status: 'Draft',
+      steps: [
+        { text: 'Завершить первый шаг входа',                expected: 'Форма ввода кода отображается',                      actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Дождаться SMS',                             expected: 'SMS с 6-значным кодом приходит до 30 сек',           actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Ввести код и нажать «Подтвердить»',         expected: 'Вход выполнен, открывается кабинет',                 actual: '',                                   screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    // US-004
+    {
+      id: crypto.randomUUID(), usId: uIds[3], scenarioType: 'main',
+      title: 'TC: Повторная отправка SMS-кода',
+      status: 'Draft',
+      steps: [
+        { text: 'Дождаться 60 секунд на экране ввода кода',  expected: 'Кнопка «Отправить повторно» активируется',           actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Нажать «Отправить повторно»',               expected: 'Новое SMS отправлено, таймер сброшен',               actual: '',                                   screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    // US-005
+    {
+      id: crypto.randomUUID(), usId: uIds[4], scenarioType: 'main',
+      title: 'TC: Смена номера телефона в профиле',
+      status: 'Draft',
+      steps: [
+        { text: 'Открыть Профиль → «Изменить телефон»',      expected: 'Форма смены номера доступна',                        actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Ввести новый номер и запросить SMS',         expected: 'SMS с кодом отправлен на новый номер',               actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Ввести код и сохранить',                    expected: 'Номер обновлён, уведомление на старый номер',        actual: '',                                   screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    // US-006
+    {
+      id: crypto.randomUUID(), usId: uIds[5], scenarioType: 'main',
+      title: 'TC: Смена пароля из настроек',
+      status: 'Fail',
+      steps: [
+        { text: 'Открыть «Безопасность» → «Сменить пароль»', expected: 'Форма смены пароля доступна',                        actual: 'Форма открылась',                    screenshotExpected: null, screenshotActual: null },
+        { text: 'Ввести текущий пароль',                     expected: 'Поле принимает ввод',                                actual: 'Введён корректный пароль',           screenshotExpected: null, screenshotActual: null },
+        { text: 'Ввести новый пароль дважды и сохранить',    expected: 'Пароль изменён, сессии завершены, email отправлен',  actual: 'Ошибка 500 — пароль не сохранился', screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    // US-007
+    {
+      id: crypto.randomUUID(), usId: uIds[6], scenarioType: 'main',
+      title: 'TC: Восстановление пароля через e-mail',
+      status: 'Draft',
+      steps: [
+        { text: 'На экране входа нажать «Забыл пароль»',     expected: 'Открывается форма ввода e-mail',                     actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Ввести зарегистрированный email',           expected: 'Письмо с ссылкой отправлено',                        actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Перейти по ссылке и задать новый пароль',   expected: 'Пароль изменён, все сессии закрыты',                 actual: '',                                   screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    // US-008
+    {
+      id: crypto.randomUUID(), usId: uIds[7], scenarioType: 'main',
+      title: 'TC: Перевод между своими счетами',
+      status: 'Pass',
+      steps: [
+        { text: 'Открыть «Переводы» → «Между своими счетами»', expected: 'Список счетов доступен',                           actual: 'Два счёта отображены',               screenshotExpected: null, screenshotActual: null },
+        { text: 'Выбрать счёт-источник (50 000 руб) и получатель, ввести 5 000 руб', expected: 'Сумма принята', actual: 'Введено корректно', screenshotExpected: null, screenshotActual: null },
+        { text: 'Подтвердить перевод',                       expected: 'Балансы обновлены мгновенно, операция в истории',    actual: 'Оба баланса изменены корректно',     screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    {
+      id: crypto.randomUUID(), usId: uIds[7], scenarioType: 'alt',
+      title: 'TC: Попытка перевести сумму больше остатка',
+      status: 'Pass',
+      steps: [
+        { text: 'Ввести сумму, превышающую остаток на счёте', expected: 'Кнопка «Перевести» заблокирована или ошибка',       actual: 'Кнопка недоступна: «Недостаточно средств»', screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    // US-009
+    {
+      id: crypto.randomUUID(), usId: uIds[8], scenarioType: 'main',
+      title: 'TC: Перевод по номеру карты с SMS-подтверждением',
+      status: 'Draft',
+      steps: [
+        { text: 'Открыть «Переводы» → «По номеру карты»',   expected: 'Форма ввода карты доступна',                          actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Ввести 16-значный номер карты получателя', expected: 'Банк получателя определён автоматически',             actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Ввести сумму и подтвердить SMS-кодом',     expected: 'Перевод выполнен, квитанция отображена',              actual: '',                                   screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    // US-010
+    {
+      id: crypto.randomUUID(), usId: uIds[9], scenarioType: 'main',
+      title: 'TC: Перевод по телефону через СБП',
+      status: 'Draft',
+      steps: [
+        { text: 'Открыть «Переводы» → «По номеру телефона»', expected: 'Форма СБП-перевода доступна',                        actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Ввести номер, выбрать банк получателя',    expected: 'Имя получателя показано',                            actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Ввести сумму и подтвердить',               expected: 'Зачисление в течение 15 секунд, уведомление обеим сторонам', actual: '', screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    // US-011
+    {
+      id: crypto.randomUUID(), usId: uIds[10], scenarioType: 'main',
+      title: 'TC: Просмотр истории за последний месяц',
+      status: 'Pass',
+      steps: [
+        { text: 'Открыть «История операций»',               expected: 'Список загружается',                                 actual: 'Загрузка < 2 сек',                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Выбрать период «Последний месяц»',          expected: 'Показаны операции за 30 дней',                       actual: '47 операций отображено',             screenshotExpected: null, screenshotActual: null },
+        { text: 'Прокрутить до 21-й операции',              expected: 'Пагинация срабатывает',                              actual: 'Следующая страница подгружена',       screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    // US-012
+    {
+      id: crypto.randomUUID(), usId: uIds[11], scenarioType: 'main',
+      title: 'TC: Поиск по сумме транзакции',
+      status: 'Draft',
+      steps: [
+        { text: 'В истории ввести «5000» в строку поиска',  expected: 'Отфильтрованы операции на 5 000 руб',                actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Попробовать «5 000» (с пробелом)',          expected: 'Результат идентичен — нечувствительность к формату', actual: '',                                   screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+    // US-013
+    {
+      id: crypto.randomUUID(), usId: uIds[12], scenarioType: 'main',
+      title: 'TC: Фильтрация истории по типу «Переводы»',
+      status: 'Draft',
+      steps: [
+        { text: 'Открыть историю и нажать «Фильтры»',       expected: 'Панель фильтров открылась',                          actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Выбрать тип «Переводы» и применить',        expected: 'Показаны только операции типа «Перевод»',            actual: '',                                   screenshotExpected: null, screenshotActual: null },
+        { text: 'Убедиться в визуальном выделении фильтра',  expected: 'Индикатор активного фильтра отображён',              actual: '',                                   screenshotExpected: null, screenshotActual: null },
+      ],
+      createdAt: now,
+    },
+  ];
+
+  state.requirements = demoReqs;
+  state.features     = demoFeatures;
+  state.epics        = demoEpics;
+  state.userStories  = demoUS;
+  state.testCases    = demoTC;
+  state.selectedIds  = new Set();
+  saveRequirements(demoReqs);
   saveFeatures(demoFeatures);
   saveEpics(demoEpics);
   saveUserStories(demoUS);
-  mergeOwners(demo.map(r => r.owner));
-  setStatus("Сгенерирован демонстрационный набор: 6 требований, 2 Features, 1 Epic, 2 US.");
+  saveTestCases(demoTC);
+  mergeOwners(demoReqs.map(r => r.owner));
+  setStatus(`Сгенерирован демонстрационный набор: ${demoReqs.length} требований, ${demoFeatures.length} Features, ${demoEpics.length} Epics, ${demoUS.length} US, ${demoTC.length} TC.`);
   render();
 }
 
