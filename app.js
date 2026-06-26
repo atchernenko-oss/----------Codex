@@ -105,6 +105,17 @@ document.querySelector("#filtersToggle").addEventListener("click", () => {
 
 elements.excelInput.addEventListener("change", handleFileUpload);
 elements.generateDemoButton.addEventListener("click", generateDemoData);
+document.querySelector("#clearDataButton").addEventListener("click", () => {
+  if (!confirm("Удалить все данные? Это действие необратимо.")) return;
+  state.requirements = [];
+  state.features     = [];
+  state.epics        = [];
+  state.owners       = [];
+  state.userStories  = [];
+  state.testCases    = [];
+  saveRequirements([]); saveFeatures([]); saveEpics([]); saveOwners([]); saveUserStories([]); saveTestCases([]);
+  render();
+});
 elements.exportButton.addEventListener("click", openExportModal);
 elements.clearButton.addEventListener("click", clearRequirements);
 elements.searchInput.addEventListener("input", (event) => {
