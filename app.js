@@ -3297,8 +3297,10 @@ function exportExcel(reqs) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 let currentMainSection = 'registry'; // 'registry' | 'graph'
-let _graphZoom = null;
-let _graphSvg  = null;
+let _graphZoom       = null;
+let _graphSvg        = null;
+let _graphRoot       = null;
+let _selectedNodeId  = null;
 
 function switchMainSection(name) {
   currentMainSection = name;
@@ -3331,34 +3333,14 @@ reqSectionBtn.addEventListener('click', () => {
   if (currentMainSection !== 'registry') switchMainSection('registry');
 });
 
-document.querySelector('#graphResetZoom').addEventListener('click', () => {
-  if (_graphZoom && _graphSvg) {
-    _graphSvg.transition().duration(400).call(_graphZoom.transform, d3.zoomIdentity);
-    // re-fit
-    const g = _graphSvg.select('g');
-    if (g.node()) {
-      const b = g.node().getBBox();
-      const W = _graphSvg.node().clientWidth  || 1100;
-      const H = _graphSvg.node().clientHeight || 650;
-      const scale = Math.min(1, Math.min((W - 80) / (b.width || 1), (H - 80) / (b.height || 1)));
-      const tx = (W - b.width * scale) / 2 - b.x * scale;
-      const ty = (H - b.height * scale) / 2 - b.y * scale;
-      _graphSvg.transition().duration(400).call(_graphZoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
-    }
-  }
-});
 
 // ── Build hierarchy data ──────────────────────────────────────────────────────
 
-function buildGraphTree(epicFilterLabel) {
+function buildGraphTree() {
   const children = [];
   const usedReqIds = new Set();
 
-  const epics = epicFilterLabel
-    ? state.epics.filter(e => e.label === epicFilterLabel)
-    : state.epics;
-
-  for (const epic of epics) {
+  for (const epic of state.epics) {
     const epicFeats = state.features.filter(f => f.epic === epic.label);
     const featNodes = [];
     for (const feat of epicFeats) {
@@ -3372,24 +3354,17 @@ function buildGraphTree(epicFilterLabel) {
     });
   }
 
-  // Orphan features (no epic, or epic not in filter)
-  const orphanFeats = state.features.filter(f =>
-    !f.epic || !state.epics.find(e => e.label === f.epic) ||
-    (epicFilterLabel && f.epic !== epicFilterLabel)
-  );
-  if (!epicFilterLabel) {
-    for (const feat of orphanFeats) {
-      const featNode = buildFeatTreeNode(feat, usedReqIds);
-      if (featNode) children.push(featNode);
-    }
+  // Orphan features
+  const orphanFeats = state.features.filter(f => !f.epic || !state.epics.find(e => e.label === f.epic));
+  for (const feat of orphanFeats) {
+    const featNode = buildFeatTreeNode(feat, usedReqIds);
+    if (featNode) children.push(featNode);
   }
 
   // Orphan reqs
-  if (!epicFilterLabel) {
-    const orphanReqs = state.requirements.filter(r => !usedReqIds.has(r.id));
-    for (const req of orphanReqs) {
-      children.push(buildReqTreeNode(req));
-    }
+  const orphanReqs = state.requirements.filter(r => !usedReqIds.has(r.id));
+  for (const req of orphanReqs) {
+    children.push(buildReqTreeNode(req));
   }
 
   return { id: '__root', type: 'root', children };
@@ -3430,29 +3405,19 @@ function buildReqTreeNode(req) {
 const NODE_W = 148, NODE_H = 44, NODE_SEP_H = 60, NODE_SEP_V = 16;
 
 function renderGraphView() {
-  // Populate epic filter
-  const sel = document.querySelector('#graphEpicFilter');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">Все эпики</option>' +
-    state.epics.map(e => `<option value="${e.label}"${e.label === cur ? ' selected' : ''}>${e.number} ${e.name}</option>`).join('');
-
-  const epicFilter = sel.value;
-  const container  = document.querySelector('#graphContainer');
+  const container = document.querySelector('#graphContainer');
   container.innerHTML = '';
 
-  const treeData = buildGraphTree(epicFilter);
+  const treeData = buildGraphTree();
   if (!treeData.children.length) {
     container.innerHTML = '<p class="graph-empty">Загрузите данные для отображения графа связей</p>';
     return;
   }
 
-  const W = container.clientWidth  || 1100;
-  const H = container.clientHeight || 650;
-
   const svg = d3.select(container)
     .append('svg')
-    .attr('viewBox', `0 0 ${W} ${H}`)
-    .attr('width', W).attr('height', H);
+    .style('width', '100%')
+    .style('height', '100%');
 
   const g = svg.append('g');
 
@@ -3462,20 +3427,28 @@ function renderGraphView() {
   svg.call(zoom);
   _graphZoom = zoom;
   _graphSvg  = svg;
+  _selectedNodeId = null;
 
   // D3 hierarchy + tree layout
-  const root  = d3.hierarchy(treeData);
-  const nodeCount = root.descendants().length;
-  const dynSepV = Math.max(NODE_SEP_V, Math.min(40, (H - 80) / (root.height + 1) - NODE_H));
+  const root = d3.hierarchy(treeData);
+  _graphRoot = root;
 
   const treeLayout = d3.tree()
-    .nodeSize([NODE_H + dynSepV, NODE_W + NODE_SEP_H]);
+    .nodeSize([NODE_H + NODE_SEP_V, NODE_W + NODE_SEP_H]);
 
   treeLayout(root);
 
   // Filter out invisible root node
   const nodes = root.descendants().filter(d => d.data.type !== 'root');
   const links = root.links().filter(l => l.source.data.type !== 'root');
+
+  // Background click — сбросить выделение
+  g.append('rect')
+    .attr('class', 'graph-bg')
+    .attr('x', -50000).attr('y', -50000)
+    .attr('width', 100000).attr('height', 100000)
+    .attr('fill', 'transparent')
+    .on('click', resetGraphHighlight);
 
   // Links
   g.selectAll('.graph-link')
@@ -3489,7 +3462,7 @@ function renderGraphView() {
     .attr('class', d => `graph-node gn-${d.data.type}`)
     .attr('transform', d => `translate(${d.y - NODE_W / 2},${d.x - NODE_H / 2})`)
     .style('cursor', 'pointer')
-    .on('click', (ev, d) => openEntityModal(d.data));
+    .on('click', (ev, d) => { ev.stopPropagation(); highlightGraphNode(d.data.id); });
 
   // Rect
   nodeG.append('rect')
@@ -3509,21 +3482,54 @@ function renderGraphView() {
     .attr('x', NODE_W / 2).attr('y', NODE_H / 2 + 9)
     .text(d => d.data.sublabel);
 
-  // Initial fit
-  const b = g.node().getBBox();
-  const scale = Math.min(1, Math.min((W - 80) / (b.width || 1), (H - 80) / (b.height || 1)));
-  const tx = (W - b.width * scale) / 2 - b.x * scale;
-  const ty = (H - b.height * scale) / 2 - b.y * scale;
+  // Initial fit — рассчитываем из D3-данных, не из getBBox (не работает в headless)
+  const W = container.clientWidth  || svg.node().clientWidth  || 1100;
+  const H = container.clientHeight || svg.node().clientHeight || 650;
+  const xs = nodes.map(d => d.x);
+  const ys = nodes.map(d => d.y);
+  const minX = Math.min(...xs) - NODE_H / 2;
+  const maxX = Math.max(...xs) + NODE_H / 2;
+  const minY = Math.min(...ys) - NODE_W / 2;
+  const maxY = Math.max(...ys) + NODE_W / 2;
+  const bW = maxY - minY;
+  const bH = maxX - minX;
+  const pad = 40;
+  const scale = Math.min(0.95, Math.min((W - pad * 2) / (bW || 1), (H - pad * 2) / (bH || 1)));
+  const tx = (W - bW * scale) / 2 - minY * scale;
+  const ty = (H - bH * scale) / 2 - minX * scale;
   svg.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
 }
 
-function openEntityModal(nodeData) {
-  const { type, data } = nodeData;
-  if (type === 'epic')    openEpicEditModal(data);
-  else if (type === 'feature') openFeatureEditModal(data);
-  else if (type === 'req')     openRequirementModal(data);
-  else if (type === 'us')      openUSEditModal(data);
-  else if (type === 'tc')      openTCEditModal(data);
+function highlightGraphNode(clickedId) {
+  if (_selectedNodeId === clickedId) {
+    resetGraphHighlight();
+    return;
+  }
+  _selectedNodeId = clickedId;
+
+  // Собираем все связанные узлы: предки + сам + потомки
+  const related = new Set();
+  _graphRoot.each(d => {
+    if (d.data.id !== clickedId) return;
+    // Предки (до реального root, не virtual __root)
+    let cur = d;
+    while (cur) {
+      if (cur.data.type !== 'root') related.add(cur.data.id);
+      cur = cur.parent;
+    }
+    // Потомки
+    d.each(desc => { if (desc.data.type !== 'root') related.add(desc.data.id); });
+  });
+
+  d3.selectAll('.graph-node').classed('dimmed', d => !related.has(d.data.id));
+  d3.selectAll('.graph-link').classed('link-dimmed',
+    l => !related.has(l.source.data.id) || !related.has(l.target.data.id)
+  );
 }
 
-document.querySelector('#graphEpicFilter').addEventListener('change', renderGraphView);
+function resetGraphHighlight() {
+  _selectedNodeId = null;
+  d3.selectAll('.graph-node').classed('dimmed', false);
+  d3.selectAll('.graph-link').classed('link-dimmed', false);
+}
+

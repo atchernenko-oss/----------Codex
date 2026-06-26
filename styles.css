@@ -2299,11 +2299,6 @@ tr.selected td {
 .graph-legend-item--us::before      { background: #059669; }
 .graph-legend-item--tc::before      { background: #d97706; }
 
-.graph-controls {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
 
 .graph-container {
   flex: 1;
@@ -2330,9 +2325,18 @@ tr.selected td {
 .gn-rect {
   rx: 6;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,.15));
-  transition: opacity .15s;
+  transition: opacity .2s;
 }
 .gn-rect:hover { opacity: .85; }
+
+/* Dimming при выделении ветки */
+.graph-node.dimmed .gn-rect    { opacity: 0.1; filter: none; }
+.graph-node.dimmed .gn-label   { opacity: 0.12; }
+.graph-node.dimmed .gn-sublabel { opacity: 0.12; }
+.gn-label, .gn-sublabel        { transition: opacity .2s; }
+
+.graph-link { transition: opacity .2s; }
+.graph-link.link-dimmed { opacity: 0.08; }
 
 .gn-label {
   fill: #fff;
