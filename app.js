@@ -1568,3 +1568,32 @@ function showAltScenario(steps) {
   if (hasData) populateAltScenarioList(steps);
   else document.querySelector("#usAltScenarioList").innerHTML = "";
 }
+
+document.querySelectorAll('.modal--resizable').forEach(modal => {
+  const handle = document.createElement('div');
+  handle.className = 'modal-resize-handle';
+  modal.appendChild(handle);
+
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = modal.offsetWidth;
+    const startH = modal.offsetHeight;
+    modal.style.maxWidth = 'none';
+    modal.style.maxHeight = 'none';
+
+    const onMove = e => {
+      const w = Math.max(340, Math.min(window.innerWidth - 32, startW + e.clientX - startX));
+      const h = Math.max(200, Math.min(window.innerHeight - 32, startH + e.clientY - startY));
+      modal.style.width = w + 'px';
+      modal.style.height = h + 'px';
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+});

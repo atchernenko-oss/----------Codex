@@ -625,7 +625,7 @@ tr.selected td {
 }
 
 .modal--resizable {
-  resize: both;
+  position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -642,6 +642,28 @@ tr.selected td {
 
 .modal--resizable .modal-body--scroll {
   max-height: none;
+}
+
+.modal-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: se-resize;
+  z-index: 10;
+}
+
+.modal-resize-handle::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid rgba(100, 120, 150, 0.45);
+  border-bottom: 2px solid rgba(100, 120, 150, 0.45);
+  border-radius: 1px;
 }
 
 .modal-grid {
