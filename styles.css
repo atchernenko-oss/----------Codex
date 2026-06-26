@@ -1873,10 +1873,8 @@ tr.selected td {
 .tc-step-screenshot-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
+  gap: 8px;
+  margin-top: 6px;
   flex-wrap: wrap;
 }
 

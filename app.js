@@ -1660,7 +1660,7 @@ function openTCModal(usId, scenarioType, steps, usTitle) {
   document.querySelector("#tcTitle").value = `TC: ${usTitle} (${label})`;
   document.querySelector("#tcStatus").value = "Draft";
   document.querySelector("#tcStepsList").innerHTML = "";
-  for (const step of steps) addTCStepRow({ text: step, expected: "", actual: "", screenshot: null });
+  for (const step of steps) addTCStepRow({ text: typeof step === 'string' ? step : step.text, expected: step.expected || "", actual: step.actual || "", screenshotExpected: step.screenshotExpected || null, screenshotActual: step.screenshotActual || null });
   document.querySelector("#tcModal").classList.remove("hidden");
   document.querySelector("#tcTitle").focus();
 }
@@ -1677,7 +1677,8 @@ function saveTCModal() {
     text: item.querySelector(".tc-step-text").value.trim(),
     expected: item.querySelector(".tc-expected-input").value.trim(),
     actual: item.querySelector(".tc-actual-input").value.trim(),
-    screenshot: item.querySelector(".tc-screenshot-img")?.src || null,
+    screenshotExpected: item.querySelector(".tc-expected-preview .tc-screenshot-img")?.src || null,
+    screenshotActual: item.querySelector(".tc-actual-preview .tc-screenshot-img")?.src || null,
   }));
   const tc = {
     id: editingTCId || crypto.randomUUID(),
@@ -1700,13 +1701,43 @@ function saveTCModal() {
   renderUSList();
 }
 
+function makeTCScreenshotRow(previewClass, initialSrc) {
+  const fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.accept = "image/*";
+  fileInput.hidden = true;
+
+  const attachBtn = document.createElement("button");
+  attachBtn.type = "button";
+  attachBtn.className = "tc-attach-btn";
+  attachBtn.innerHTML = "&#128206; Скриншот";
+
+  const preview = document.createElement("div");
+  preview.className = "tc-screenshot-preview " + previewClass;
+  if (initialSrc) renderTCScreenshot(preview, initialSrc);
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => renderTCScreenshot(preview, e.target.result);
+    reader.readAsDataURL(file);
+  });
+  attachBtn.addEventListener("click", () => fileInput.click());
+
+  const row = document.createElement("div");
+  row.className = "tc-step-screenshot-row";
+  row.append(attachBtn, fileInput, preview);
+  return row;
+}
+
 function renumberTCSteps() {
   document.querySelectorAll("#tcStepsList .tc-step-num").forEach((el, i) => {
     el.textContent = i + 1;
   });
 }
 
-function addTCStepRow({ text = "", expected = "", actual = "", screenshot = null }) {
+function addTCStepRow({ text = "", expected = "", actual = "", screenshotExpected = null, screenshotActual = null }) {
   const list = document.querySelector("#tcStepsList");
   const li = document.createElement("li");
   li.className = "tc-step-item";
@@ -1754,48 +1785,20 @@ function addTCStepRow({ text = "", expected = "", actual = "", screenshot = null
   const expectedLabel = document.createElement("span");
   expectedLabel.className = "tc-step-field-label";
   expectedLabel.textContent = "Ожидаемый результат";
-  expectedCell.append(expectedLabel, expectedTA);
+  expectedCell.append(expectedLabel, expectedTA, makeTCScreenshotRow("tc-expected-preview", screenshotExpected));
 
   const actualCell = document.createElement("div");
   actualCell.className = "tc-step-field";
   const actualLabel = document.createElement("span");
   actualLabel.className = "tc-step-field-label";
   actualLabel.textContent = "Фактический результат";
-  actualCell.append(actualLabel, actualTA);
+  actualCell.append(actualLabel, actualTA, makeTCScreenshotRow("tc-actual-preview", screenshotActual));
 
   const fields = document.createElement("div");
   fields.className = "tc-step-fields";
   fields.append(expectedCell, actualCell);
 
-  // ── скриншот — отдельная строка на всю ширину ──
-  const fileInput = document.createElement("input");
-  fileInput.type = "file";
-  fileInput.accept = "image/*";
-  fileInput.hidden = true;
-
-  const attachBtn = document.createElement("button");
-  attachBtn.type = "button";
-  attachBtn.className = "tc-attach-btn";
-  attachBtn.innerHTML = "&#128206; Скриншот";
-
-  const preview = document.createElement("div");
-  preview.className = "tc-screenshot-preview";
-  if (screenshot) renderTCScreenshot(preview, screenshot);
-
-  fileInput.addEventListener("change", () => {
-    const file = fileInput.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => renderTCScreenshot(preview, e.target.result);
-    reader.readAsDataURL(file);
-  });
-  attachBtn.addEventListener("click", () => fileInput.click());
-
-  const screenshotRow = document.createElement("div");
-  screenshotRow.className = "tc-step-screenshot-row";
-  screenshotRow.append(attachBtn, fileInput, preview);
-
-  li.append(header, fields, screenshotRow);
+  li.append(header, fields);
   list.append(li);
 }
 
