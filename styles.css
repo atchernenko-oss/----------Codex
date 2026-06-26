@@ -2152,6 +2152,66 @@ tr.selected td {
   letter-spacing: 0.01em;
 }
 
+/* ── Export modal ──────────────────────────────────────────────────── */
+.export-modal {
+  max-width: 540px;
+}
+
+.export-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 24px;
+}
+
+.export-fieldset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 16px 14px;
+  margin: 0;
+}
+
+.export-fieldset legend {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  padding: 0 6px;
+}
+
+.export-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.export-radio:hover { background: var(--accent-soft); }
+.export-radio input { flex-shrink: 0; accent-color: var(--accent); }
+
+.export-radio-label { font-size: 14px; font-weight: 500; }
+.export-radio-hint  { font-size: 12px; color: var(--muted); margin-left: auto; }
+
+.export-radio[style*="opacity"] { pointer-events: none; }
+
+.export-format-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 8px;
+  cursor: pointer;
+  border-radius: 8px;
+  margin-bottom: 2px;
+}
+.export-format-card:hover { background: var(--accent-soft); }
+.export-format-card input { flex-shrink: 0; margin-top: 3px; accent-color: var(--accent); }
+
+.export-format-body { display: flex; flex-direction: column; gap: 2px; }
+.export-format-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+.export-format-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
 .tc-expected-input,
 .tc-actual-input {
   width: 100%;

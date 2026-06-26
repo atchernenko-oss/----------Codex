@@ -42,6 +42,7 @@
               <input id="excelInput" type="file" accept=".xlsx,.xls,.csv" />
               Загрузить Excel
             </label>
+            <button id="exportButton" class="button secondary" type="button">Экспорт</button>
             <button id="generateDemoButton" class="button secondary" type="button">
               Тестовые данные
             </button>
@@ -633,6 +634,65 @@
         <div class="modal-footer">
           <button class="button ghost" id="tcModalCancel" type="button">Отмена</button>
           <button class="button primary" id="tcModalSave" type="button">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Export modal ────────────────────────────────────────────── -->
+    <div id="exportModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle">
+      <div class="modal export-modal">
+        <div class="modal-header">
+          <h3 id="exportModalTitle">Экспорт данных</h3>
+          <button class="modal-close" id="exportModalClose" type="button" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="modal-body export-modal-body">
+
+          <fieldset class="export-fieldset">
+            <legend>Что экспортировать</legend>
+            <label class="export-radio">
+              <input type="radio" name="exportScope" value="all" checked />
+              <span class="export-radio-label">Все данные</span>
+              <span class="export-radio-hint" id="exportScopeAllHint"></span>
+            </label>
+            <label class="export-radio" id="exportScopeSelectedLabel">
+              <input type="radio" name="exportScope" value="selected" id="exportScopeSelectedInput" />
+              <span class="export-radio-label">Выбранные требования</span>
+              <span class="export-radio-hint" id="exportScopeSelHint"></span>
+            </label>
+          </fieldset>
+
+          <fieldset class="export-fieldset">
+            <legend>Формат</legend>
+
+            <label class="export-format-card">
+              <input type="radio" name="exportFormat" value="md" checked />
+              <div class="export-format-body">
+                <span class="export-format-name">Markdown</span>
+                <span class="export-format-desc">Иерархическая структура для обработки AI / LLM. Содержит полный контекст: эпики, фичи, требования, US, тест-кейсы с шагами.</span>
+              </div>
+            </label>
+
+            <label class="export-format-card">
+              <input type="radio" name="exportFormat" value="confluence" />
+              <div class="export-format-body">
+                <span class="export-format-name">Confluence HTML</span>
+                <span class="export-format-desc">Готовый HTML для вставки в Confluence или Notion. Заголовки, таблицы правил и критериев, шаги тест-кейсов.</span>
+              </div>
+            </label>
+
+            <label class="export-format-card">
+              <input type="radio" name="exportFormat" value="excel" />
+              <div class="export-format-body">
+                <span class="export-format-name">Excel — Оценка трудозатрат</span>
+                <span class="export-format-desc">Таблица User Stories с колонками для оценки по ролям: аналитик, фронтенд, бэкенд, тестировщик, дизайнер, DevOps.</span>
+              </div>
+            </label>
+
+          </fieldset>
+        </div>
+        <div class="modal-footer">
+          <button class="button ghost" id="exportModalCancel" type="button">Отмена</button>
+          <button class="button primary" id="exportModalDo" type="button">Экспортировать</button>
         </div>
       </div>
     </div>
