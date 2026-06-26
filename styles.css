@@ -1768,6 +1768,30 @@ tr.selected td {
   margin-bottom: 10px;
 }
 
+.tc-step-delete {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  margin-left: auto;
+}
+
+.tc-step-delete:hover {
+  background: var(--danger, #e53935);
+  color: #fff;
+  border-color: var(--danger, #e53935);
+}
+
 .tc-step-num {
   flex-shrink: 0;
   width: 24px;
@@ -1846,12 +1870,14 @@ tr.selected td {
   background: #fff;
 }
 
-.tc-screenshot-area {
-  margin-top: 6px;
+.tc-step-screenshot-row {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: flex-start;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
 }
 
 .tc-attach-btn {

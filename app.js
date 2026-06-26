@@ -1700,15 +1700,21 @@ function saveTCModal() {
   renderUSList();
 }
 
+function renumberTCSteps() {
+  document.querySelectorAll("#tcStepsList .tc-step-num").forEach((el, i) => {
+    el.textContent = i + 1;
+  });
+}
+
 function addTCStepRow({ text = "", expected = "", actual = "", screenshot = null }) {
   const list = document.querySelector("#tcStepsList");
-  const num = list.children.length + 1;
   const li = document.createElement("li");
   li.className = "tc-step-item";
 
+  // ── header: номер · текст шага · удалить ──
   const numEl = document.createElement("span");
   numEl.className = "tc-step-num";
-  numEl.textContent = num;
+  numEl.textContent = list.children.length + 1;
 
   const stepInput = document.createElement("input");
   stepInput.type = "text";
@@ -1716,10 +1722,21 @@ function addTCStepRow({ text = "", expected = "", actual = "", screenshot = null
   stepInput.placeholder = "Шаг...";
   stepInput.value = text;
 
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "tc-step-delete";
+  deleteBtn.title = "Удалить шаг";
+  deleteBtn.textContent = "×";
+  deleteBtn.addEventListener("click", () => {
+    li.remove();
+    renumberTCSteps();
+  });
+
   const header = document.createElement("div");
   header.className = "tc-step-header";
-  header.append(numEl, stepInput);
+  header.append(numEl, stepInput, deleteBtn);
 
+  // ── 2-колоночная сетка: ожидаемый | фактический ──
   const expectedTA = document.createElement("textarea");
   expectedTA.className = "tc-expected-input";
   expectedTA.placeholder = "Ожидаемый результат...";
@@ -1732,6 +1749,25 @@ function addTCStepRow({ text = "", expected = "", actual = "", screenshot = null
   actualTA.rows = 3;
   actualTA.value = actual;
 
+  const expectedCell = document.createElement("div");
+  expectedCell.className = "tc-step-field";
+  const expectedLabel = document.createElement("span");
+  expectedLabel.className = "tc-step-field-label";
+  expectedLabel.textContent = "Ожидаемый результат";
+  expectedCell.append(expectedLabel, expectedTA);
+
+  const actualCell = document.createElement("div");
+  actualCell.className = "tc-step-field";
+  const actualLabel = document.createElement("span");
+  actualLabel.className = "tc-step-field-label";
+  actualLabel.textContent = "Фактический результат";
+  actualCell.append(actualLabel, actualTA);
+
+  const fields = document.createElement("div");
+  fields.className = "tc-step-fields";
+  fields.append(expectedCell, actualCell);
+
+  // ── скриншот — отдельная строка на всю ширину ──
   const fileInput = document.createElement("input");
   fileInput.type = "file";
   fileInput.accept = "image/*";
@@ -1740,7 +1776,7 @@ function addTCStepRow({ text = "", expected = "", actual = "", screenshot = null
   const attachBtn = document.createElement("button");
   attachBtn.type = "button";
   attachBtn.className = "tc-attach-btn";
-  attachBtn.textContent = "📎 Скриншот";
+  attachBtn.innerHTML = "&#128206; Скриншот";
 
   const preview = document.createElement("div");
   preview.className = "tc-screenshot-preview";
@@ -1755,29 +1791,11 @@ function addTCStepRow({ text = "", expected = "", actual = "", screenshot = null
   });
   attachBtn.addEventListener("click", () => fileInput.click());
 
-  const screenshotArea = document.createElement("div");
-  screenshotArea.className = "tc-screenshot-area";
-  screenshotArea.append(attachBtn, fileInput, preview);
+  const screenshotRow = document.createElement("div");
+  screenshotRow.className = "tc-step-screenshot-row";
+  screenshotRow.append(attachBtn, fileInput, preview);
 
-  const expectedCell = document.createElement("div");
-  expectedCell.className = "tc-step-field";
-  const expectedLabel = document.createElement("span");
-  expectedLabel.className = "tc-step-field-label";
-  expectedLabel.textContent = "Ожидаемый результат";
-  expectedCell.append(expectedLabel, expectedTA);
-
-  const actualCell = document.createElement("div");
-  actualCell.className = "tc-step-field";
-  const actualLabel = document.createElement("span");
-  actualLabel.className = "tc-step-field-label";
-  actualLabel.textContent = "Фактический результат";
-  actualCell.append(actualLabel, actualTA, screenshotArea);
-
-  const fields = document.createElement("div");
-  fields.className = "tc-step-fields";
-  fields.append(expectedCell, actualCell);
-
-  li.append(header, fields);
+  li.append(header, fields, screenshotRow);
   list.append(li);
 }
 
@@ -1801,6 +1819,7 @@ function renderTCScreenshot(container, src) {
 document.querySelector("#tcModalClose").addEventListener("click", closeTCModal);
 document.querySelector("#tcModalCancel").addEventListener("click", closeTCModal);
 document.querySelector("#tcModalSave").addEventListener("click", saveTCModal);
+document.querySelector("#tcAddStepBtn").addEventListener("click", () => addTCStepRow({}));
 document.querySelector("#tcModal").addEventListener("click", e => {
   if (e.target === document.querySelector("#tcModal")) closeTCModal();
 });
