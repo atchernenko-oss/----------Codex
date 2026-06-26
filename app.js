@@ -1318,11 +1318,14 @@ function renderUSList() {
         ${us.number ? `<span class="us-item-number">${escapeHtml(us.number)}</span>` : ''}
         <span class="us-item-title">${escapeHtml(us.title)}</span>
         <div class="us-item-actions">
-          <span class="badge ${statusClass(us.status)}">${escapeHtml(us.status)}</span>
-          <span class="badge ${priorityClass(us.priority)}">${escapeHtml(us.priority)}</span>
           <button class="us-edit-btn row-edit-btn" data-us-id="${escapeHtml(us.id)}" type="button" title="Редактировать"><span class="edit-icon">✏</span></button>
           <button class="us-delete-btn row-delete-btn" data-us-id="${escapeHtml(us.id)}" type="button" title="Удалить">🗑</button>
         </div>
+      </div>
+      <div class="us-item-meta">
+        <span class="us-item-meta-field"><span class="us-item-meta-label">Статус:</span> <span class="badge ${statusClass(us.status)}">${escapeHtml(us.status)}</span></span>
+        <span class="us-item-meta-field"><span class="us-item-meta-label">Приоритет:</span> <span class="badge ${priorityClass(us.priority)}">${escapeHtml(us.priority)}</span></span>
+        ${us.owner ? `<span class="us-item-meta-field"><span class="us-item-meta-label">Владелец:</span> <span class="us-item-meta-value">${escapeHtml(us.owner)}</span></span>` : ''}
       </div>
       ${us.text ? `<div class="us-item-text">${escapeHtml(us.text)}</div>` : ''}
       ${us.scenario?.length ? `<div class="us-item-scenario-block"><span class="us-item-scenario-label">Основной сценарий</span><ol class="us-item-scenario">${us.scenario.map(s => `<li class="us-item-scenario-step">${escapeHtml(s)}</li>`).join('')}</ol></div>` : ''}
@@ -1345,6 +1348,7 @@ function openUSEditModal(us) {
     document.querySelector("#usGoal").value = us.goal || "";
     document.querySelector("#usStatus").value = us.status;
     document.querySelector("#usPriority").value = us.priority;
+    document.querySelector("#usOwner").value = us.owner || "";
     populateRulesList(us.rules || []);
     populateScenarioList(us.scenario || []);
     showAltScenario(us.altScenario?.length ? us.altScenario : null);
@@ -1358,6 +1362,7 @@ function openUSEditModal(us) {
     document.querySelector("#usGoal").value = "";
     document.querySelector("#usStatus").value = "Draft";
     document.querySelector("#usPriority").value = "Medium";
+    document.querySelector("#usOwner").value = "";
     populateRulesList([]);
     populateScenarioList([]);
     showAltScenario(null);
@@ -1408,6 +1413,7 @@ function saveUserStory() {
     altScenario,
     status: document.querySelector("#usStatus").value,
     priority: document.querySelector("#usPriority").value,
+    owner: document.querySelector("#usOwner").value.trim(),
   };
   if (editingUSId) {
     state.userStories = state.userStories.map(s => s.id === editingUSId ? us : s);

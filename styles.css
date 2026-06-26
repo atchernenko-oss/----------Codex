@@ -630,6 +630,10 @@ tr.selected td {
   gap: 16px;
 }
 
+.modal-grid--3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .field select {
   width: 100%;
   min-height: 40px;
@@ -650,7 +654,8 @@ tr.selected td {
 }
 
 @media (max-width: 560px) {
-  .modal-grid {
+  .modal-grid,
+  .modal-grid--3 {
     grid-template-columns: 1fr;
   }
 }
@@ -1276,6 +1281,31 @@ tr.selected td {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+}
+
+.us-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.us-item-meta-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.us-item-meta-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.us-item-meta-value {
+  font-size: 12px;
+  color: var(--ink);
 }
 
 .us-item-text {
