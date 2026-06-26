@@ -19,13 +19,15 @@
         </div>
 
         <nav class="nav-list" aria-label="Разделы">
-          <button class="nav-item active" type="button">Реестр требований</button>
-          <button class="nav-item" type="button" disabled>Покрытие</button>
-          <button class="nav-item" type="button" disabled>Граф связей</button>
-          <button class="nav-item" type="button" disabled>Отчеты</button>
+          <button class="nav-item active" type="button" data-view="requirements">Реестр требований</button>
           <span class="nav-section-label">Справочники</span>
           <button class="nav-item" type="button" id="openOwnersDirectoryBtn">Владельцы</button>
         </nav>
+
+        <div class="sidebar-tree-section">
+          <span class="nav-section-label">Hierarchy</span>
+          <div id="sidebarTree" class="sidebar-tree"></div>
+        </div>
       </aside>
 
       <main class="workspace">
@@ -44,6 +46,14 @@
             </button>
           </div>
         </header>
+
+        <nav class="ws-tabs" role="tablist" aria-label="Реестры">
+          <button class="ws-tab active" data-view="requirements" type="button">Требования</button>
+          <button class="ws-tab" data-view="epics" type="button">Epics</button>
+          <button class="ws-tab" data-view="features" type="button">Features</button>
+          <button class="ws-tab" data-view="userStories" type="button">User Stories</button>
+          <button class="ws-tab" data-view="testCases" type="button">Test Cases</button>
+        </nav>
 
         <section class="summary-grid" aria-label="Сводка требований">
           <article class="metric">
@@ -145,6 +155,170 @@
             <strong>Реестр пуст</strong>
             <span>Загрузите Excel-файл или создайте тестовый набор требований.</span>
           </div>
+        </section>
+
+        <!-- ── Epics ── -->
+        <section class="view-panel hidden" id="epicsView">
+          <section class="summary-grid" aria-label="Сводка эпиков">
+            <article class="metric"><span class="metric-label">Всего эпиков</span><strong id="epicsTotalCount">0</strong></article>
+            <article class="metric"><span class="metric-label">Features</span><strong id="epicsFeatCount">0</strong></article>
+            <article class="metric"><span class="metric-label">Требований</span><strong id="epicsReqCount">0</strong></article>
+            <article class="metric"><span class="metric-label">User Stories</span><strong id="epicsUSCount">0</strong></article>
+          </section>
+          <section class="toolbar" aria-label="Фильтры эпиков">
+            <button class="toolbar-toggle" id="epicsFiltersToggle" type="button" aria-expanded="false" aria-controls="epicsFiltersBody">
+              <span class="toolbar-toggle-label">Поиск и фильтры</span>
+              <span class="toolbar-toggle-icon">▼</span>
+            </button>
+            <div class="toolbar-body hidden" id="epicsFiltersBody">
+              <div class="toolbar-row">
+                <div class="search-wrap">
+                  <span aria-hidden="true">⌕</span>
+                  <input id="epicsSearch" type="search" placeholder="Поиск по коду, названию, описанию…" />
+                </div>
+                <button id="epicsClearFilters" class="button ghost" type="button">Очистить фильтры</button>
+              </div>
+            </div>
+          </section>
+          <section class="table-panel">
+            <div class="panel-head">
+              <div><h2>Epics</h2><p id="epicsImportStatus">—</p></div>
+            </div>
+            <div class="view-content" id="epicsViewContent"></div>
+          </section>
+        </section>
+
+        <!-- ── Features ── -->
+        <section class="view-panel hidden" id="featuresView">
+          <section class="summary-grid" aria-label="Сводка фич">
+            <article class="metric"><span class="metric-label">Всего фич</span><strong id="featsTotalCount">0</strong></article>
+            <article class="metric"><span class="metric-label">Требований</span><strong id="featsReqCount">0</strong></article>
+            <article class="metric"><span class="metric-label">User Stories</span><strong id="featsUSCount">0</strong></article>
+            <article class="metric"><span class="metric-label">Test Cases</span><strong id="featsTCCount">0</strong></article>
+          </section>
+          <section class="toolbar" aria-label="Фильтры фич">
+            <button class="toolbar-toggle" id="featsFiltersToggle" type="button" aria-expanded="false" aria-controls="featsFiltersBody">
+              <span class="toolbar-toggle-label">Поиск и фильтры</span>
+              <span class="toolbar-toggle-icon">▼</span>
+            </button>
+            <div class="toolbar-body hidden" id="featsFiltersBody">
+              <div class="toolbar-row">
+                <div class="search-wrap">
+                  <span aria-hidden="true">⌕</span>
+                  <input id="featsSearch" type="search" placeholder="Поиск по коду, названию, описанию…" />
+                </div>
+                <button id="featsClearFilters" class="button ghost" type="button">Очистить фильтры</button>
+              </div>
+              <div class="toolbar-row">
+                <select id="featsEpicFilter" aria-label="Фильтр по эпику">
+                  <option value="">Все эпики</option>
+                </select>
+              </div>
+            </div>
+          </section>
+          <section class="table-panel">
+            <div class="panel-head">
+              <div><h2>Features</h2><p id="featsImportStatus">—</p></div>
+            </div>
+            <div class="view-content" id="featuresViewContent"></div>
+          </section>
+        </section>
+
+        <!-- ── User Stories ── -->
+        <section class="view-panel hidden" id="userStoriesView">
+          <section class="summary-grid" aria-label="Сводка User Stories">
+            <article class="metric"><span class="metric-label">Всего US</span><strong id="usTotalCount">0</strong></article>
+            <article class="metric"><span class="metric-label">Approved</span><strong id="usApprovedCount">0</strong></article>
+            <article class="metric"><span class="metric-label">Draft</span><strong id="usDraftCount">0</strong></article>
+            <article class="metric"><span class="metric-label">High priority</span><strong id="usHighCount">0</strong></article>
+          </section>
+          <section class="toolbar" aria-label="Фильтры US">
+            <button class="toolbar-toggle" id="usFiltersToggle" type="button" aria-expanded="false" aria-controls="usFiltersBody">
+              <span class="toolbar-toggle-label">Поиск и фильтры</span>
+              <span class="toolbar-toggle-icon">▼</span>
+            </button>
+            <div class="toolbar-body hidden" id="usFiltersBody">
+              <div class="toolbar-row">
+                <div class="search-wrap">
+                  <span aria-hidden="true">⌕</span>
+                  <input id="usSearch" type="search" placeholder="Поиск по номеру, заголовку, владельцу…" />
+                </div>
+                <button id="usClearFilters" class="button ghost" type="button">Очистить фильтры</button>
+              </div>
+              <div class="toolbar-row">
+                <select id="usStatusFilter" aria-label="Фильтр по статусу">
+                  <option value="">Все статусы</option>
+                  <option value="Draft">Draft</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+                <select id="usPriorityFilter" aria-label="Фильтр по приоритету">
+                  <option value="">Все приоритеты</option>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+                <select id="usFeatureFilter" aria-label="Фильтр по Feature">
+                  <option value="">Все Features</option>
+                </select>
+              </div>
+            </div>
+          </section>
+          <section class="table-panel">
+            <div class="panel-head">
+              <div><h2>User Stories</h2><p id="usImportStatus">—</p></div>
+            </div>
+            <div class="view-content" id="userStoriesViewContent"></div>
+          </section>
+        </section>
+
+        <!-- ── Test Cases ── -->
+        <section class="view-panel hidden" id="testCasesView">
+          <section class="summary-grid" aria-label="Сводка тест-кейсов">
+            <article class="metric"><span class="metric-label">Всего TC</span><strong id="tcTotalCount">0</strong></article>
+            <article class="metric"><span class="metric-label">Pass</span><strong id="tcPassCount">0</strong></article>
+            <article class="metric"><span class="metric-label">Fail</span><strong id="tcFailCount">0</strong></article>
+            <article class="metric"><span class="metric-label">Draft</span><strong id="tcDraftCount">0</strong></article>
+          </section>
+          <section class="toolbar" aria-label="Фильтры тест-кейсов">
+            <button class="toolbar-toggle" id="tcFiltersToggle" type="button" aria-expanded="false" aria-controls="tcFiltersBody">
+              <span class="toolbar-toggle-label">Поиск и фильтры</span>
+              <span class="toolbar-toggle-icon">▼</span>
+            </button>
+            <div class="toolbar-body hidden" id="tcFiltersBody">
+              <div class="toolbar-row">
+                <div class="search-wrap">
+                  <span aria-hidden="true">⌕</span>
+                  <input id="tcSearch" type="search" placeholder="Поиск по названию, User Story…" />
+                </div>
+                <button id="tcClearFilters" class="button ghost" type="button">Очистить фильтры</button>
+              </div>
+              <div class="toolbar-row">
+                <select id="tcStatusFilter" aria-label="Фильтр по статусу">
+                  <option value="">Все статусы</option>
+                  <option value="Draft">Draft</option>
+                  <option value="Pass">Pass</option>
+                  <option value="Fail">Fail</option>
+                  <option value="Blocked">Blocked</option>
+                </select>
+                <select id="tcScenarioFilter" aria-label="Фильтр по типу сценария">
+                  <option value="">Все сценарии</option>
+                  <option value="main">Основной</option>
+                  <option value="alt">Альтернативный</option>
+                </select>
+                <select id="tcUSFilter" aria-label="Фильтр по User Story">
+                  <option value="">Все User Stories</option>
+                </select>
+              </div>
+            </div>
+          </section>
+          <section class="table-panel">
+            <div class="panel-head">
+              <div><h2>Test Cases</h2><p id="tcImportStatus">—</p></div>
+            </div>
+            <div class="view-content" id="testCasesViewContent"></div>
+          </section>
         </section>
       </main>
     </div>
@@ -430,7 +604,7 @@
     <div class="modal-overlay hidden modal-overlay--top3" id="tcModal" role="dialog" aria-modal="true" aria-labelledby="tcModalTitle">
       <div class="modal modal-wider modal--resizable">
         <div class="modal-header">
-          <h3 id="tcModalTitle">Тест-кейс</h3>
+          <h3 id="tcModalTitle">Test Case</h3>
           <button class="modal-close" id="tcModalClose" type="button" aria-label="Закрыть">✕</button>
         </div>
         <div class="modal-body modal-body--scroll">

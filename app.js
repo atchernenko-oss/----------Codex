@@ -1,3 +1,6 @@
+let currentView = 'requirements';
+const sidebarExpanded = new Set();
+
 const STORAGE_KEY = "reqtracker.requirements.v1";
 const FEATURES_KEY = "reqtracker.features.v1";
 const EPICS_KEY = "reqtracker.epics.v1";
@@ -521,11 +524,42 @@ function generateDemoData() {
     },
   ].map((item) => ({ id: crypto.randomUUID(), ...item }));
 
+  // Фичи
+  const f1id = crypto.randomUUID(), f2id = crypto.randomUUID();
+  const demoFeatures = [
+    { id: f1id, number: "F-001", name: "Импорт и реестр", description: "Загрузка и отображение требований", label: "F-001 Импорт и реестр", epic: "E-001 MVP" },
+    { id: f2id, number: "F-002", name: "Управление статусами", description: "Отслеживание изменений и артефактов", label: "F-002 Управление статусами", epic: "E-001 MVP" },
+  ];
+  // Привязываем требования к фичам
+  demo[0].feature = demoFeatures[0].label;
+  demo[1].feature = demoFeatures[0].label;
+  demo[2].feature = demoFeatures[0].label;
+  demo[3].feature = demoFeatures[0].label;
+  demo[4].feature = demoFeatures[1].label;
+  demo[5].feature = demoFeatures[1].label;
+
+  // Эпик
+  const demoEpics = [
+    { id: crypto.randomUUID(), number: "E-001", name: "MVP", description: "Минимальный жизнеспособный продукт", label: "E-001 MVP" },
+  ];
+
+  // User Stories
+  const demoUS = [
+    { id: crypto.randomUUID(), requirementId: demo[0].id, number: "US-001", title: "Загрузить Excel с требованиями", role: "аналитик", action: "загружаю Excel-файл", goal: "быстро наполнить реестр требованиями", text: "Как аналитик, я хочу загружать Excel-файл, чтобы быстро наполнить реестр требованиями", rules: ["Поддерживаемые форматы: .xlsx, .xls", "Максимальный размер файла: 10 МБ"], criteria: ["Файл загружен без ошибок", "Требования появились в реестре"], scenario: ["Открыть страницу реестра", "Нажать «Загрузить Excel»", "Выбрать файл", "Подтвердить импорт"], altScenario: ["Файл содержит ошибки формата", "Система показывает сообщение об ошибке"], status: "Draft", priority: "High", owner: "Бизнес-аналитик" },
+    { id: crypto.randomUUID(), requirementId: demo[1].id, number: "US-002", title: "Искать требования по тексту", role: "аналитик", action: "ввожу текст в поиск", goal: "быстро находить нужное требование", text: "Как аналитик, я хочу вводить текст в поиск, чтобы быстро находить нужное требование", rules: ["Поиск нечувствителен к регистру"], criteria: ["Список фильтруется мгновенно"], scenario: ["Ввести текст в поле поиска", "Список требований обновился"], altScenario: [], status: "Approved", priority: "Medium", owner: "Системный аналитик" },
+  ];
+
   state.requirements = demo;
+  state.features = demoFeatures;
+  state.epics = demoEpics;
+  state.userStories = demoUS;
   state.selectedIds = new Set();
   saveRequirements(demo);
+  saveFeatures(demoFeatures);
+  saveEpics(demoEpics);
+  saveUserStories(demoUS);
   mergeOwners(demo.map(r => r.owner));
-  setStatus("Сгенерирован демонстрационный набор из 6 требований.");
+  setStatus("Сгенерирован демонстрационный набор: 6 требований, 2 Features, 1 Epic, 2 US.");
   render();
 }
 
@@ -798,6 +832,8 @@ function render() {
   renderSelectionBar();
   renderFeatureSelectionBar();
   updateSortIcons();
+  reRenderCurrentView();
+  renderSidebarTree();
 }
 
 function renderSelectionBar() {
@@ -1453,6 +1489,7 @@ function saveUserStory() {
   renderUSList();
   updateReqUSCount();
   render();
+  reRenderCurrentView();
 }
 
 function deleteUserStory(id) {
@@ -1669,8 +1706,21 @@ function closeTCModal() {
   document.querySelector("#tcModal").classList.add("hidden");
 }
 
+function openTCEditModal(tc) {
+  editingTCId = tc.id;
+  currentTCUsId = tc.usId;
+  currentTCScenarioType = tc.scenarioType;
+  document.querySelector("#tcTitle").value = tc.title;
+  document.querySelector("#tcStatus").value = tc.status || "Draft";
+  document.querySelector("#tcStepsList").innerHTML = "";
+  for (const step of (tc.steps || [])) addTCStepRow(step);
+  document.querySelector("#tcModalTitle").textContent = "Edit Test Case";
+  document.querySelector("#tcModal").classList.remove("hidden");
+  document.querySelector("#tcTitle").focus();
+}
+
 function saveTCModal() {
-  const title = document.querySelector("#tcTitle").value.trim() || "Тест-кейс";
+  const title = document.querySelector("#tcTitle").value.trim() || "Test Case";
   const status = document.querySelector("#tcStatus").value;
   const stepItems = document.querySelectorAll("#tcStepsList .tc-step-item");
   const steps = [...stepItems].map(item => ({
@@ -1699,6 +1749,7 @@ function saveTCModal() {
   saveTestCases(state.testCases);
   closeTCModal();
   renderUSList();
+  reRenderCurrentView();
 }
 
 function makeTCScreenshotRow(previewClass, initialSrc) {
@@ -1840,6 +1891,622 @@ document.querySelector("#usListItems").addEventListener("click", e => {
   const steps = btn.dataset.scenarioType === 'main' ? us.scenario : us.altScenario;
   openTCModal(us.id, btn.dataset.scenarioType, steps || [], us.title);
 });
+
+// ═══════════════════════════════════════════════
+// VIEWS — реестры: Эпики / Фичи / US / TC
+// ═══════════════════════════════════════════════
+
+function switchView(name) {
+  currentView = name;
+  const isReq = name === 'requirements';
+  document.querySelector('.summary-grid').classList.toggle('hidden', !isReq);
+  document.querySelector('.toolbar').classList.toggle('hidden', !isReq);
+  document.querySelector('.table-panel').classList.toggle('hidden', !isReq);
+  document.querySelector('.topbar-actions').classList.toggle('hidden', !isReq);
+  ['epics', 'features', 'userStories', 'testCases'].forEach(v => {
+    document.querySelector(`#${v}View`).classList.toggle('hidden', v !== name);
+  });
+  document.querySelectorAll('.ws-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === name)
+  );
+  document.querySelectorAll('.nav-item[data-view]').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === name)
+  );
+  reRenderCurrentView();
+}
+
+function reRenderCurrentView() {
+  if (currentView === 'epics')       renderEpicsView();
+  else if (currentView === 'features')    renderFeaturesView();
+  else if (currentView === 'userStories') renderUSView();
+  else if (currentView === 'testCases')   renderTCView();
+}
+
+// ── filter state ─────────────────────────────────
+
+const epicsFilter   = { search: '' };
+const featuresFilter = { search: '', epic: '' };
+const usFilter      = { search: '', status: '', priority: '', feature: '' };
+const tcFilter      = { search: '', status: '', scenario: '', usId: '' };
+
+function filterEpics() {
+  const q = epicsFilter.search.toLowerCase();
+  return state.epics.filter(e =>
+    !q ||
+    (e.number || '').toLowerCase().includes(q) ||
+    (e.name   || '').toLowerCase().includes(q) ||
+    (e.label  || '').toLowerCase().includes(q) ||
+    (e.description || '').toLowerCase().includes(q)
+  );
+}
+
+function filterFeatures() {
+  return state.features.filter(f => {
+    if (featuresFilter.epic && f.epic !== featuresFilter.epic) return false;
+    const q = featuresFilter.search.toLowerCase();
+    return !q ||
+      (f.number || '').toLowerCase().includes(q) ||
+      (f.name   || '').toLowerCase().includes(q) ||
+      (f.label  || '').toLowerCase().includes(q) ||
+      (f.description || '').toLowerCase().includes(q);
+  });
+}
+
+function filterUserStories() {
+  return state.userStories.filter(us => {
+    if (usFilter.status   && us.status   !== usFilter.status)   return false;
+    if (usFilter.priority && us.priority !== usFilter.priority) return false;
+    if (usFilter.feature) {
+      const req = state.requirements.find(r => r.id === us.requirementId);
+      if (!req || req.feature !== usFilter.feature) return false;
+    }
+    const q = usFilter.search.toLowerCase();
+    return !q ||
+      (us.number || '').toLowerCase().includes(q) ||
+      (us.title  || '').toLowerCase().includes(q) ||
+      (us.owner  || '').toLowerCase().includes(q);
+  });
+}
+
+function filterTestCases() {
+  return state.testCases.filter(tc => {
+    if (tcFilter.status   && tc.status       !== tcFilter.status)   return false;
+    if (tcFilter.scenario && tc.scenarioType !== tcFilter.scenario) return false;
+    if (tcFilter.usId     && tc.usId         !== tcFilter.usId)     return false;
+    const q = tcFilter.search.toLowerCase();
+    if (!q) return true;
+    const us = state.userStories.find(u => u.id === tc.usId);
+    return (tc.title || '').toLowerCase().includes(q) ||
+      (us?.title  || '').toLowerCase().includes(q) ||
+      (us?.number || '').toLowerCase().includes(q);
+  });
+}
+
+// ── shared helpers ───────────────────────────────
+
+function viewEmpty(msg) {
+  return `<p class="vt-empty">${msg}</p>`;
+}
+
+function regTable(head, rows, emptyMsg) {
+  if (!rows.length) return viewEmpty(emptyMsg);
+  return `<div class="reg-table-wrap"><table class="reg-table">
+    <thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows.join('')}</tbody>
+  </table></div>`;
+}
+
+function regLink(label, action, dataAttrs) {
+  if (!label) return `<span class="reg-empty-cell">—</span>`;
+  const attrs = Object.entries(dataAttrs).map(([k, v]) => `data-${k}="${escapeHtml(v)}"`).join(' ');
+  return `<button class="reg-link" data-action="${action}" ${attrs} type="button">${escapeHtml(label)}</button>`;
+}
+
+function resolveChain(us) {
+  const req = state.requirements.find(r => r.id === us?.requirementId);
+  const feature = req?.feature ? state.features.find(f => f.label === req.feature) : null;
+  const epic = feature?.epic ? state.epics.find(e => e.label === feature.epic) : null;
+  return { req, feature, epic };
+}
+
+// ── EPICS registry ───────────────────────────────
+
+function renderEpicsView() {
+  const el = document.querySelector('#epicsViewContent');
+  // metrics (always full data)
+  const allFeat = state.features.length;
+  const allReqs = state.requirements.length;
+  const allUS   = state.userStories.length;
+  document.querySelector('#epicsTotalCount').textContent = state.epics.length;
+  document.querySelector('#epicsFeatCount').textContent  = allFeat;
+  document.querySelector('#epicsReqCount').textContent   = allReqs;
+  document.querySelector('#epicsUSCount').textContent    = allUS;
+
+  const filtered = filterEpics();
+  document.querySelector('#epicsImportStatus').textContent =
+    filtered.length === state.epics.length
+      ? `Всего: ${state.epics.length}`
+      : `Показано: ${filtered.length} из ${state.epics.length}`;
+
+  const rows = filtered.map(epic => {
+    const features = state.features.filter(f => f.epic === epic.label);
+    const reqs = features.flatMap(f => state.requirements.filter(r => r.feature === f.label));
+    const usCount = reqs.reduce((n, r) => n + state.userStories.filter(u => u.requirementId === r.id).length, 0);
+    const tcCount = state.testCases.filter(tc => {
+      const us = state.userStories.find(u => u.id === tc.usId);
+      if (!us) return false;
+      const req = state.requirements.find(r => r.id === us.requirementId);
+      return req && reqs.some(r2 => r2.id === req.id);
+    }).length;
+    return `<tr>
+      <td class="reg-code">${escapeHtml(epic.number || '')}</td>
+      <td class="reg-name">${escapeHtml(epic.name || epic.label || '')}</td>
+      <td class="reg-desc">${escapeHtml(epic.description || '')}</td>
+      <td class="reg-num">${features.length}</td>
+      <td class="reg-num">${reqs.length}</td>
+      <td class="reg-num">${usCount}</td>
+      <td class="reg-num">${tcCount}</td>
+      <td class="reg-actions"><button class="row-edit-btn" data-action="edit-epic" data-epic-id="${epic.id}" title="Редактировать">✎</button></td>
+    </tr>`;
+  });
+  el.innerHTML = regTable(
+    ['Код', 'Название', 'Описание', 'Features', 'Требований', 'US', 'TC', ''],
+    rows,
+    'Нет Epics. Создайте их через реестр требований.'
+  );
+}
+
+// ── FEATURES registry ────────────────────────────
+
+function renderFeaturesView() {
+  const el = document.querySelector('#featuresViewContent');
+  // metrics
+  const allReqs  = state.requirements.length;
+  const allUS    = state.userStories.length;
+  const allTC    = state.testCases.length;
+  document.querySelector('#featsTotalCount').textContent = state.features.length;
+  document.querySelector('#featsReqCount').textContent   = allReqs;
+  document.querySelector('#featsUSCount').textContent    = allUS;
+  document.querySelector('#featsTCCount').textContent    = allTC;
+
+  // populate epic dropdown
+  const epicSel = document.querySelector('#featsEpicFilter');
+  const prevEpic = epicSel.value;
+  epicSel.innerHTML = '<option value="">Все Epics</option>' +
+    state.epics.map(e => `<option value="${escapeHtml(e.label)}">${escapeHtml(e.label || e.name)}</option>`).join('');
+  if (prevEpic) epicSel.value = prevEpic;
+
+  const filtered = filterFeatures();
+  document.querySelector('#featsImportStatus').textContent =
+    filtered.length === state.features.length
+      ? `Всего: ${state.features.length}`
+      : `Показано: ${filtered.length} из ${state.features.length}`;
+
+  const rows = filtered.map(feature => {
+    const epic = feature.epic ? state.epics.find(e => e.label === feature.epic) : null;
+    const reqs = state.requirements.filter(r => r.feature === feature.label);
+    const usCount = reqs.reduce((n, r) => n + state.userStories.filter(u => u.requirementId === r.id).length, 0);
+    const tcCount = state.testCases.filter(tc => {
+      const us = state.userStories.find(u => u.id === tc.usId);
+      return us && reqs.some(r => r.id === us.requirementId);
+    }).length;
+    return `<tr>
+      <td class="reg-code">${escapeHtml(feature.number || '')}</td>
+      <td class="reg-name">${escapeHtml(feature.name || feature.label || '')}</td>
+      <td>${epic ? regLink(epic.label, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td class="reg-desc">${escapeHtml(feature.description || '')}</td>
+      <td class="reg-num">${reqs.length}</td>
+      <td class="reg-num">${usCount}</td>
+      <td class="reg-num">${tcCount}</td>
+      <td class="reg-actions"><button class="row-edit-btn" data-action="edit-feature" data-feature-id="${feature.id}" title="Редактировать">✎</button></td>
+    </tr>`;
+  });
+  el.innerHTML = regTable(
+    ['Код', 'Название', 'Эпик', 'Описание', 'Требований', 'US', 'TC', ''],
+    rows,
+    'Нет Features. Создайте их через реестр требований.'
+  );
+}
+
+// ── USER STORIES registry ────────────────────────
+
+function renderUSView() {
+  const el = document.querySelector('#userStoriesViewContent');
+  // metrics
+  document.querySelector('#usTotalCount').textContent    = state.userStories.length;
+  document.querySelector('#usApprovedCount').textContent = state.userStories.filter(u => u.status === 'Approved').length;
+  document.querySelector('#usDraftCount').textContent    = state.userStories.filter(u => u.status === 'Draft').length;
+  document.querySelector('#usHighCount').textContent     = state.userStories.filter(u => u.priority === 'High').length;
+
+  // populate feature dropdown
+  const featSel = document.querySelector('#usFeatureFilter');
+  const prevFeat = featSel.value;
+  featSel.innerHTML = '<option value="">Все Features</option>' +
+    state.features.map(f => `<option value="${escapeHtml(f.label)}">${escapeHtml(f.label || f.name)}</option>`).join('');
+  if (prevFeat) featSel.value = prevFeat;
+
+  const filtered = filterUserStories();
+  document.querySelector('#usImportStatus').textContent =
+    filtered.length === state.userStories.length
+      ? `Всего: ${state.userStories.length}`
+      : `Показано: ${filtered.length} из ${state.userStories.length}`;
+
+  if (!filtered.length) {
+    el.innerHTML = state.userStories.length
+      ? viewEmpty('Нет совпадений с фильтрами.')
+      : viewEmpty('Нет User Stories. Откройте реестр → кнопку US у требования.');
+    return;
+  }
+  const rows = filtered.map(us => {
+    const { req, feature, epic } = resolveChain(us);
+    const mainTC = state.testCases.filter(t => t.usId === us.id && t.scenarioType === 'main').length;
+    const altTC  = state.testCases.filter(t => t.usId === us.id && t.scenarioType === 'alt').length;
+    const scenCell = [
+      us.scenario?.length ? `Осн.: ${us.scenario.length} шаг.` : '',
+      us.altScenario?.length ? `Альт.: ${us.altScenario.length} шаг.` : '',
+    ].filter(Boolean).join(' / ') || '—';
+    const tcCell = (mainTC + altTC) > 0
+      ? `<button class="reg-link" data-action="goto-tc" data-us-id="${us.id}">${mainTC + altTC} TC</button>`
+      : '<span class="reg-empty-cell">—</span>';
+    return `<tr>
+      <td class="reg-code">${escapeHtml(us.number || '')}</td>
+      <td class="reg-name">${escapeHtml(us.title || '')}</td>
+      <td>${req ? regLink(req.code, 'edit-req', { 'req-id': req.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${feature ? regLink(feature.label || feature.name, 'edit-feature', { 'feature-id': feature.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${epic ? regLink(epic.label || epic.name, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${us.status ? `<span class="badge ${statusClass(us.status)}">${escapeHtml(us.status)}</span>` : '—'}</td>
+      <td>${us.priority ? `<span class="badge ${priorityClass(us.priority)}">${escapeHtml(us.priority)}</span>` : '—'}</td>
+      <td class="reg-owner">${escapeHtml(us.owner || '—')}</td>
+      <td class="reg-scenario">${scenCell}</td>
+      <td>${tcCell}</td>
+      <td class="reg-actions"><button class="row-edit-btn" data-action="edit-us" data-us-id="${us.id}" title="Редактировать">✎</button></td>
+    </tr>`;
+  });
+  el.innerHTML = regTable(
+    ['Номер', 'Заголовок', 'Требование', 'Фича', 'Эпик', 'Статус', 'Приоритет', 'Владелец', 'Сценарии', 'TC', ''],
+    rows,
+    ''
+  );
+}
+
+// ── TEST CASES registry ──────────────────────────
+
+function renderTCView() {
+  const el = document.querySelector('#testCasesViewContent');
+  // metrics
+  document.querySelector('#tcTotalCount').textContent = state.testCases.length;
+  document.querySelector('#tcPassCount').textContent  = state.testCases.filter(t => t.status === 'Pass').length;
+  document.querySelector('#tcFailCount').textContent  = state.testCases.filter(t => t.status === 'Fail').length;
+  document.querySelector('#tcDraftCount').textContent = state.testCases.filter(t => t.status === 'Draft').length;
+
+  // populate US dropdown
+  const usSel = document.querySelector('#tcUSFilter');
+  const prevUS = usSel.value;
+  usSel.innerHTML = '<option value="">Все User Stories</option>' +
+    state.userStories.map(u =>
+      `<option value="${escapeHtml(u.id)}">${escapeHtml(u.number ? `${u.number} ${u.title}` : u.title)}</option>`
+    ).join('');
+  if (prevUS) usSel.value = prevUS;
+
+  const filtered = filterTestCases();
+  document.querySelector('#tcImportStatus').textContent =
+    filtered.length === state.testCases.length
+      ? `Всего: ${state.testCases.length}`
+      : `Показано: ${filtered.length} из ${state.testCases.length}`;
+
+  if (!filtered.length) {
+    el.innerHTML = state.testCases.length
+      ? viewEmpty('Нет совпадений с фильтрами.')
+      : viewEmpty('Нет тест-кейсов. Откройте User Story и создайте TC из сценариев.');
+    return;
+  }
+  const tcStatusMap = { Draft: 'Draft', Pass: 'Approved', Fail: 'High', Blocked: 'Medium' };
+  const rows = filtered.map(tc => {
+    const us = state.userStories.find(u => u.id === tc.usId);
+    const { req, feature, epic } = resolveChain(us);
+    const steps = tc.steps?.length || 0;
+    const date = tc.createdAt ? new Date(tc.createdAt).toLocaleDateString('ru-RU') : '—';
+    const scenLabel = tc.scenarioType === 'main' ? 'Основной' : 'Альтернативный';
+    return `<tr>
+      <td class="reg-name">${escapeHtml(tc.title)}</td>
+      <td>${us ? regLink(us.number ? `${us.number} ${us.title}` : us.title, 'edit-us', { 'us-id': us.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${req ? regLink(req.code, 'edit-req', { 'req-id': req.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${feature ? regLink(feature.label || feature.name, 'edit-feature', { 'feature-id': feature.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${epic ? regLink(epic.label || epic.name, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td><span class="badge ${tcStatusMap[tc.status] || 'Draft'}">${escapeHtml(tc.status)}</span></td>
+      <td class="reg-scenario">${scenLabel}</td>
+      <td class="reg-num">${steps}</td>
+      <td class="reg-date">${date}</td>
+    </tr>`;
+  });
+  el.innerHTML = regTable(
+    ['Название', 'User Story', 'Требование', 'Фича', 'Эпик', 'Статус', 'Сценарий', 'Шагов', 'Создан'],
+    rows,
+    ''
+  );
+}
+
+// ── event delegation ─────────────────────────────
+
+function handleViewClick(e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  if (action === 'edit-req') {
+    const req = state.requirements.find(r => r.id === btn.dataset.reqId);
+    if (req) openRequirementModal(req);
+  } else if (action === 'edit-feature') {
+    const f = state.features.find(f => f.id === btn.dataset.featureId);
+    if (f) openFeatureEditModal(f);
+  } else if (action === 'edit-epic') {
+    const ep = state.epics.find(e => e.id === btn.dataset.epicId);
+    if (ep) openEpicEditModal(ep);
+  } else if (action === 'edit-us') {
+    const us = state.userStories.find(u => u.id === btn.dataset.usId);
+    if (us) { currentUSRequirementId = us.requirementId; openUSEditModal(us); }
+  } else if (action === 'goto-tc') {
+    switchView('testCases');
+  }
+}
+
+['epicsViewContent', 'featuresViewContent', 'userStoriesViewContent', 'testCasesViewContent'].forEach(id => {
+  document.querySelector(`#${id}`).addEventListener('click', handleViewClick);
+});
+
+document.querySelectorAll('.ws-tab').forEach(btn => {
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
+});
+
+document.querySelectorAll('.nav-item[data-view]').forEach(btn => {
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
+});
+
+// ── toolbar toggles for registry views ───────────
+
+[
+  ['epicsFiltersToggle',  'epicsFiltersBody'],
+  ['featsFiltersToggle',  'featsFiltersBody'],
+  ['usFiltersToggle',     'usFiltersBody'],
+  ['tcFiltersToggle',     'tcFiltersBody'],
+].forEach(([toggleId, bodyId]) => {
+  const toggle = document.querySelector(`#${toggleId}`);
+  const body   = document.querySelector(`#${bodyId}`);
+  if (!toggle || !body) return;
+  toggle.addEventListener('click', () => {
+    const isOpen = body.classList.toggle('hidden');
+    toggle.setAttribute('aria-expanded', String(!isOpen));
+    toggle.querySelector('.toolbar-toggle-icon').textContent = isOpen ? '▼' : '▲';
+  });
+});
+
+// ── filter inputs ─────────────────────────────────
+
+document.querySelector('#epicsSearch').addEventListener('input', e => {
+  epicsFilter.search = e.target.value; renderEpicsView();
+});
+document.querySelector('#epicsClearFilters').addEventListener('click', () => {
+  epicsFilter.search = '';
+  document.querySelector('#epicsSearch').value = '';
+  renderEpicsView();
+});
+
+document.querySelector('#featsSearch').addEventListener('input', e => {
+  featuresFilter.search = e.target.value; renderFeaturesView();
+});
+document.querySelector('#featsEpicFilter').addEventListener('change', e => {
+  featuresFilter.epic = e.target.value; renderFeaturesView();
+});
+document.querySelector('#featsClearFilters').addEventListener('click', () => {
+  featuresFilter.search = ''; featuresFilter.epic = '';
+  document.querySelector('#featsSearch').value = '';
+  document.querySelector('#featsEpicFilter').value = '';
+  renderFeaturesView();
+});
+
+document.querySelector('#usSearch').addEventListener('input', e => {
+  usFilter.search = e.target.value; renderUSView();
+});
+document.querySelector('#usStatusFilter').addEventListener('change', e => {
+  usFilter.status = e.target.value; renderUSView();
+});
+document.querySelector('#usPriorityFilter').addEventListener('change', e => {
+  usFilter.priority = e.target.value; renderUSView();
+});
+document.querySelector('#usFeatureFilter').addEventListener('change', e => {
+  usFilter.feature = e.target.value; renderUSView();
+});
+document.querySelector('#usClearFilters').addEventListener('click', () => {
+  usFilter.search = ''; usFilter.status = ''; usFilter.priority = ''; usFilter.feature = '';
+  document.querySelector('#usSearch').value = '';
+  document.querySelector('#usStatusFilter').value = '';
+  document.querySelector('#usPriorityFilter').value = '';
+  document.querySelector('#usFeatureFilter').value = '';
+  renderUSView();
+});
+
+document.querySelector('#tcSearch').addEventListener('input', e => {
+  tcFilter.search = e.target.value; renderTCView();
+});
+document.querySelector('#tcStatusFilter').addEventListener('change', e => {
+  tcFilter.status = e.target.value; renderTCView();
+});
+document.querySelector('#tcScenarioFilter').addEventListener('change', e => {
+  tcFilter.scenario = e.target.value; renderTCView();
+});
+document.querySelector('#tcUSFilter').addEventListener('change', e => {
+  tcFilter.usId = e.target.value; renderTCView();
+});
+document.querySelector('#tcClearFilters').addEventListener('click', () => {
+  tcFilter.search = ''; tcFilter.status = ''; tcFilter.scenario = ''; tcFilter.usId = '';
+  document.querySelector('#tcSearch').value = '';
+  document.querySelector('#tcStatusFilter').value = '';
+  document.querySelector('#tcScenarioFilter').value = '';
+  document.querySelector('#tcUSFilter').value = '';
+  renderTCView();
+});
+
+// ═══════════════════════════════════════════════
+// SIDEBAR HIERARCHY TREE
+// ═══════════════════════════════════════════════
+
+function buildUSNode(us, autoExpand) {
+  const nodeId = `stu${us.id}`;
+  const tcs = state.testCases.filter(t => t.usId === us.id);
+  const label = (us.number ? us.number + ' ' : '') + (us.title || '');
+  const isOpen = sidebarExpanded.has(nodeId);
+  const parts = [`<div class="st-row">
+    ${tcs.length
+      ? `<button class="st-tog" data-toggle="${nodeId}" type="button">${isOpen ? '▾' : '▸'}</button>`
+      : '<span class="st-tog-ph"></span>'}
+    <button class="st-item" data-action="edit-us" data-us-id="${us.id}" type="button">
+      <span class="st-badge st-badge--us">US</span>
+      <span class="st-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+    </button>
+  </div>`];
+  if (tcs.length) {
+    parts.push(`<div class="st-kids${isOpen ? '' : ' hidden'}" id="${nodeId}">`);
+    for (const tc of tcs) {
+      parts.push(`<div class="st-row">
+        <span class="st-tog-ph"></span>
+        <button class="st-item" data-action="edit-tc" data-tc-id="${tc.id}" type="button">
+          <span class="st-badge st-badge--tc">TC</span>
+          <span class="st-label" title="${escapeHtml(tc.title)}">${escapeHtml(tc.title)}</span>
+        </button>
+      </div>`);
+    }
+    parts.push('</div>');
+  }
+  return parts.join('');
+}
+
+function buildReqNode(req, autoExpand) {
+  const nodeId = `str${req.id}`;
+  if (autoExpand) sidebarExpanded.add(nodeId);
+  const isOpen = sidebarExpanded.has(nodeId);
+  const stories = state.userStories.filter(u => u.requirementId === req.id);
+  const parts = [`<div class="st-row">
+    <button class="st-tog" data-toggle="${nodeId}" type="button">${isOpen ? '▾' : '▸'}</button>
+    <button class="st-item" data-action="edit-req" data-req-id="${req.id}" type="button">
+      <span class="st-badge st-badge--req">REQ</span>
+      <span class="st-label" title="${escapeHtml(req.code)}">${escapeHtml(req.code)}</span>
+    </button>
+  </div>`,
+  `<div class="st-kids${isOpen ? '' : ' hidden'}" id="${nodeId}">`];
+  for (const us of stories) parts.push(buildUSNode(us, autoExpand));
+  if (!stories.length) parts.push('<p class="st-empty">No User Stories</p>');
+  parts.push('</div>');
+  return parts.join('');
+}
+
+function buildFeatNode(feat, autoExpand) {
+  const nodeId = `stf${feat.id}`;
+  if (autoExpand) sidebarExpanded.add(nodeId);
+  const isOpen = sidebarExpanded.has(nodeId);
+  const reqs = state.requirements.filter(r => r.feature === feat.label);
+  const label = (feat.number ? feat.number + ' ' : '') + (feat.name || feat.label || '');
+  const parts = [`<div class="st-row">
+    <button class="st-tog" data-toggle="${nodeId}" type="button">${isOpen ? '▾' : '▸'}</button>
+    <button class="st-item" data-action="edit-feature" data-feature-id="${feat.id}" type="button">
+      <span class="st-badge st-badge--feat">F</span>
+      <span class="st-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+    </button>
+  </div>`,
+  `<div class="st-kids${isOpen ? '' : ' hidden'}" id="${nodeId}">`];
+  for (const req of reqs) parts.push(buildReqNode(req, autoExpand));
+  if (!reqs.length) parts.push('<p class="st-empty">No requirements</p>');
+  parts.push('</div>');
+  return parts.join('');
+}
+
+function renderSidebarTree() {
+  const el = document.querySelector('#sidebarTree');
+  if (!el) return;
+
+  const hasData = state.epics.length || state.features.length || state.requirements.length
+    || state.userStories.length || state.testCases.length;
+  if (!hasData) {
+    el.innerHTML = '<p class="st-hint">Загрузите данные, чтобы увидеть иерархию</p>';
+    return;
+  }
+
+  // Auto-expand top-level nodes on very first render (sidebarExpanded is empty)
+  const firstRender = sidebarExpanded.size === 0;
+
+  const parts = [];
+
+  // ── Epics (with Features → Reqs → US → TC inside) ──
+  for (const epic of state.epics) {
+    const nodeId = `ste${epic.id}`;
+    if (firstRender) sidebarExpanded.add(nodeId);
+    const isOpen = sidebarExpanded.has(nodeId);
+    const features = state.features.filter(f => f.epic === epic.label);
+    const label = (epic.number ? epic.number + ' ' : '') + (epic.name || epic.label || '');
+    parts.push(`<div class="st-row">
+      <button class="st-tog" data-toggle="${nodeId}" type="button">${isOpen ? '▾' : '▸'}</button>
+      <button class="st-item" data-action="edit-epic" data-epic-id="${epic.id}" type="button">
+        <span class="st-badge st-badge--epic">E</span>
+        <span class="st-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+      </button>
+    </div>
+    <div class="st-kids${isOpen ? '' : ' hidden'}" id="${nodeId}">`);
+    for (const feat of features) parts.push(buildFeatNode(feat, firstRender));
+    if (!features.length) parts.push('<p class="st-empty">No Features linked</p>');
+    parts.push('</div>');
+  }
+
+  // ── Features without Epic ──
+  const orphanFeats = state.features.filter(f => !f.epic || !state.epics.find(e => e.label === f.epic));
+  for (const feat of orphanFeats) parts.push(buildFeatNode(feat, firstRender));
+
+  // ── Requirements without Feature (shown directly, not as hidden group) ──
+  const orphanReqs = state.requirements.filter(
+    r => !r.feature || !state.features.find(f => f.label === r.feature)
+  );
+  for (const req of orphanReqs) parts.push(buildReqNode(req, firstRender));
+
+  // ── US without Requirement (edge case) ──
+  const orphanUS = state.userStories.filter(
+    u => !state.requirements.find(r => r.id === u.requirementId)
+  );
+  for (const us of orphanUS) parts.push(buildUSNode(us, firstRender));
+
+  el.innerHTML = parts.join('');
+}
+
+function handleSidebarTreeClick(e) {
+  const tog = e.target.closest('.st-tog');
+  if (tog) {
+    const id = tog.dataset.toggle;
+    const child = document.querySelector(`#${id}`);
+    if (child) {
+      const willOpen = child.classList.toggle('hidden') === false;
+      tog.textContent = willOpen ? '▾' : '▸';
+      if (willOpen) sidebarExpanded.add(id); else sidebarExpanded.delete(id);
+    }
+    return;
+  }
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  if (action === 'edit-epic') {
+    const ep = state.epics.find(e => e.id === btn.dataset.epicId);
+    if (ep) openEpicEditModal(ep);
+  } else if (action === 'edit-feature') {
+    const f = state.features.find(f => f.id === btn.dataset.featureId);
+    if (f) openFeatureEditModal(f);
+  } else if (action === 'edit-req') {
+    const req = state.requirements.find(r => r.id === btn.dataset.reqId);
+    if (req) openRequirementModal(req);
+  } else if (action === 'edit-us') {
+    const us = state.userStories.find(u => u.id === btn.dataset.usId);
+    if (us) { currentUSRequirementId = us.requirementId; openUSEditModal(us); }
+  } else if (action === 'edit-tc') {
+    const tc = state.testCases.find(t => t.id === btn.dataset.tcId);
+    if (tc) openTCEditModal(tc);
+  }
+}
+
+document.querySelector('#sidebarTree').addEventListener('click', handleSidebarTreeClick);
 
 document.querySelectorAll('.modal--resizable').forEach(modal => {
   const handle = document.createElement('div');
