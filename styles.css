@@ -34,8 +34,21 @@ select {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 280px 4px minmax(0, 1fr);
   min-height: 100vh;
+}
+
+.sidebar-resizer {
+  grid-column: 2;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 10;
+}
+.sidebar-resizer:hover,
+.sidebar-resizer.dragging {
+  background: var(--accent);
 }
 
 .sidebar {
