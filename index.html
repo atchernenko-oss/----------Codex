@@ -337,6 +337,29 @@
           <button class="modal-close" id="usEditModalClose" type="button" aria-label="Закрыть">✕</button>
         </div>
         <div class="modal-body modal-body--scroll">
+          <div class="modal-grid modal-grid--3">
+            <label class="field">
+              <span class="field-label">Статус</span>
+              <select id="usStatus">
+                <option value="Draft">Draft</option>
+                <option value="In Review">In Review</option>
+                <option value="Approved">Approved</option>
+                <option value="Done">Done</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">Приоритет</span>
+              <select id="usPriority">
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">Владелец</span>
+              <input type="text" id="usOwner" placeholder="Имя или email" />
+            </label>
+          </div>
           <label class="field">
             <span class="field-label">Номер</span>
             <div class="field-prefix-wrap">
@@ -388,29 +411,6 @@
               <button type="button" id="addAltScenarioStepBtn" class="us-add-rule-btn us-scenario-add-btn">+ Шаг</button>
             </div>
             <button type="button" id="addAltScenarioBtn" class="us-add-alt-btn">+ Альтернативный сценарий</button>
-          </div>
-          <div class="modal-grid modal-grid--3">
-            <label class="field">
-              <span class="field-label">Статус</span>
-              <select id="usStatus">
-                <option value="Draft">Draft</option>
-                <option value="In Review">In Review</option>
-                <option value="Approved">Approved</option>
-                <option value="Done">Done</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="field-label">Приоритет</span>
-              <select id="usPriority">
-                <option value="High">High</option>
-                <option value="Medium">Medium</option>
-                <option value="Low">Low</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="field-label">Владелец</span>
-              <input type="text" id="usOwner" placeholder="Имя или email" />
-            </label>
           </div>
         </div>
         <div class="modal-footer">
