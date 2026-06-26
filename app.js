@@ -2194,8 +2194,9 @@ function switchView(name) {
   document.querySelectorAll('.ws-tab').forEach(b =>
     b.classList.toggle('active', b.dataset.view === name)
   );
-  document.querySelectorAll('.nav-item[data-view]').forEach(b =>
-    b.classList.toggle('active', b.dataset.view === name)
+  // Keep "Реестр требований" section header highlighted whenever we're in any registry view
+  document.querySelectorAll('.nav-section-header[data-section]').forEach(b =>
+    b.classList.toggle('active', b.dataset.section === 'requirements')
   );
   reRenderCurrentView();
 }
@@ -2542,9 +2543,32 @@ document.querySelectorAll('.ws-tab').forEach(btn => {
   btn.addEventListener('click', () => switchView(btn.dataset.view));
 });
 
-document.querySelectorAll('.nav-item[data-view]').forEach(btn => {
-  btn.addEventListener('click', () => switchView(btn.dataset.view));
+// ── Sidebar section expand/collapse ──────────────────────────────────────────
+document.querySelectorAll('.nav-section-header[data-section]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const section = btn.dataset.section;
+
+    // All collapsible sections — toggle body; requirements also navigates
+    if (section === 'requirements') switchView('requirements');
+
+    const bodyId = `navBody${section.charAt(0).toUpperCase() + section.slice(1)}`;
+    const body = document.querySelector(`#${bodyId}`);
+    if (!body) return;
+    const nowOpen = body.classList.toggle('hidden') === false;
+    const arrow = btn.querySelector('.nav-section-arrow');
+    if (arrow) arrow.textContent = nowOpen ? '▾' : '▸';
+  });
 });
+
+function setSectionOpen(section, open) {
+  const bodyId = `navBody${section.charAt(0).toUpperCase() + section.slice(1)}`;
+  const body = document.querySelector(`#${bodyId}`);
+  const btn  = document.querySelector(`.nav-section-header[data-section="${section}"]`);
+  if (!body || !btn) return;
+  body.classList.toggle('hidden', !open);
+  const arrow = btn.querySelector('.nav-section-arrow');
+  if (arrow) arrow.textContent = open ? '▾' : '▸';
+}
 
 // ── toolbar toggles for registry views ───────────
 

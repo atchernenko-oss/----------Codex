@@ -19,15 +19,50 @@
         </div>
 
         <nav class="nav-list" aria-label="Разделы">
-          <button class="nav-item active" type="button" data-view="requirements">Реестр требований</button>
-          <span class="nav-section-label">Справочники</span>
-          <button class="nav-item" type="button" id="openOwnersDirectoryBtn">Владельцы</button>
-        </nav>
 
-        <div class="sidebar-tree-section">
-          <span class="nav-section-label">Hierarchy</span>
-          <div id="sidebarTree" class="sidebar-tree"></div>
-        </div>
+          <!-- Реестр требований -->
+          <div class="nav-section" id="navSectionRequirements">
+            <button class="nav-section-header active" type="button" data-section="requirements">
+              <span class="nav-section-arrow">▾</span>
+              Реестр требований
+            </button>
+            <div class="nav-section-body" id="navBodyRequirements">
+              <span class="nav-sub-label">Hierarchy</span>
+              <div id="sidebarTree" class="sidebar-tree"></div>
+            </div>
+          </div>
+
+          <!-- Граф связей -->
+          <div class="nav-section">
+            <button class="nav-section-header nav-section-header--soon" type="button" data-section="graph" disabled>
+              <span class="nav-section-arrow nav-section-arrow--ph"></span>
+              Граф связей
+              <span class="nav-soon-badge">скоро</span>
+            </button>
+          </div>
+
+          <!-- Статистика -->
+          <div class="nav-section">
+            <button class="nav-section-header nav-section-header--soon" type="button" data-section="stats" disabled>
+              <span class="nav-section-arrow nav-section-arrow--ph"></span>
+              Статистика
+              <span class="nav-soon-badge">скоро</span>
+            </button>
+          </div>
+
+          <!-- Администрирование -->
+          <div class="nav-section" id="navSectionAdmin">
+            <button class="nav-section-header" type="button" data-section="admin">
+              <span class="nav-section-arrow">▸</span>
+              Администрирование
+            </button>
+            <div class="nav-section-body hidden" id="navBodyAdmin">
+              <span class="nav-sub-label">Справочники</span>
+              <button class="nav-sub-item" type="button" id="openOwnersDirectoryBtn">Владельцы</button>
+            </div>
+          </div>
+
+        </nav>
       </aside>
       <div class="sidebar-resizer" id="sidebarResizer" title="Потяните, чтобы изменить ширину панели"></div>
 
