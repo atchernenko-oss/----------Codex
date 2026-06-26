@@ -20,11 +20,6 @@
 
         <nav class="nav-list" aria-label="Разделы">
           <button class="nav-item active" type="button" data-view="requirements">Реестр требований</button>
-          <span class="nav-section-label">Просмотр</span>
-          <button class="nav-item" type="button" data-view="epics">Эпики</button>
-          <button class="nav-item" type="button" data-view="features">Фичи</button>
-          <button class="nav-item" type="button" data-view="userStories">User Stories</button>
-          <button class="nav-item" type="button" data-view="testCases">Тест-кейсы</button>
           <span class="nav-section-label">Справочники</span>
           <button class="nav-item" type="button" id="openOwnersDirectoryBtn">Владельцы</button>
         </nav>
@@ -46,6 +41,14 @@
             </button>
           </div>
         </header>
+
+        <nav class="ws-tabs" role="tablist" aria-label="Реестры">
+          <button class="ws-tab active" data-view="requirements" type="button">Требования</button>
+          <button class="ws-tab" data-view="epics" type="button">Эпики</button>
+          <button class="ws-tab" data-view="features" type="button">Фичи</button>
+          <button class="ws-tab" data-view="userStories" type="button">User Stories</button>
+          <button class="ws-tab" data-view="testCases" type="button">Тест-кейсы</button>
+        </nav>
 
         <section class="summary-grid" aria-label="Сводка требований">
           <article class="metric">

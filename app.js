@@ -1878,7 +1878,7 @@ document.querySelector("#usListItems").addEventListener("click", e => {
 });
 
 // ═══════════════════════════════════════════════
-// VIEWS — Эпики / Фичи / User Stories / Тест-кейсы
+// VIEWS — реестры: Эпики / Фичи / US / TC
 // ═══════════════════════════════════════════════
 
 function switchView(name) {
@@ -1891,250 +1891,188 @@ function switchView(name) {
   ['epics', 'features', 'userStories', 'testCases'].forEach(v => {
     document.querySelector(`#${v}View`).classList.toggle('hidden', v !== name);
   });
+  document.querySelectorAll('.ws-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === name)
+  );
   document.querySelectorAll('.nav-item[data-view]').forEach(b =>
     b.classList.toggle('active', b.dataset.view === name)
   );
-  const meta = {
-    requirements: ['Реестр требований', 'Загрузка и контроль требований ТЗ. Быстрый старт на тестовых данных.'],
-    epics:        ['Эпики',        'Иерархия: Эпики → Фичи → Требования → User Stories'],
-    features:     ['Фичи',         'Фичи и связанные с ними требования'],
-    userStories:  ['User Stories', 'User Stories в разрезе требований'],
-    testCases:    ['Тест-кейсы',   'Тест-кейсы в разрезе User Stories'],
-  };
-  const [h1, p] = meta[name] || meta.requirements;
-  document.querySelector('.topbar h1').textContent = h1;
-  document.querySelector('.topbar p').textContent = p;
   reRenderCurrentView();
 }
 
 function reRenderCurrentView() {
-  if (currentView === 'epics')        renderEpicsView();
-  else if (currentView === 'features')     renderFeaturesView();
-  else if (currentView === 'userStories')  renderUSView();
-  else if (currentView === 'testCases')    renderTCView();
+  if (currentView === 'epics')       renderEpicsView();
+  else if (currentView === 'features')    renderFeaturesView();
+  else if (currentView === 'userStories') renderUSView();
+  else if (currentView === 'testCases')   renderTCView();
 }
 
-// ── helpers ──────────────────────────────────────
+// ── shared helpers ───────────────────────────────
 
-function vtTypeBadge(type) {
-  const labels = { epic: 'Эпик', feature: 'Фича', req: 'REQ', us: 'US', tc: 'TC' };
-  return `<span class="vt-type vt-type--${type}">${labels[type] || type}</span>`;
-}
-
-function vtCountTag(n, label) {
-  if (!n) return `<span class="vt-count vt-count--zero">0 ${label}</span>`;
-  return `<span class="vt-count">${n} ${label}</span>`;
-}
-
-function vtEmpty(msg) {
+function viewEmpty(msg) {
   return `<p class="vt-empty">${msg}</p>`;
 }
 
-function vtReqNode(req) {
-  const usCount = state.userStories.filter(u => u.requirementId === req.id).length;
-  const usBtn = usCount > 0
-    ? `<button class="vt-nav-btn" data-action="view-us" data-req-id="${req.id}">${usCount} US →</button>`
-    : `<span class="vt-count vt-count--zero">0 US</span>`;
-  return `<div class="vt-node vt-node--req">
-    <div class="vt-row">
-      <div class="vt-row-spacer"></div>
-      ${vtTypeBadge('req')}
-      <span class="vt-code">${escapeHtml(req.code)}</span>
-      <span class="vt-text">${escapeHtml(req.text)}</span>
-      <span class="badge ${statusClass(req.status)}">${escapeHtml(req.status)}</span>
-      ${usBtn}
-      <button class="vt-edit-btn" data-action="edit-req" data-req-id="${req.id}" title="Редактировать">✎</button>
-    </div>
-  </div>`;
+function regTable(head, rows, emptyMsg) {
+  if (!rows.length) return viewEmpty(emptyMsg);
+  return `<div class="reg-table-wrap"><table class="reg-table">
+    <thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows.join('')}</tbody>
+  </table></div>`;
 }
 
-function vtFeatureNode(feature, showEpic) {
-  const reqs = state.requirements.filter(r => r.feature === feature.label);
-  const id = feature.id;
-  const epicTag = showEpic && feature.epic
-    ? `<span class="vt-meta-tag">${escapeHtml(feature.epic)}</span>` : '';
-  return `<div class="vt-node vt-node--feature">
-    <div class="vt-row">
-      <button class="vt-toggle" data-toggle="vt-c-f-${id}">▼</button>
-      ${vtTypeBadge('feature')}
-      <span class="vt-title">${escapeHtml(feature.label || feature.name)}</span>
-      ${epicTag}
-      ${vtCountTag(reqs.length, 'треб.')}
-      <button class="vt-edit-btn" data-action="edit-feature" data-feature-id="${id}" title="Редактировать">✎</button>
-    </div>
-    <div class="vt-children" id="vt-c-f-${id}">
-      ${reqs.length ? reqs.map(vtReqNode).join('') : vtEmpty('Нет требований')}
-    </div>
-  </div>`;
+function regLink(label, action, dataAttrs) {
+  if (!label) return `<span class="reg-empty-cell">—</span>`;
+  const attrs = Object.entries(dataAttrs).map(([k, v]) => `data-${k}="${escapeHtml(v)}"`).join(' ');
+  return `<button class="reg-link" data-action="${action}" ${attrs} type="button">${escapeHtml(label)}</button>`;
 }
 
-function vtEpicNode(epic) {
-  const features = state.features.filter(f => f.epic === epic.label);
-  const id = epic.id;
-  const reqCount = features.reduce((n, f) =>
-    n + state.requirements.filter(r => r.feature === f.label).length, 0);
-  return `<div class="vt-node vt-node--epic">
-    <div class="vt-row">
-      <button class="vt-toggle" data-toggle="vt-c-e-${id}">▼</button>
-      ${vtTypeBadge('epic')}
-      <span class="vt-title">${escapeHtml(epic.label || epic.name)}</span>
-      ${vtCountTag(features.length, 'фич')}
-      ${vtCountTag(reqCount, 'треб.')}
-      <button class="vt-edit-btn" data-action="edit-epic" data-epic-id="${id}" title="Редактировать">✎</button>
-    </div>
-    <div class="vt-children" id="vt-c-e-${id}">
-      ${features.length ? features.map(f => vtFeatureNode(f, false)).join('') : vtEmpty('Нет фич')}
-    </div>
-  </div>`;
+function resolveChain(us) {
+  const req = state.requirements.find(r => r.id === us?.requirementId);
+  const feature = req?.feature ? state.features.find(f => f.label === req.feature) : null;
+  const epic = feature?.epic ? state.epics.find(e => e.label === feature.epic) : null;
+  return { req, feature, epic };
 }
 
-// ── render functions ─────────────────────────────
+// ── EPICS registry ───────────────────────────────
 
 function renderEpicsView() {
   const el = document.querySelector('#epicsViewContent');
-  const parts = [];
-  for (const epic of state.epics) parts.push(vtEpicNode(epic));
-  const noEpicFeatures = state.features.filter(f => !f.epic || !state.epics.find(e => e.label === f.epic));
-  if (noEpicFeatures.length) {
-    parts.push(`<div class="vt-orphan-group">
-      <div class="vt-orphan-label">Фичи без эпика</div>
-      ${noEpicFeatures.map(f => vtFeatureNode(f, false)).join('')}
-    </div>`);
-  }
-  const noFeatReqs = state.requirements.filter(r => !r.feature || !state.features.find(f => f.label === r.feature));
-  if (noFeatReqs.length) {
-    parts.push(`<div class="vt-orphan-group">
-      <div class="vt-orphan-label">Требования без фичи</div>
-      ${noFeatReqs.map(vtReqNode).join('')}
-    </div>`);
-  }
-  el.innerHTML = parts.length ? parts.join('') : vtEmpty('Нет данных. Создайте требования, фичи и эпики в реестре.');
+  const rows = state.epics.map(epic => {
+    const features = state.features.filter(f => f.epic === epic.label);
+    const reqs = features.flatMap(f => state.requirements.filter(r => r.feature === f.label));
+    const usCount = reqs.reduce((n, r) => n + state.userStories.filter(u => u.requirementId === r.id).length, 0);
+    const tcCount = state.testCases.filter(tc => {
+      const us = state.userStories.find(u => u.id === tc.usId);
+      if (!us) return false;
+      const req = state.requirements.find(r => r.id === us.requirementId);
+      return req && reqs.some(r2 => r2.id === req.id);
+    }).length;
+    return `<tr>
+      <td class="reg-code">${escapeHtml(epic.number || '')}</td>
+      <td class="reg-name">${escapeHtml(epic.name || '')}</td>
+      <td class="reg-desc">${escapeHtml(epic.description || '')}</td>
+      <td class="reg-num">${features.length}</td>
+      <td class="reg-num">${reqs.length}</td>
+      <td class="reg-num">${usCount}</td>
+      <td class="reg-num">${tcCount}</td>
+      <td class="reg-actions"><button class="row-edit-btn" data-action="edit-epic" data-epic-id="${epic.id}" title="Редактировать">✎</button></td>
+    </tr>`;
+  });
+  el.innerHTML = regTable(
+    ['Код', 'Название', 'Описание', 'Фичей', 'Требований', 'US', 'TC', ''],
+    rows,
+    'Нет эпиков. Создайте их через реестр требований.'
+  );
 }
+
+// ── FEATURES registry ────────────────────────────
 
 function renderFeaturesView() {
   const el = document.querySelector('#featuresViewContent');
-  const parts = state.features.map(f => vtFeatureNode(f, true));
-  const noFeatReqs = state.requirements.filter(r => !r.feature || !state.features.find(f => f.label === r.feature));
-  if (noFeatReqs.length) {
-    parts.push(`<div class="vt-orphan-group">
-      <div class="vt-orphan-label">Требования без фичи</div>
-      ${noFeatReqs.map(vtReqNode).join('')}
-    </div>`);
-  }
-  el.innerHTML = parts.length ? parts.join('') : vtEmpty('Нет фич. Создайте требования и объедините их в фичи в реестре.');
+  const rows = state.features.map(feature => {
+    const epic = feature.epic ? state.epics.find(e => e.label === feature.epic) : null;
+    const reqs = state.requirements.filter(r => r.feature === feature.label);
+    const usCount = reqs.reduce((n, r) => n + state.userStories.filter(u => u.requirementId === r.id).length, 0);
+    const tcCount = state.testCases.filter(tc => {
+      const us = state.userStories.find(u => u.id === tc.usId);
+      return us && reqs.some(r => r.id === us.requirementId);
+    }).length;
+    return `<tr>
+      <td class="reg-code">${escapeHtml(feature.number || '')}</td>
+      <td class="reg-name">${escapeHtml(feature.name || '')}</td>
+      <td>${epic ? regLink(epic.label, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td class="reg-desc">${escapeHtml(feature.description || '')}</td>
+      <td class="reg-num">${reqs.length}</td>
+      <td class="reg-num">${usCount}</td>
+      <td class="reg-num">${tcCount}</td>
+      <td class="reg-actions"><button class="row-edit-btn" data-action="edit-feature" data-feature-id="${feature.id}" title="Редактировать">✎</button></td>
+    </tr>`;
+  });
+  el.innerHTML = regTable(
+    ['Код', 'Название', 'Эпик', 'Описание', 'Требований', 'US', 'TC', ''],
+    rows,
+    'Нет фич. Создайте их через реестр требований.'
+  );
 }
+
+// ── USER STORIES registry ────────────────────────
 
 function renderUSView() {
   const el = document.querySelector('#userStoriesViewContent');
   if (!state.userStories.length) {
-    el.innerHTML = vtEmpty('Нет User Stories. Откройте реестр → кнопку US у требования.');
+    el.innerHTML = viewEmpty('Нет User Stories. Откройте реестр → кнопку US у требования.');
     return;
   }
-  const reqIds = [...new Set(state.userStories.map(u => u.requirementId))];
-  el.innerHTML = reqIds.map(reqId => {
-    const req = state.requirements.find(r => r.id === reqId);
-    const stories = state.userStories.filter(u => u.requirementId === reqId);
-    const reqLabel = req
-      ? `${vtTypeBadge('req')}<span class="vt-code">${escapeHtml(req.code)}</span><span class="vt-text">${escapeHtml(req.text)}</span>`
-      : `${vtTypeBadge('req')}<span class="vt-text vt-text--muted">Требование удалено</span>`;
-    const editReqBtn = req
-      ? `<button class="vt-edit-btn" data-action="edit-req" data-req-id="${req.id}" title="Редактировать">✎</button>` : '';
-    const usNodes = stories.map(us => {
-      const mainTC = state.testCases.filter(t => t.usId === us.id && t.scenarioType === 'main').length;
-      const altTC  = state.testCases.filter(t => t.usId === us.id && t.scenarioType === 'alt').length;
-      const mainRow = us.scenario?.length ? `<div class="vt-us-scenario-row">
-          <span class="vt-us-scenario-label">Основной&nbsp;сценарий</span>
-          <span class="vt-count">${us.scenario.length} шаг${us.scenario.length === 1 ? '' : 'ов'}</span>
-          ${mainTC ? `<button class="vt-nav-btn" data-action="goto-tc" data-us-id="${us.id}">TC: ${mainTC}</button>`
-                   : '<span class="vt-count vt-count--zero">TC: 0</span>'}
-        </div>` : '';
-      const altRow  = us.altScenario?.length ? `<div class="vt-us-scenario-row">
-          <span class="vt-us-scenario-label">Альтернативный&nbsp;сценарий</span>
-          <span class="vt-count">${us.altScenario.length} шаг${us.altScenario.length === 1 ? '' : 'ов'}</span>
-          ${altTC ? `<button class="vt-nav-btn" data-action="goto-tc" data-us-id="${us.id}">TC: ${altTC}</button>`
-                  : '<span class="vt-count vt-count--zero">TC: 0</span>'}
-        </div>` : '';
-      return `<div class="vt-node vt-node--us">
-        <div class="vt-row">
-          ${vtTypeBadge('us')}
-          <span class="vt-code">${escapeHtml(us.number || '')}</span>
-          <span class="vt-title">${escapeHtml(us.title || '')}</span>
-          ${us.status ? `<span class="badge ${statusClass(us.status)}">${escapeHtml(us.status)}</span>` : ''}
-          ${us.priority ? `<span class="badge ${priorityClass(us.priority)}">${escapeHtml(us.priority)}</span>` : ''}
-          <button class="vt-edit-btn" data-action="edit-us" data-us-id="${us.id}" title="Редактировать">✎</button>
-        </div>
-        ${mainRow || altRow ? `<div class="vt-us-scenarios">${mainRow}${altRow}</div>` : ''}
-      </div>`;
-    }).join('');
-    return `<div class="vt-group">
-      <div class="vt-group-head">
-        <button class="vt-toggle" data-toggle="vt-c-r-${reqId}">▼</button>
-        ${reqLabel}
-        ${vtCountTag(stories.length, 'US')}
-        ${editReqBtn}
-      </div>
-      <div class="vt-children vt-children--group" id="vt-c-r-${reqId}">${usNodes}</div>
-    </div>`;
-  }).join('');
+  const rows = state.userStories.map(us => {
+    const { req, feature, epic } = resolveChain(us);
+    const mainTC = state.testCases.filter(t => t.usId === us.id && t.scenarioType === 'main').length;
+    const altTC  = state.testCases.filter(t => t.usId === us.id && t.scenarioType === 'alt').length;
+    const scenCell = [
+      us.scenario?.length ? `Осн.: ${us.scenario.length} шаг.` : '',
+      us.altScenario?.length ? `Альт.: ${us.altScenario.length} шаг.` : '',
+    ].filter(Boolean).join(' / ') || '—';
+    const tcCell = (mainTC + altTC) > 0
+      ? `<button class="reg-link" data-action="goto-tc" data-us-id="${us.id}">${mainTC + altTC} TC</button>`
+      : '<span class="reg-empty-cell">—</span>';
+    return `<tr>
+      <td class="reg-code">${escapeHtml(us.number || '')}</td>
+      <td class="reg-name">${escapeHtml(us.title || '')}</td>
+      <td>${req ? regLink(req.code, 'edit-req', { 'req-id': req.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${feature ? regLink(feature.label, 'edit-feature', { 'feature-id': feature.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${epic ? regLink(epic.label, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${us.status ? `<span class="badge ${statusClass(us.status)}">${escapeHtml(us.status)}</span>` : '—'}</td>
+      <td>${us.priority ? `<span class="badge ${priorityClass(us.priority)}">${escapeHtml(us.priority)}</span>` : '—'}</td>
+      <td class="reg-owner">${escapeHtml(us.owner || '—')}</td>
+      <td class="reg-scenario">${scenCell}</td>
+      <td>${tcCell}</td>
+      <td class="reg-actions"><button class="row-edit-btn" data-action="edit-us" data-us-id="${us.id}" title="Редактировать">✎</button></td>
+    </tr>`;
+  });
+  el.innerHTML = regTable(
+    ['Номер', 'Заголовок', 'Требование', 'Фича', 'Эпик', 'Статус', 'Приоритет', 'Владелец', 'Сценарии', 'TC', ''],
+    rows,
+    ''
+  );
 }
+
+// ── TEST CASES registry ──────────────────────────
 
 function renderTCView() {
   const el = document.querySelector('#testCasesViewContent');
   if (!state.testCases.length) {
-    el.innerHTML = vtEmpty('Нет тест-кейсов. Откройте User Story и создайте TC из сценариев.');
+    el.innerHTML = viewEmpty('Нет тест-кейсов. Откройте User Story и создайте TC из сценариев.');
     return;
   }
-  const usIds = [...new Set(state.testCases.map(t => t.usId))];
   const tcStatusMap = { Draft: 'Draft', Pass: 'Approved', Fail: 'High', Blocked: 'Medium' };
-  el.innerHTML = usIds.map(usId => {
-    const us = state.userStories.find(u => u.id === usId);
-    const tcs = state.testCases.filter(t => t.usId === usId);
-    const usLabel = us
-      ? `${vtTypeBadge('us')}<span class="vt-code">${escapeHtml(us.number || '')}</span><span class="vt-title">${escapeHtml(us.title || '')}</span>`
-      : `${vtTypeBadge('us')}<span class="vt-title vt-text--muted">User Story удалена</span>`;
-    const editUSBtn = us
-      ? `<button class="vt-edit-btn" data-action="edit-us" data-us-id="${us.id}" title="Редактировать">✎</button>` : '';
-    const tcNodes = tcs.map(tc => {
-      const steps = tc.steps?.length || 0;
-      const scenLabel = tc.scenarioType === 'main' ? 'основной' : 'альтернативный';
-      const date = tc.createdAt ? new Date(tc.createdAt).toLocaleDateString('ru-RU') : '';
-      return `<div class="vt-node vt-node--tc">
-        <div class="vt-row">
-          ${vtTypeBadge('tc')}
-          <span class="vt-title">${escapeHtml(tc.title)}</span>
-          <span class="badge ${tcStatusMap[tc.status] || 'Draft'}">${escapeHtml(tc.status)}</span>
-          <span class="vt-meta-tag">${scenLabel}</span>
-          ${vtCountTag(steps, steps === 1 ? 'шаг' : 'шагов')}
-          ${date ? `<span class="vt-date">${date}</span>` : ''}
-        </div>
-      </div>`;
-    }).join('');
-    return `<div class="vt-group">
-      <div class="vt-group-head">
-        <button class="vt-toggle" data-toggle="vt-c-u-${usId}">▼</button>
-        ${usLabel}
-        ${vtCountTag(tcs.length, 'TC')}
-        ${editUSBtn}
-      </div>
-      <div class="vt-children vt-children--group" id="vt-c-u-${usId}">${tcNodes}</div>
-    </div>`;
-  }).join('');
+  const rows = state.testCases.map(tc => {
+    const us = state.userStories.find(u => u.id === tc.usId);
+    const { req, feature, epic } = resolveChain(us);
+    const steps = tc.steps?.length || 0;
+    const date = tc.createdAt ? new Date(tc.createdAt).toLocaleDateString('ru-RU') : '—';
+    const scenLabel = tc.scenarioType === 'main' ? 'Основной' : 'Альтернативный';
+    return `<tr>
+      <td class="reg-name">${escapeHtml(tc.title)}</td>
+      <td>${us ? regLink(us.number ? `${us.number} ${us.title}` : us.title, 'edit-us', { 'us-id': us.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${req ? regLink(req.code, 'edit-req', { 'req-id': req.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${feature ? regLink(feature.label, 'edit-feature', { 'feature-id': feature.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${epic ? regLink(epic.label, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td><span class="badge ${tcStatusMap[tc.status] || 'Draft'}">${escapeHtml(tc.status)}</span></td>
+      <td class="reg-scenario">${scenLabel}</td>
+      <td class="reg-num">${steps}</td>
+      <td class="reg-date">${date}</td>
+    </tr>`;
+  });
+  el.innerHTML = regTable(
+    ['Название', 'User Story', 'Требование', 'Фича', 'Эпик', 'Статус', 'Сценарий', 'Шагов', 'Создан'],
+    rows,
+    ''
+  );
 }
 
 // ── event delegation ─────────────────────────────
 
-function handleVtClick(e) {
-  // toggle expand/collapse
-  const toggleBtn = e.target.closest('[data-toggle]');
-  if (toggleBtn) {
-    const target = document.querySelector(`#${toggleBtn.dataset.toggle}`);
-    if (target) {
-      const collapsed = target.classList.toggle('hidden');
-      toggleBtn.textContent = collapsed ? '▶' : '▼';
-    }
-    return;
-  }
-  // action buttons
+function handleViewClick(e) {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   const action = btn.dataset.action;
@@ -2147,21 +2085,20 @@ function handleVtClick(e) {
   } else if (action === 'edit-epic') {
     const ep = state.epics.find(e => e.id === btn.dataset.epicId);
     if (ep) openEpicEditModal(ep);
-  } else if (action === 'view-us') {
-    openUSListModal(btn.dataset.reqId);
   } else if (action === 'edit-us') {
     const us = state.userStories.find(u => u.id === btn.dataset.usId);
     if (us) { currentUSRequirementId = us.requirementId; openUSEditModal(us); }
   } else if (action === 'goto-tc') {
     switchView('testCases');
-    // после рендера найти нужную группу и проскроллить
-    const groupEl = document.querySelector(`#vt-c-u-${btn.dataset.usId}`);
-    if (groupEl) groupEl.closest('.vt-group')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
 
 ['epicsViewContent', 'featuresViewContent', 'userStoriesViewContent', 'testCasesViewContent'].forEach(id => {
-  document.querySelector(`#${id}`).addEventListener('click', handleVtClick);
+  document.querySelector(`#${id}`).addEventListener('click', handleViewClick);
+});
+
+document.querySelectorAll('.ws-tab').forEach(btn => {
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
 });
 
 document.querySelectorAll('.nav-item[data-view]').forEach(btn => {
