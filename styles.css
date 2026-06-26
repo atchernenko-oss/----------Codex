@@ -1751,33 +1751,37 @@ tr.selected td {
 
 .ws-tabs {
   display: flex;
-  gap: 0;
-  border-bottom: 2px solid var(--line);
-  padding: 0 24px;
-  background: var(--card, #fff);
+  gap: 4px;
+  padding: 0;
+  background: transparent;
   flex-shrink: 0;
+  margin-bottom: 20px;
 }
 
 .ws-tab {
-  padding: 11px 18px;
-  border: none;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 6px;
   background: none;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
   color: var(--muted);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
   white-space: nowrap;
 }
 
-.ws-tab:hover { color: var(--ink); }
+.ws-tab:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.7);
+}
 
 .ws-tab.active {
   color: var(--accent);
-  border-bottom-color: var(--accent);
-  font-weight: 600;
+  font-weight: 700;
+  background: var(--panel);
+  border-color: var(--line);
+  box-shadow: 0 1px 4px rgba(13, 27, 46, 0.08);
 }
 
 /* ══════════════════════════════════════════════════

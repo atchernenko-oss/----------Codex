@@ -558,7 +558,7 @@ function generateDemoData() {
   saveEpics(demoEpics);
   saveUserStories(demoUS);
   mergeOwners(demo.map(r => r.owner));
-  setStatus("Сгенерирован демонстрационный набор: 6 требований, 2 фичи, 1 эпик, 2 US.");
+  setStatus("Сгенерирован демонстрационный набор: 6 требований, 2 Features, 1 Epic, 2 US.");
   render();
 }
 
@@ -1705,7 +1705,7 @@ function closeTCModal() {
 }
 
 function saveTCModal() {
-  const title = document.querySelector("#tcTitle").value.trim() || "Тест-кейс";
+  const title = document.querySelector("#tcTitle").value.trim() || "Test Case";
   const status = document.querySelector("#tcStatus").value;
   const stepItems = document.querySelectorAll("#tcStepsList .tc-step-item");
   const steps = [...stepItems].map(item => ({
@@ -1907,6 +1907,66 @@ function reRenderCurrentView() {
   else if (currentView === 'testCases')   renderTCView();
 }
 
+// ── filter state ─────────────────────────────────
+
+const epicsFilter   = { search: '' };
+const featuresFilter = { search: '', epic: '' };
+const usFilter      = { search: '', status: '', priority: '', feature: '' };
+const tcFilter      = { search: '', status: '', scenario: '', usId: '' };
+
+function filterEpics() {
+  const q = epicsFilter.search.toLowerCase();
+  return state.epics.filter(e =>
+    !q ||
+    (e.number || '').toLowerCase().includes(q) ||
+    (e.name   || '').toLowerCase().includes(q) ||
+    (e.label  || '').toLowerCase().includes(q) ||
+    (e.description || '').toLowerCase().includes(q)
+  );
+}
+
+function filterFeatures() {
+  return state.features.filter(f => {
+    if (featuresFilter.epic && f.epic !== featuresFilter.epic) return false;
+    const q = featuresFilter.search.toLowerCase();
+    return !q ||
+      (f.number || '').toLowerCase().includes(q) ||
+      (f.name   || '').toLowerCase().includes(q) ||
+      (f.label  || '').toLowerCase().includes(q) ||
+      (f.description || '').toLowerCase().includes(q);
+  });
+}
+
+function filterUserStories() {
+  return state.userStories.filter(us => {
+    if (usFilter.status   && us.status   !== usFilter.status)   return false;
+    if (usFilter.priority && us.priority !== usFilter.priority) return false;
+    if (usFilter.feature) {
+      const req = state.requirements.find(r => r.id === us.requirementId);
+      if (!req || req.feature !== usFilter.feature) return false;
+    }
+    const q = usFilter.search.toLowerCase();
+    return !q ||
+      (us.number || '').toLowerCase().includes(q) ||
+      (us.title  || '').toLowerCase().includes(q) ||
+      (us.owner  || '').toLowerCase().includes(q);
+  });
+}
+
+function filterTestCases() {
+  return state.testCases.filter(tc => {
+    if (tcFilter.status   && tc.status       !== tcFilter.status)   return false;
+    if (tcFilter.scenario && tc.scenarioType !== tcFilter.scenario) return false;
+    if (tcFilter.usId     && tc.usId         !== tcFilter.usId)     return false;
+    const q = tcFilter.search.toLowerCase();
+    if (!q) return true;
+    const us = state.userStories.find(u => u.id === tc.usId);
+    return (tc.title || '').toLowerCase().includes(q) ||
+      (us?.title  || '').toLowerCase().includes(q) ||
+      (us?.number || '').toLowerCase().includes(q);
+  });
+}
+
 // ── shared helpers ───────────────────────────────
 
 function viewEmpty(msg) {
@@ -1938,7 +1998,22 @@ function resolveChain(us) {
 
 function renderEpicsView() {
   const el = document.querySelector('#epicsViewContent');
-  const rows = state.epics.map(epic => {
+  // metrics (always full data)
+  const allFeat = state.features.length;
+  const allReqs = state.requirements.length;
+  const allUS   = state.userStories.length;
+  document.querySelector('#epicsTotalCount').textContent = state.epics.length;
+  document.querySelector('#epicsFeatCount').textContent  = allFeat;
+  document.querySelector('#epicsReqCount').textContent   = allReqs;
+  document.querySelector('#epicsUSCount').textContent    = allUS;
+
+  const filtered = filterEpics();
+  document.querySelector('#epicsImportStatus').textContent =
+    filtered.length === state.epics.length
+      ? `Всего: ${state.epics.length}`
+      : `Показано: ${filtered.length} из ${state.epics.length}`;
+
+  const rows = filtered.map(epic => {
     const features = state.features.filter(f => f.epic === epic.label);
     const reqs = features.flatMap(f => state.requirements.filter(r => r.feature === f.label));
     const usCount = reqs.reduce((n, r) => n + state.userStories.filter(u => u.requirementId === r.id).length, 0);
@@ -1950,7 +2025,7 @@ function renderEpicsView() {
     }).length;
     return `<tr>
       <td class="reg-code">${escapeHtml(epic.number || '')}</td>
-      <td class="reg-name">${escapeHtml(epic.name || '')}</td>
+      <td class="reg-name">${escapeHtml(epic.name || epic.label || '')}</td>
       <td class="reg-desc">${escapeHtml(epic.description || '')}</td>
       <td class="reg-num">${features.length}</td>
       <td class="reg-num">${reqs.length}</td>
@@ -1960,9 +2035,9 @@ function renderEpicsView() {
     </tr>`;
   });
   el.innerHTML = regTable(
-    ['Код', 'Название', 'Описание', 'Фичей', 'Требований', 'US', 'TC', ''],
+    ['Код', 'Название', 'Описание', 'Features', 'Требований', 'US', 'TC', ''],
     rows,
-    'Нет эпиков. Создайте их через реестр требований.'
+    'Нет Epics. Создайте их через реестр требований.'
   );
 }
 
@@ -1970,7 +2045,29 @@ function renderEpicsView() {
 
 function renderFeaturesView() {
   const el = document.querySelector('#featuresViewContent');
-  const rows = state.features.map(feature => {
+  // metrics
+  const allReqs  = state.requirements.length;
+  const allUS    = state.userStories.length;
+  const allTC    = state.testCases.length;
+  document.querySelector('#featsTotalCount').textContent = state.features.length;
+  document.querySelector('#featsReqCount').textContent   = allReqs;
+  document.querySelector('#featsUSCount').textContent    = allUS;
+  document.querySelector('#featsTCCount').textContent    = allTC;
+
+  // populate epic dropdown
+  const epicSel = document.querySelector('#featsEpicFilter');
+  const prevEpic = epicSel.value;
+  epicSel.innerHTML = '<option value="">Все Epics</option>' +
+    state.epics.map(e => `<option value="${escapeHtml(e.label)}">${escapeHtml(e.label || e.name)}</option>`).join('');
+  if (prevEpic) epicSel.value = prevEpic;
+
+  const filtered = filterFeatures();
+  document.querySelector('#featsImportStatus').textContent =
+    filtered.length === state.features.length
+      ? `Всего: ${state.features.length}`
+      : `Показано: ${filtered.length} из ${state.features.length}`;
+
+  const rows = filtered.map(feature => {
     const epic = feature.epic ? state.epics.find(e => e.label === feature.epic) : null;
     const reqs = state.requirements.filter(r => r.feature === feature.label);
     const usCount = reqs.reduce((n, r) => n + state.userStories.filter(u => u.requirementId === r.id).length, 0);
@@ -1980,7 +2077,7 @@ function renderFeaturesView() {
     }).length;
     return `<tr>
       <td class="reg-code">${escapeHtml(feature.number || '')}</td>
-      <td class="reg-name">${escapeHtml(feature.name || '')}</td>
+      <td class="reg-name">${escapeHtml(feature.name || feature.label || '')}</td>
       <td>${epic ? regLink(epic.label, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
       <td class="reg-desc">${escapeHtml(feature.description || '')}</td>
       <td class="reg-num">${reqs.length}</td>
@@ -1992,7 +2089,7 @@ function renderFeaturesView() {
   el.innerHTML = regTable(
     ['Код', 'Название', 'Эпик', 'Описание', 'Требований', 'US', 'TC', ''],
     rows,
-    'Нет фич. Создайте их через реестр требований.'
+    'Нет Features. Создайте их через реестр требований.'
   );
 }
 
@@ -2000,11 +2097,32 @@ function renderFeaturesView() {
 
 function renderUSView() {
   const el = document.querySelector('#userStoriesViewContent');
-  if (!state.userStories.length) {
-    el.innerHTML = viewEmpty('Нет User Stories. Откройте реестр → кнопку US у требования.');
+  // metrics
+  document.querySelector('#usTotalCount').textContent    = state.userStories.length;
+  document.querySelector('#usApprovedCount').textContent = state.userStories.filter(u => u.status === 'Approved').length;
+  document.querySelector('#usDraftCount').textContent    = state.userStories.filter(u => u.status === 'Draft').length;
+  document.querySelector('#usHighCount').textContent     = state.userStories.filter(u => u.priority === 'High').length;
+
+  // populate feature dropdown
+  const featSel = document.querySelector('#usFeatureFilter');
+  const prevFeat = featSel.value;
+  featSel.innerHTML = '<option value="">Все Features</option>' +
+    state.features.map(f => `<option value="${escapeHtml(f.label)}">${escapeHtml(f.label || f.name)}</option>`).join('');
+  if (prevFeat) featSel.value = prevFeat;
+
+  const filtered = filterUserStories();
+  document.querySelector('#usImportStatus').textContent =
+    filtered.length === state.userStories.length
+      ? `Всего: ${state.userStories.length}`
+      : `Показано: ${filtered.length} из ${state.userStories.length}`;
+
+  if (!filtered.length) {
+    el.innerHTML = state.userStories.length
+      ? viewEmpty('Нет совпадений с фильтрами.')
+      : viewEmpty('Нет User Stories. Откройте реестр → кнопку US у требования.');
     return;
   }
-  const rows = state.userStories.map(us => {
+  const rows = filtered.map(us => {
     const { req, feature, epic } = resolveChain(us);
     const mainTC = state.testCases.filter(t => t.usId === us.id && t.scenarioType === 'main').length;
     const altTC  = state.testCases.filter(t => t.usId === us.id && t.scenarioType === 'alt').length;
@@ -2019,8 +2137,8 @@ function renderUSView() {
       <td class="reg-code">${escapeHtml(us.number || '')}</td>
       <td class="reg-name">${escapeHtml(us.title || '')}</td>
       <td>${req ? regLink(req.code, 'edit-req', { 'req-id': req.id }) : '<span class="reg-empty-cell">—</span>'}</td>
-      <td>${feature ? regLink(feature.label, 'edit-feature', { 'feature-id': feature.id }) : '<span class="reg-empty-cell">—</span>'}</td>
-      <td>${epic ? regLink(epic.label, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${feature ? regLink(feature.label || feature.name, 'edit-feature', { 'feature-id': feature.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${epic ? regLink(epic.label || epic.name, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
       <td>${us.status ? `<span class="badge ${statusClass(us.status)}">${escapeHtml(us.status)}</span>` : '—'}</td>
       <td>${us.priority ? `<span class="badge ${priorityClass(us.priority)}">${escapeHtml(us.priority)}</span>` : '—'}</td>
       <td class="reg-owner">${escapeHtml(us.owner || '—')}</td>
@@ -2040,12 +2158,35 @@ function renderUSView() {
 
 function renderTCView() {
   const el = document.querySelector('#testCasesViewContent');
-  if (!state.testCases.length) {
-    el.innerHTML = viewEmpty('Нет тест-кейсов. Откройте User Story и создайте TC из сценариев.');
+  // metrics
+  document.querySelector('#tcTotalCount').textContent = state.testCases.length;
+  document.querySelector('#tcPassCount').textContent  = state.testCases.filter(t => t.status === 'Pass').length;
+  document.querySelector('#tcFailCount').textContent  = state.testCases.filter(t => t.status === 'Fail').length;
+  document.querySelector('#tcDraftCount').textContent = state.testCases.filter(t => t.status === 'Draft').length;
+
+  // populate US dropdown
+  const usSel = document.querySelector('#tcUSFilter');
+  const prevUS = usSel.value;
+  usSel.innerHTML = '<option value="">Все User Stories</option>' +
+    state.userStories.map(u =>
+      `<option value="${escapeHtml(u.id)}">${escapeHtml(u.number ? `${u.number} ${u.title}` : u.title)}</option>`
+    ).join('');
+  if (prevUS) usSel.value = prevUS;
+
+  const filtered = filterTestCases();
+  document.querySelector('#tcImportStatus').textContent =
+    filtered.length === state.testCases.length
+      ? `Всего: ${state.testCases.length}`
+      : `Показано: ${filtered.length} из ${state.testCases.length}`;
+
+  if (!filtered.length) {
+    el.innerHTML = state.testCases.length
+      ? viewEmpty('Нет совпадений с фильтрами.')
+      : viewEmpty('Нет тест-кейсов. Откройте User Story и создайте TC из сценариев.');
     return;
   }
   const tcStatusMap = { Draft: 'Draft', Pass: 'Approved', Fail: 'High', Blocked: 'Medium' };
-  const rows = state.testCases.map(tc => {
+  const rows = filtered.map(tc => {
     const us = state.userStories.find(u => u.id === tc.usId);
     const { req, feature, epic } = resolveChain(us);
     const steps = tc.steps?.length || 0;
@@ -2055,8 +2196,8 @@ function renderTCView() {
       <td class="reg-name">${escapeHtml(tc.title)}</td>
       <td>${us ? regLink(us.number ? `${us.number} ${us.title}` : us.title, 'edit-us', { 'us-id': us.id }) : '<span class="reg-empty-cell">—</span>'}</td>
       <td>${req ? regLink(req.code, 'edit-req', { 'req-id': req.id }) : '<span class="reg-empty-cell">—</span>'}</td>
-      <td>${feature ? regLink(feature.label, 'edit-feature', { 'feature-id': feature.id }) : '<span class="reg-empty-cell">—</span>'}</td>
-      <td>${epic ? regLink(epic.label, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${feature ? regLink(feature.label || feature.name, 'edit-feature', { 'feature-id': feature.id }) : '<span class="reg-empty-cell">—</span>'}</td>
+      <td>${epic ? regLink(epic.label || epic.name, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
       <td><span class="badge ${tcStatusMap[tc.status] || 'Draft'}">${escapeHtml(tc.status)}</span></td>
       <td class="reg-scenario">${scenLabel}</td>
       <td class="reg-num">${steps}</td>
@@ -2103,6 +2244,90 @@ document.querySelectorAll('.ws-tab').forEach(btn => {
 
 document.querySelectorAll('.nav-item[data-view]').forEach(btn => {
   btn.addEventListener('click', () => switchView(btn.dataset.view));
+});
+
+// ── toolbar toggles for registry views ───────────
+
+[
+  ['epicsFiltersToggle',  'epicsFiltersBody'],
+  ['featsFiltersToggle',  'featsFiltersBody'],
+  ['usFiltersToggle',     'usFiltersBody'],
+  ['tcFiltersToggle',     'tcFiltersBody'],
+].forEach(([toggleId, bodyId]) => {
+  const toggle = document.querySelector(`#${toggleId}`);
+  const body   = document.querySelector(`#${bodyId}`);
+  if (!toggle || !body) return;
+  toggle.addEventListener('click', () => {
+    const isOpen = body.classList.toggle('hidden');
+    toggle.setAttribute('aria-expanded', String(!isOpen));
+    toggle.querySelector('.toolbar-toggle-icon').textContent = isOpen ? '▼' : '▲';
+  });
+});
+
+// ── filter inputs ─────────────────────────────────
+
+document.querySelector('#epicsSearch').addEventListener('input', e => {
+  epicsFilter.search = e.target.value; renderEpicsView();
+});
+document.querySelector('#epicsClearFilters').addEventListener('click', () => {
+  epicsFilter.search = '';
+  document.querySelector('#epicsSearch').value = '';
+  renderEpicsView();
+});
+
+document.querySelector('#featsSearch').addEventListener('input', e => {
+  featuresFilter.search = e.target.value; renderFeaturesView();
+});
+document.querySelector('#featsEpicFilter').addEventListener('change', e => {
+  featuresFilter.epic = e.target.value; renderFeaturesView();
+});
+document.querySelector('#featsClearFilters').addEventListener('click', () => {
+  featuresFilter.search = ''; featuresFilter.epic = '';
+  document.querySelector('#featsSearch').value = '';
+  document.querySelector('#featsEpicFilter').value = '';
+  renderFeaturesView();
+});
+
+document.querySelector('#usSearch').addEventListener('input', e => {
+  usFilter.search = e.target.value; renderUSView();
+});
+document.querySelector('#usStatusFilter').addEventListener('change', e => {
+  usFilter.status = e.target.value; renderUSView();
+});
+document.querySelector('#usPriorityFilter').addEventListener('change', e => {
+  usFilter.priority = e.target.value; renderUSView();
+});
+document.querySelector('#usFeatureFilter').addEventListener('change', e => {
+  usFilter.feature = e.target.value; renderUSView();
+});
+document.querySelector('#usClearFilters').addEventListener('click', () => {
+  usFilter.search = ''; usFilter.status = ''; usFilter.priority = ''; usFilter.feature = '';
+  document.querySelector('#usSearch').value = '';
+  document.querySelector('#usStatusFilter').value = '';
+  document.querySelector('#usPriorityFilter').value = '';
+  document.querySelector('#usFeatureFilter').value = '';
+  renderUSView();
+});
+
+document.querySelector('#tcSearch').addEventListener('input', e => {
+  tcFilter.search = e.target.value; renderTCView();
+});
+document.querySelector('#tcStatusFilter').addEventListener('change', e => {
+  tcFilter.status = e.target.value; renderTCView();
+});
+document.querySelector('#tcScenarioFilter').addEventListener('change', e => {
+  tcFilter.scenario = e.target.value; renderTCView();
+});
+document.querySelector('#tcUSFilter').addEventListener('change', e => {
+  tcFilter.usId = e.target.value; renderTCView();
+});
+document.querySelector('#tcClearFilters').addEventListener('click', () => {
+  tcFilter.search = ''; tcFilter.status = ''; tcFilter.scenario = ''; tcFilter.usId = '';
+  document.querySelector('#tcSearch').value = '';
+  document.querySelector('#tcStatusFilter').value = '';
+  document.querySelector('#tcScenarioFilter').value = '';
+  document.querySelector('#tcUSFilter').value = '';
+  renderTCView();
 });
 
 document.querySelectorAll('.modal--resizable').forEach(modal => {
