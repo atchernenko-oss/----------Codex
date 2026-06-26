@@ -3291,3 +3291,239 @@ function exportExcel(reqs) {
   const filename = `reqtracker-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, filename);
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GRAPH VIEW
+// ══════════════════════════════════════════════════════════════════════════════
+
+let currentMainSection = 'registry'; // 'registry' | 'graph'
+let _graphZoom = null;
+let _graphSvg  = null;
+
+function switchMainSection(name) {
+  currentMainSection = name;
+  document.querySelector('#registryContent').classList.toggle('hidden', name !== 'registry');
+  document.querySelector('#graphPage').classList.toggle('hidden', name !== 'graph');
+
+  // Sidebar highlight
+  document.querySelectorAll('.nav-section-header[data-section]').forEach(b => {
+    const s = b.dataset.section;
+    b.classList.toggle('active',
+      s === 'requirements' ? name === 'registry' : s === name
+    );
+  });
+
+  if (name === 'graph') renderGraphView();
+}
+
+// Update sidebar handler so graph section navigates properly
+document.querySelectorAll('.nav-section-header[data-section]').forEach(btn => {
+  const existing = btn.onclick;
+});
+// Override — re-attach after initial listener (defined earlier). We use capture.
+document.querySelector('[data-section="graph"]').addEventListener('click', () => {
+  switchMainSection('graph');
+});
+// Clicking "Реестр требований" returns to registry mode
+const reqSectionBtn = document.querySelector('[data-section="requirements"]');
+const _origReqClick = reqSectionBtn.onclick;
+reqSectionBtn.addEventListener('click', () => {
+  if (currentMainSection !== 'registry') switchMainSection('registry');
+});
+
+document.querySelector('#graphResetZoom').addEventListener('click', () => {
+  if (_graphZoom && _graphSvg) {
+    _graphSvg.transition().duration(400).call(_graphZoom.transform, d3.zoomIdentity);
+    // re-fit
+    const g = _graphSvg.select('g');
+    if (g.node()) {
+      const b = g.node().getBBox();
+      const W = _graphSvg.node().clientWidth  || 1100;
+      const H = _graphSvg.node().clientHeight || 650;
+      const scale = Math.min(1, Math.min((W - 80) / (b.width || 1), (H - 80) / (b.height || 1)));
+      const tx = (W - b.width * scale) / 2 - b.x * scale;
+      const ty = (H - b.height * scale) / 2 - b.y * scale;
+      _graphSvg.transition().duration(400).call(_graphZoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+    }
+  }
+});
+
+// ── Build hierarchy data ──────────────────────────────────────────────────────
+
+function buildGraphTree(epicFilterLabel) {
+  const children = [];
+  const usedReqIds = new Set();
+
+  const epics = epicFilterLabel
+    ? state.epics.filter(e => e.label === epicFilterLabel)
+    : state.epics;
+
+  for (const epic of epics) {
+    const epicFeats = state.features.filter(f => f.epic === epic.label);
+    const featNodes = [];
+    for (const feat of epicFeats) {
+      const featNode = buildFeatTreeNode(feat, usedReqIds);
+      if (featNode) featNodes.push(featNode);
+    }
+    children.push({
+      id: `e_${epic.id}`, type: 'epic',
+      label: epic.number || '', sublabel: epic.name || epic.label,
+      data: epic, children: featNodes,
+    });
+  }
+
+  // Orphan features (no epic, or epic not in filter)
+  const orphanFeats = state.features.filter(f =>
+    !f.epic || !state.epics.find(e => e.label === f.epic) ||
+    (epicFilterLabel && f.epic !== epicFilterLabel)
+  );
+  if (!epicFilterLabel) {
+    for (const feat of orphanFeats) {
+      const featNode = buildFeatTreeNode(feat, usedReqIds);
+      if (featNode) children.push(featNode);
+    }
+  }
+
+  // Orphan reqs
+  if (!epicFilterLabel) {
+    const orphanReqs = state.requirements.filter(r => !usedReqIds.has(r.id));
+    for (const req of orphanReqs) {
+      children.push(buildReqTreeNode(req));
+    }
+  }
+
+  return { id: '__root', type: 'root', children };
+}
+
+function buildFeatTreeNode(feat, usedReqIds) {
+  const reqs = state.requirements.filter(r => r.feature === feat.label);
+  if (!reqs.length) return null;
+  const reqNodes = reqs.map(r => { usedReqIds.add(r.id); return buildReqTreeNode(r); });
+  return {
+    id: `f_${feat.id}`, type: 'feature',
+    label: feat.number || '', sublabel: feat.name || feat.label,
+    data: feat, children: reqNodes,
+  };
+}
+
+function buildReqTreeNode(req) {
+  const stories = state.userStories.filter(u => u.requirementId === req.id);
+  return {
+    id: `r_${req.id}`, type: 'req',
+    label: req.code, sublabel: (req.text || '').slice(0, 30) + (req.text?.length > 30 ? '…' : ''),
+    data: req,
+    children: stories.map(us => ({
+      id: `u_${us.id}`, type: 'us',
+      label: us.number || '', sublabel: (us.title || '').slice(0, 28) + (us.title?.length > 28 ? '…' : ''),
+      data: us,
+      children: state.testCases.filter(t => t.usId === us.id).map(tc => ({
+        id: `t_${tc.id}`, type: 'tc',
+        label: 'TC', sublabel: (tc.title || '').replace(/^TC:\s*/i, '').slice(0, 28),
+        data: tc, children: [],
+      })),
+    })),
+  };
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+
+const NODE_W = 148, NODE_H = 44, NODE_SEP_H = 60, NODE_SEP_V = 16;
+
+function renderGraphView() {
+  // Populate epic filter
+  const sel = document.querySelector('#graphEpicFilter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Все эпики</option>' +
+    state.epics.map(e => `<option value="${e.label}"${e.label === cur ? ' selected' : ''}>${e.number} ${e.name}</option>`).join('');
+
+  const epicFilter = sel.value;
+  const container  = document.querySelector('#graphContainer');
+  container.innerHTML = '';
+
+  const treeData = buildGraphTree(epicFilter);
+  if (!treeData.children.length) {
+    container.innerHTML = '<p class="graph-empty">Загрузите данные для отображения графа связей</p>';
+    return;
+  }
+
+  const W = container.clientWidth  || 1100;
+  const H = container.clientHeight || 650;
+
+  const svg = d3.select(container)
+    .append('svg')
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .attr('width', W).attr('height', H);
+
+  const g = svg.append('g');
+
+  // Zoom
+  const zoom = d3.zoom().scaleExtent([0.15, 3])
+    .on('zoom', ev => g.attr('transform', ev.transform));
+  svg.call(zoom);
+  _graphZoom = zoom;
+  _graphSvg  = svg;
+
+  // D3 hierarchy + tree layout
+  const root  = d3.hierarchy(treeData);
+  const nodeCount = root.descendants().length;
+  const dynSepV = Math.max(NODE_SEP_V, Math.min(40, (H - 80) / (root.height + 1) - NODE_H));
+
+  const treeLayout = d3.tree()
+    .nodeSize([NODE_H + dynSepV, NODE_W + NODE_SEP_H]);
+
+  treeLayout(root);
+
+  // Filter out invisible root node
+  const nodes = root.descendants().filter(d => d.data.type !== 'root');
+  const links = root.links().filter(l => l.source.data.type !== 'root');
+
+  // Links
+  g.selectAll('.graph-link')
+    .data(links).join('path')
+    .attr('class', 'graph-link')
+    .attr('d', d3.linkHorizontal().x(d => d.y).y(d => d.x));
+
+  // Node groups
+  const nodeG = g.selectAll('.graph-node')
+    .data(nodes).join('g')
+    .attr('class', d => `graph-node gn-${d.data.type}`)
+    .attr('transform', d => `translate(${d.y - NODE_W / 2},${d.x - NODE_H / 2})`)
+    .style('cursor', 'pointer')
+    .on('click', (ev, d) => openEntityModal(d.data));
+
+  // Rect
+  nodeG.append('rect')
+    .attr('class', d => `gn-rect gn-${d.data.type}`)
+    .attr('width', NODE_W).attr('height', NODE_H)
+    .attr('rx', 6).attr('ry', 6);
+
+  // Label (code/number)
+  nodeG.append('text')
+    .attr('class', 'gn-label')
+    .attr('x', NODE_W / 2).attr('y', NODE_H / 2 - 7)
+    .text(d => d.data.label);
+
+  // Sub-label (name/title)
+  nodeG.append('text')
+    .attr('class', 'gn-sublabel')
+    .attr('x', NODE_W / 2).attr('y', NODE_H / 2 + 9)
+    .text(d => d.data.sublabel);
+
+  // Initial fit
+  const b = g.node().getBBox();
+  const scale = Math.min(1, Math.min((W - 80) / (b.width || 1), (H - 80) / (b.height || 1)));
+  const tx = (W - b.width * scale) / 2 - b.x * scale;
+  const ty = (H - b.height * scale) / 2 - b.y * scale;
+  svg.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+}
+
+function openEntityModal(nodeData) {
+  const { type, data } = nodeData;
+  if (type === 'epic')    openEpicEditModal(data);
+  else if (type === 'feature') openFeatureEditModal(data);
+  else if (type === 'req')     openRequirementModal(data);
+  else if (type === 'us')      openUSEditModal(data);
+  else if (type === 'tc')      openTCEditModal(data);
+}
+
+document.querySelector('#graphEpicFilter').addEventListener('change', renderGraphView);

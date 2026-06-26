@@ -6,6 +6,7 @@
     <title>ReqTracker — MONS</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -34,10 +35,9 @@
 
           <!-- Граф связей -->
           <div class="nav-section">
-            <button class="nav-section-header nav-section-header--soon" type="button" data-section="graph" disabled>
+            <button class="nav-section-header" type="button" data-section="graph">
               <span class="nav-section-arrow nav-section-arrow--ph"></span>
               Граф связей
-              <span class="nav-soon-badge">скоро</span>
             </button>
           </div>
 
@@ -84,6 +84,7 @@
           </div>
         </header>
 
+        <div id="registryContent">
         <nav class="ws-tabs" role="tablist" aria-label="Реестры">
           <button class="ws-tab active" data-view="requirements" type="button">Требования</button>
           <button class="ws-tab" data-view="epics" type="button">Epics</button>
@@ -357,6 +358,26 @@
             <div class="view-content" id="testCasesViewContent"></div>
           </section>
         </section>
+        </div><!-- /registryContent -->
+
+        <!-- ── Graph view ───────────────────────────────────────── -->
+        <div id="graphPage" class="hidden">
+          <div class="graph-toolbar">
+            <div class="graph-legend">
+              <span class="graph-legend-item graph-legend-item--epic">Epic</span>
+              <span class="graph-legend-item graph-legend-item--feature">Feature</span>
+              <span class="graph-legend-item graph-legend-item--req">Требование</span>
+              <span class="graph-legend-item graph-legend-item--us">User Story</span>
+              <span class="graph-legend-item graph-legend-item--tc">Test Case</span>
+            </div>
+            <div class="graph-controls">
+              <select id="graphEpicFilter"><option value="">Все эпики</option></select>
+              <button id="graphResetZoom" class="button ghost" type="button">⟳ Сбросить вид</button>
+            </div>
+          </div>
+          <div id="graphContainer" class="graph-container"></div>
+        </div>
+
       </main>
     </div>
 
