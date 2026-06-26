@@ -324,6 +324,7 @@ document.querySelector("#usListModal").addEventListener("click", (e) => {
 });
 document.querySelector("#usListAddBtn").addEventListener("click", () => openUSEditModal(null));
 document.querySelector("#addRuleBtn").addEventListener("click", () => addRuleField("", true));
+document.querySelector("#addCriterionBtn").addEventListener("click", () => addCriterionField("", true));
 document.querySelector("#addScenarioStepBtn").addEventListener("click", () => addScenarioStep("", true));
 document.querySelector("#addAltScenarioStepBtn").addEventListener("click", () => addAltScenarioStep("", true));
 document.querySelector("#addAltScenarioBtn").addEventListener("click", () => {
@@ -1331,6 +1332,7 @@ function renderUSList() {
       ${us.scenario?.length ? `<div class="us-item-scenario-block"><span class="us-item-scenario-label">Основной сценарий</span><ol class="us-item-scenario">${us.scenario.map(s => `<li class="us-item-scenario-step">${escapeHtml(s)}</li>`).join('')}</ol></div>` : ''}
       ${us.altScenario?.length ? `<div class="us-item-scenario-block"><span class="us-item-scenario-label">Альтернативный сценарий</span><ol class="us-item-scenario">${us.altScenario.map(s => `<li class="us-item-scenario-step">${escapeHtml(s)}</li>`).join('')}</ol></div>` : ''}
       ${us.rules?.length ? `<ul class="us-item-rules">${us.rules.map(r => `<li class="us-item-rule">${escapeHtml(r)}</li>`).join('')}</ul>` : ''}
+      ${us.criteria?.length ? `<div class="us-item-scenario-block"><span class="us-item-scenario-label">Критерии приёмки</span><ul class="us-item-rules">${us.criteria.map(c => `<li class="us-item-rule">${escapeHtml(c)}</li>`).join('')}</ul></div>` : ''}
     `;
     list.append(li);
   }
@@ -1350,6 +1352,7 @@ function openUSEditModal(us) {
     document.querySelector("#usPriority").value = us.priority;
     document.querySelector("#usOwner").value = us.owner || "";
     populateRulesList(us.rules || []);
+    populateCriteriaList(us.criteria || []);
     populateScenarioList(us.scenario || []);
     showAltScenario(us.altScenario?.length ? us.altScenario : null);
   } else {
@@ -1364,6 +1367,7 @@ function openUSEditModal(us) {
     document.querySelector("#usPriority").value = "Medium";
     document.querySelector("#usOwner").value = "";
     populateRulesList([]);
+    populateCriteriaList([]);
     populateScenarioList([]);
     showAltScenario(null);
   }
@@ -1393,6 +1397,9 @@ function saveUserStory() {
   const rules = [...document.querySelectorAll("#usRulesList .us-rule-input")]
     .map(inp => inp.value.trim())
     .filter(Boolean);
+  const criteria = [...document.querySelectorAll("#usCriteriaList .us-criterion-input")]
+    .map(inp => inp.value.trim())
+    .filter(Boolean);
   const scenario = [...document.querySelectorAll("#usScenarioList .us-scenario-input")]
     .map(inp => inp.value.trim())
     .filter(Boolean);
@@ -1409,6 +1416,7 @@ function saveUserStory() {
     goal,
     text: buildUSText(role, action, goal),
     rules,
+    criteria,
     scenario,
     altScenario,
     status: document.querySelector("#usStatus").value,
@@ -1498,6 +1506,38 @@ function populateRulesList(rules) {
   document.querySelector("#usRulesList").innerHTML = "";
   const items = rules.length ? rules : [""];
   for (const rule of items) addRuleField(rule);
+}
+
+function addCriterionField(value = "", shouldFocus = false) {
+  const list = document.querySelector("#usCriteriaList");
+  const index = list.children.length + 1;
+  const li = document.createElement("li");
+  li.className = "us-rule-item";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "us-criterion-input";
+  input.placeholder = `Критерий ${index}...`;
+  input.value = value;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "us-rule-remove";
+  btn.title = "Удалить критерий";
+  btn.textContent = "✕";
+  btn.addEventListener("click", () => {
+    li.remove();
+    if (document.querySelectorAll("#usCriteriaList .us-rule-item").length === 0) {
+      addCriterionField();
+    }
+  });
+  li.append(input, btn);
+  list.append(li);
+  if (shouldFocus) input.focus();
+}
+
+function populateCriteriaList(criteria) {
+  document.querySelector("#usCriteriaList").innerHTML = "";
+  const items = criteria.length ? criteria : [""];
+  for (const c of items) addCriterionField(c);
 }
 
 function addScenarioStep(value = "", shouldFocus = false) {
