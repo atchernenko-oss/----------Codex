@@ -28,6 +28,7 @@ const state = {
 const elements = {
   excelInput: document.querySelector("#excelInput"),
   generateDemoButton: document.querySelector("#generateDemoButton"),
+  exportButton: document.querySelector("#exportButton"),
   clearButton: document.querySelector("#clearButton"),
   searchInput: document.querySelector("#searchInput"),
   statusFilter: document.querySelector("#statusFilter"),
@@ -104,6 +105,7 @@ document.querySelector("#filtersToggle").addEventListener("click", () => {
 
 elements.excelInput.addEventListener("change", handleFileUpload);
 elements.generateDemoButton.addEventListener("click", generateDemoData);
+elements.exportButton.addEventListener("click", openExportModal);
 elements.clearButton.addEventListener("click", clearRequirements);
 elements.searchInput.addEventListener("input", (event) => {
   state.search = event.target.value.trim().toLowerCase();
@@ -2864,3 +2866,404 @@ document.querySelectorAll('.modal--resizable').forEach(modal => {
     document.addEventListener('mouseup', onUp);
   });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════════════════════════════════════════
+
+function openExportModal() {
+  const selCount = state.selectedIds.size;
+  const allCount = state.requirements.length;
+
+  // Hint for "all"
+  const usCount = state.userStories.length;
+  const tcCount = state.testCases.length;
+  document.querySelector('#exportScopeAllHint').textContent =
+    `${allCount} треб. · ${usCount} US · ${tcCount} TC`;
+
+  // "Selected" option — disable if nothing checked
+  const selLabel = document.querySelector('#exportScopeSelectedLabel');
+  const selInput = document.querySelector('#exportScopeSelectedInput');
+  const selHint  = document.querySelector('#exportScopeSelHint');
+  if (selCount > 0) {
+    selLabel.style.opacity = '';
+    selInput.disabled = false;
+    selHint.textContent = `${selCount} треб.`;
+  } else {
+    selLabel.style.opacity = '0.4';
+    selInput.disabled = true;
+    selHint.textContent = 'нет выбранных';
+    document.querySelector('[name=exportScope][value=all]').checked = true;
+  }
+
+  document.querySelector('#exportModal').classList.remove('hidden');
+}
+
+function closeExportModal() {
+  document.querySelector('#exportModal').classList.add('hidden');
+}
+
+document.querySelector('#exportModalClose').addEventListener('click', closeExportModal);
+document.querySelector('#exportModalCancel').addEventListener('click', closeExportModal);
+document.querySelector('#exportModal').addEventListener('click', e => {
+  if (e.target === document.querySelector('#exportModal')) closeExportModal();
+});
+
+document.querySelector('#exportModalDo').addEventListener('click', () => {
+  const scope  = document.querySelector('[name=exportScope]:checked')?.value || 'all';
+  const format = document.querySelector('[name=exportFormat]:checked')?.value || 'md';
+  closeExportModal();
+
+  // Build the set of requirements to export
+  let reqs;
+  if (scope === 'selected' && state.selectedIds.size > 0) {
+    reqs = state.requirements.filter(r => state.selectedIds.has(r.id));
+  } else {
+    reqs = state.requirements;
+  }
+
+  if (format === 'md')         exportMarkdown(reqs);
+  else if (format === 'confluence') exportConfluence(reqs);
+  else if (format === 'excel') exportExcel(reqs);
+});
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function downloadText(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function escMd(s) {
+  return String(s || '').replace(/[\\`*_{}[\]()#+\-.!|]/g, c => '\\' + c);
+}
+
+function buildHierarchy(reqs) {
+  // returns { epics: [{epic, features: [{feat, reqs: [{req, stories: [{us, tcs}]}]}]}], orphanReqs }
+  const result = [];
+  const usedReqIds = new Set();
+
+  for (const epic of state.epics) {
+    const epicFeats = state.features.filter(f => f.epic === epic.label);
+    const featNodes = [];
+    for (const feat of epicFeats) {
+      const featReqs = reqs.filter(r => r.feature === feat.label);
+      if (!featReqs.length) continue;
+      featNodes.push({ feat, reqs: featReqs.map(r => {
+        usedReqIds.add(r.id);
+        return { req: r, stories: buildUSNodes(r) };
+      })});
+    }
+    if (featNodes.length) result.push({ epic, features: featNodes });
+  }
+
+  // features without epic
+  const orphanFeats = state.features.filter(f => !f.epic || !state.epics.find(e => e.label === f.epic));
+  for (const feat of orphanFeats) {
+    const featReqs = reqs.filter(r => r.feature === feat.label && !usedReqIds.has(r.id));
+    if (!featReqs.length) continue;
+    result.push({ epic: null, features: [{ feat, reqs: featReqs.map(r => {
+      usedReqIds.add(r.id);
+      return { req: r, stories: buildUSNodes(r) };
+    })}] });
+  }
+
+  // requirements without feature
+  const orphanReqs = reqs.filter(r => !usedReqIds.has(r.id));
+  return { nodes: result, orphanReqs: orphanReqs.map(r => ({ req: r, stories: buildUSNodes(r) })) };
+}
+
+function buildUSNodes(req) {
+  return state.userStories
+    .filter(u => u.requirementId === req.id)
+    .map(us => ({
+      us,
+      tcs: state.testCases.filter(t => t.usId === us.id),
+    }));
+}
+
+// ── Markdown ─────────────────────────────────────────────────────────────────
+
+function exportMarkdown(reqs) {
+  const lines = [];
+  const date  = new Date().toLocaleDateString('ru-RU');
+  lines.push(`# ReqTracker Export\n`);
+  lines.push(`> Дата выгрузки: ${date}  \n> Требований: ${reqs.length} · US: ${state.userStories.filter(u => reqs.some(r => r.id === u.requirementId)).length} · TC: ${state.testCases.filter(t => state.userStories.find(u => u.id === t.usId && reqs.some(r => r.id === u.requirementId))).length}\n`);
+  lines.push(`---\n`);
+
+  const { nodes, orphanReqs } = buildHierarchy(reqs);
+
+  for (const { epic, features } of nodes) {
+    if (epic) {
+      lines.push(`## ${escMd(epic.number)} ${escMd(epic.name)}\n`);
+      if (epic.description) lines.push(`*${escMd(epic.description)}*\n`);
+    }
+    for (const { feat, reqs: fReqs } of features) {
+      lines.push(`${ epic ? '###' : '##'} ${escMd(feat.number)} ${escMd(feat.name)}\n`);
+      if (feat.description) lines.push(`*${escMd(feat.description)}*\n`);
+      for (const { req, stories } of fReqs) mdReq(lines, req, stories, epic ? 4 : 3);
+    }
+  }
+  for (const { req, stories } of orphanReqs) mdReq(lines, req, stories, 2);
+
+  const filename = `reqtracker-export-${new Date().toISOString().slice(0, 10)}.md`;
+  downloadText(filename, lines.join('\n'), 'text/markdown;charset=utf-8');
+}
+
+function mdReq(lines, req, stories, depth) {
+  const h = '#'.repeat(depth);
+  lines.push(`${h} ${escMd(req.code)}\n`);
+  lines.push(`> ${escMd(req.text)}\n`);
+  lines.push(`**Статус:** ${escMd(req.status)} | **Приоритет:** ${escMd(req.priority)} | **Владелец:** ${escMd(req.owner)} | **Источник:** ${escMd(req.source)}\n`);
+  if (!stories.length) { lines.push(''); return; }
+  for (const { us, tcs } of stories) {
+    const uh = '#'.repeat(Math.min(depth + 1, 6));
+    lines.push(`${uh} ${escMd(us.number)} ${escMd(us.title)}\n`);
+    lines.push(`> Как **${escMd(us.role)}**, я хочу **${escMd(us.action)}**, чтобы **${escMd(us.goal)}**\n`);
+    lines.push(`**Статус:** ${escMd(us.status)} | **Приоритет:** ${escMd(us.priority)} | **Владелец:** ${escMd(us.owner)}\n`);
+    if (us.rules?.length)        lines.push(`**Бизнес-правила:**\n${us.rules.map((r,i) => `${i+1}. ${escMd(r)}`).join('\n')}\n`);
+    if (us.criteria?.length)     lines.push(`**Критерии приёмки:**\n${us.criteria.map((c,i) => `${i+1}. ${escMd(c)}`).join('\n')}\n`);
+    if (us.scenario?.length)     lines.push(`**Основной сценарий:**\n${us.scenario.map((s,i) => `${i+1}. ${escMd(s)}`).join('\n')}\n`);
+    if (us.altScenario?.length)  lines.push(`**Альтернативный сценарий:**\n${us.altScenario.map((s,i) => `${i+1}. ${escMd(s)}`).join('\n')}\n`);
+    for (const tc of tcs) {
+      lines.push(`${'#'.repeat(Math.min(depth + 2, 6))} TC: ${escMd(tc.title)}\n`);
+      lines.push(`**Тип:** ${tc.scenarioType === 'main' ? 'Основной' : 'Альтернативный'} | **Статус:** ${escMd(tc.status)}\n`);
+      if (tc.steps?.length) {
+        lines.push(`| Шаг | Ожидаемый результат | Фактический результат |`);
+        lines.push(`|-----|--------------------|-----------------------|`);
+        for (const s of tc.steps) lines.push(`| ${escMd(s.text)} | ${escMd(s.expected)} | ${escMd(s.actual)} |`);
+        lines.push('');
+      }
+    }
+  }
+}
+
+// ── Confluence HTML ───────────────────────────────────────────────────────────
+
+function exportConfluence(reqs) {
+  const date = new Date().toLocaleDateString('ru-RU');
+  const parts = [];
+  parts.push(`<h1>ReqTracker Export</h1>`);
+  parts.push(`<p><em>Дата выгрузки: ${date}</em></p>`);
+  parts.push(`<hr/>`);
+
+  const { nodes, orphanReqs } = buildHierarchy(reqs);
+
+  for (const { epic, features } of nodes) {
+    if (epic) {
+      parts.push(`<h2>${eh(epic.number)} ${eh(epic.name)}</h2>`);
+      if (epic.description) parts.push(`<p><em>${eh(epic.description)}</em></p>`);
+    }
+    for (const { feat, reqs: fReqs } of features) {
+      parts.push(`<h${epic ? 3 : 2}>${eh(feat.number)} ${eh(feat.name)}</h${epic ? 3 : 2}>`);
+      if (feat.description) parts.push(`<p><em>${eh(feat.description)}</em></p>`);
+      for (const { req, stories } of fReqs) confReq(parts, req, stories, epic ? 4 : 3);
+    }
+  }
+  for (const { req, stories } of orphanReqs) confReq(parts, req, stories, 2);
+
+  const html = `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"/>
+<style>
+body{font-family:Arial,sans-serif;max-width:960px;margin:40px auto;color:#172b4d;line-height:1.6}
+h1{font-size:28px;border-bottom:2px solid #0052cc;padding-bottom:8px}
+h2{font-size:22px;color:#0052cc;margin-top:36px}
+h3{font-size:18px;color:#253858;margin-top:28px}
+h4{font-size:15px;background:#f4f5f7;padding:8px 12px;border-left:4px solid #0052cc;margin-top:20px}
+h5{font-size:14px;color:#0052cc;margin-top:16px}
+h6{font-size:13px;color:#5e6c84;margin-top:12px}
+table{border-collapse:collapse;width:100%;margin:8px 0 16px;font-size:13px}
+th{background:#f4f5f7;padding:6px 10px;border:1px solid #dfe1e6;text-align:left;font-weight:600}
+td{padding:6px 10px;border:1px solid #dfe1e6;vertical-align:top}
+.meta{font-size:12px;color:#5e6c84;margin-bottom:8px}
+.tag{display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:700;margin-right:4px}
+.tag-approved{background:#e3fcef;color:#006644}
+.tag-draft{background:#fffae6;color:#974f0c}
+.tag-inreview{background:#e8f0fe;color:#0747a6}
+.tag-changed{background:#fff0e6;color:#974f0c}
+.tag-high{background:#ffebe6;color:#bf2600}
+.tag-medium{background:#fffae6;color:#974f0c}
+.tag-low{background:#e3fcef;color:#006644}
+.tag-pass{background:#e3fcef;color:#006644}
+.tag-fail{background:#ffebe6;color:#bf2600}
+ul,ol{margin:4px 0;padding-left:20px}
+</style>
+</head><body>\n${parts.join('\n')}\n</body></html>`;
+
+  const filename = `reqtracker-confluence-${new Date().toISOString().slice(0, 10)}.html`;
+  downloadText(filename, html, 'text/html;charset=utf-8');
+}
+
+function eh(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function statusTag(s) {
+  const k = (s || '').toLowerCase().replace(/\s/g,'');
+  return `<span class="tag tag-${k}">${eh(s)}</span>`;
+}
+
+function confReq(parts, req, stories, depth) {
+  parts.push(`<h${depth}>${eh(req.code)}</h${depth}>`);
+  parts.push(`<p>${eh(req.text)}</p>`);
+  parts.push(`<p class="meta">${statusTag(req.status)} ${statusTag(req.priority)} Владелец: ${eh(req.owner)} · Источник: ${eh(req.source)}</p>`);
+  if (!stories.length) return;
+  for (const { us, tcs } of stories) {
+    const ud = Math.min(depth + 1, 6);
+    parts.push(`<h${ud}>${eh(us.number)} ${eh(us.title)}</h${ud}>`);
+    parts.push(`<p><em>Как <strong>${eh(us.role)}</strong>, я хочу <strong>${eh(us.action)}</strong>, чтобы <strong>${eh(us.goal)}</strong></em></p>`);
+    parts.push(`<p class="meta">${statusTag(us.status)} ${statusTag(us.priority)} Владелец: ${eh(us.owner)}</p>`);
+
+    const tableRows = [];
+    if (us.rules?.length)       tableRows.push(['Бизнес-правила',       `<ol>${us.rules.map(r=>`<li>${eh(r)}</li>`).join('')}</ol>`]);
+    if (us.criteria?.length)    tableRows.push(['Критерии приёмки',     `<ol>${us.criteria.map(c=>`<li>${eh(c)}</li>`).join('')}</ol>`]);
+    if (us.scenario?.length)    tableRows.push(['Основной сценарий',    `<ol>${us.scenario.map(s=>`<li>${eh(s)}</li>`).join('')}</ol>`]);
+    if (us.altScenario?.length) tableRows.push(['Альтернативный сценарий', `<ol>${us.altScenario.map(s=>`<li>${eh(s)}</li>`).join('')}</ol>`]);
+
+    if (tableRows.length) {
+      parts.push(`<table><tbody>${tableRows.map(([k,v])=>`<tr><th style="width:30%">${k}</th><td>${v}</td></tr>`).join('')}</tbody></table>`);
+    }
+
+    for (const tc of tcs) {
+      parts.push(`<h6>TC: ${eh(tc.title)} — ${tc.scenarioType === 'main' ? 'Основной' : 'Альтернативный'} ${statusTag(tc.status)}</h6>`);
+      if (tc.steps?.length) {
+        parts.push(`<table><thead><tr><th>Шаг</th><th>Ожидаемый результат</th><th>Фактический результат</th></tr></thead><tbody>`);
+        for (const s of tc.steps) parts.push(`<tr><td>${eh(s.text)}</td><td>${eh(s.expected)}</td><td>${eh(s.actual)}</td></tr>`);
+        parts.push(`</tbody></table>`);
+      }
+    }
+  }
+}
+
+// ── Excel ─────────────────────────────────────────────────────────────────────
+
+function exportExcel(reqs) {
+  const wb = XLSX.utils.book_new();
+
+  // ── Sheet 1: User Stories (estimation) ──────────────────────────────────
+  const usHeader = [
+    'Epic', 'Feature', 'REQ', 'Текст требования',
+    'US', 'Заголовок US', 'User Story (как … чтобы…)',
+    'Статус', 'Приоритет', 'Владелец',
+    'Бизнес-правила', 'Критерии приёмки', 'Кол-во TC',
+    'Аналитик (ч)', 'Фронтенд (ч)', 'Бэкенд (ч)',
+    'Тестировщик (ч)', 'Дизайнер (ч)', 'DevOps (ч)',
+    'Итого (ч)', 'Комментарий',
+  ];
+  const usRows = [usHeader];
+
+  const { nodes, orphanReqs } = buildHierarchy(reqs);
+
+  function addUSRows(req, stories, epicLabel, featLabel) {
+    if (!stories.length) {
+      usRows.push([epicLabel, featLabel, req.code, req.text, '', '', '', req.status, req.priority, req.owner, '', '', 0, '', '', '', '', '', '', '', '']);
+      return;
+    }
+    for (const { us, tcs } of stories) {
+      usRows.push([
+        epicLabel, featLabel, req.code, req.text,
+        us.number, us.title,
+        `Как ${us.role}, я хочу ${us.action}, чтобы ${us.goal}`,
+        us.status, us.priority, us.owner,
+        (us.rules || []).join('\n'),
+        (us.criteria || []).join('\n'),
+        tcs.length,
+        '', '', '', '', '', '',
+        { f: `SUM(N${usRows.length+1}:S${usRows.length+1})` },
+        '',
+      ]);
+    }
+  }
+
+  for (const { epic, features } of nodes) {
+    for (const { feat, reqs: fReqs } of features) {
+      for (const { req, stories } of fReqs) {
+        addUSRows(req, stories, epic ? `${epic.number} ${epic.name}` : '', `${feat.number} ${feat.name}`);
+      }
+    }
+  }
+  for (const { req, stories } of orphanReqs) addUSRows(req, stories, '', '');
+
+  const wsUS = XLSX.utils.aoa_to_sheet(usRows);
+  // Column widths
+  wsUS['!cols'] = [
+    {wch:22},{wch:22},{wch:10},{wch:40},{wch:8},{wch:30},{wch:45},
+    {wch:12},{wch:11},{wch:18},{wch:35},{wch:35},{wch:8},
+    {wch:13},{wch:13},{wch:13},{wch:14},{wch:13},{wch:13},{wch:11},{wch:25},
+  ];
+  // Freeze header + bold
+  wsUS['!freeze'] = { xSplit: 0, ySplit: 1 };
+  XLSX.utils.book_append_sheet(wb, wsUS, 'US — Оценка');
+
+  // ── Sheet 2: Requirements ─────────────────────────────────────────────────
+  const reqHeader = ['Epic', 'Feature', 'Код', 'Текст требования', 'Статус', 'Приоритет', 'Владелец', 'Источник', 'Кол-во US', 'Кол-во TC'];
+  const reqRows = [reqHeader];
+  for (const { epic, features } of nodes) {
+    for (const { feat, reqs: fReqs } of features) {
+      for (const { req, stories } of fReqs) {
+        const tcCnt = stories.reduce((s, { tcs }) => s + tcs.length, 0);
+        reqRows.push([
+          epic ? `${epic.number} ${epic.name}` : '',
+          `${feat.number} ${feat.name}`,
+          req.code, req.text, req.status, req.priority, req.owner, req.source,
+          stories.length, tcCnt,
+        ]);
+      }
+    }
+  }
+  for (const { req, stories } of orphanReqs) {
+    const tcCnt = stories.reduce((s, { tcs }) => s + tcs.length, 0);
+    reqRows.push(['', '', req.code, req.text, req.status, req.priority, req.owner, req.source, stories.length, tcCnt]);
+  }
+  const wsReq = XLSX.utils.aoa_to_sheet(reqRows);
+  wsReq['!cols'] = [{wch:22},{wch:22},{wch:10},{wch:50},{wch:12},{wch:11},{wch:18},{wch:18},{wch:9},{wch:9}];
+  wsReq['!freeze'] = { xSplit: 0, ySplit: 1 };
+  XLSX.utils.book_append_sheet(wb, wsReq, 'Требования');
+
+  // ── Sheet 3: Test Cases ────────────────────────────────────────────────────
+  const tcHeader = ['Epic', 'Feature', 'REQ', 'US', 'Заголовок US', 'TC', 'Тип', 'Статус', 'Шагов', 'Шаги (текст)', 'Ожидаемые результаты'];
+  const tcRows = [tcHeader];
+  for (const { epic, features } of nodes) {
+    for (const { feat, reqs: fReqs } of features) {
+      for (const { req, stories } of fReqs) {
+        for (const { us, tcs } of stories) {
+          for (const tc of tcs) {
+            tcRows.push([
+              epic ? `${epic.number} ${epic.name}` : '',
+              `${feat.number} ${feat.name}`,
+              req.code, us.number, us.title,
+              tc.title,
+              tc.scenarioType === 'main' ? 'Основной' : 'Альтернативный',
+              tc.status, (tc.steps || []).length,
+              (tc.steps || []).map((s,i) => `${i+1}. ${s.text}`).join('\n'),
+              (tc.steps || []).map((s,i) => `${i+1}. ${s.expected}`).join('\n'),
+            ]);
+          }
+        }
+      }
+    }
+  }
+  for (const { req, stories } of orphanReqs) {
+    for (const { us, tcs } of stories) {
+      for (const tc of tcs) {
+        tcRows.push(['', '', req.code, us.number, us.title, tc.title,
+          tc.scenarioType === 'main' ? 'Основной' : 'Альтернативный',
+          tc.status, (tc.steps||[]).length,
+          (tc.steps||[]).map((s,i)=>`${i+1}. ${s.text}`).join('\n'),
+          (tc.steps||[]).map((s,i)=>`${i+1}. ${s.expected}`).join('\n'),
+        ]);
+      }
+    }
+  }
+  const wsTC = XLSX.utils.aoa_to_sheet(tcRows);
+  wsTC['!cols'] = [{wch:22},{wch:22},{wch:10},{wch:8},{wch:30},{wch:35},{wch:13},{wch:10},{wch:7},{wch:50},{wch:50}];
+  wsTC['!freeze'] = { xSplit: 0, ySplit: 1 };
+  XLSX.utils.book_append_sheet(wb, wsTC, 'Test Cases');
+
+  const filename = `reqtracker-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
+}
