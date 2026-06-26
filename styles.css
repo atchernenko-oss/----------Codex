@@ -624,6 +624,26 @@ tr.selected td {
   max-width: 820px;
 }
 
+.modal--resizable {
+  resize: both;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 340px;
+  max-width: 95vw;
+  max-height: 90vh;
+}
+
+.modal--resizable .modal-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.modal--resizable .modal-body--scroll {
+  max-height: none;
+}
+
 .modal-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
