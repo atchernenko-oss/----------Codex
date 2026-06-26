@@ -1,4 +1,5 @@
 let currentView = 'requirements';
+const sidebarExpanded = new Set();
 
 const STORAGE_KEY = "reqtracker.requirements.v1";
 const FEATURES_KEY = "reqtracker.features.v1";
@@ -832,6 +833,7 @@ function render() {
   renderFeatureSelectionBar();
   updateSortIcons();
   reRenderCurrentView();
+  renderSidebarTree();
 }
 
 function renderSelectionBar() {
@@ -1704,6 +1706,19 @@ function closeTCModal() {
   document.querySelector("#tcModal").classList.add("hidden");
 }
 
+function openTCEditModal(tc) {
+  editingTCId = tc.id;
+  currentTCUsId = tc.usId;
+  currentTCScenarioType = tc.scenarioType;
+  document.querySelector("#tcTitle").value = tc.title;
+  document.querySelector("#tcStatus").value = tc.status || "Draft";
+  document.querySelector("#tcStepsList").innerHTML = "";
+  for (const step of (tc.steps || [])) addTCStepRow(step);
+  document.querySelector("#tcModalTitle").textContent = "Edit Test Case";
+  document.querySelector("#tcModal").classList.remove("hidden");
+  document.querySelector("#tcTitle").focus();
+}
+
 function saveTCModal() {
   const title = document.querySelector("#tcTitle").value.trim() || "Test Case";
   const status = document.querySelector("#tcStatus").value;
@@ -2329,6 +2344,169 @@ document.querySelector('#tcClearFilters').addEventListener('click', () => {
   document.querySelector('#tcUSFilter').value = '';
   renderTCView();
 });
+
+// ═══════════════════════════════════════════════
+// SIDEBAR HIERARCHY TREE
+// ═══════════════════════════════════════════════
+
+function buildUSNode(us, autoExpand) {
+  const nodeId = `stu${us.id}`;
+  const tcs = state.testCases.filter(t => t.usId === us.id);
+  const label = (us.number ? us.number + ' ' : '') + (us.title || '');
+  const isOpen = sidebarExpanded.has(nodeId);
+  const parts = [`<div class="st-row">
+    ${tcs.length
+      ? `<button class="st-tog" data-toggle="${nodeId}" type="button">${isOpen ? '▾' : '▸'}</button>`
+      : '<span class="st-tog-ph"></span>'}
+    <button class="st-item" data-action="edit-us" data-us-id="${us.id}" type="button">
+      <span class="st-badge st-badge--us">US</span>
+      <span class="st-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+    </button>
+  </div>`];
+  if (tcs.length) {
+    parts.push(`<div class="st-kids${isOpen ? '' : ' hidden'}" id="${nodeId}">`);
+    for (const tc of tcs) {
+      parts.push(`<div class="st-row">
+        <span class="st-tog-ph"></span>
+        <button class="st-item" data-action="edit-tc" data-tc-id="${tc.id}" type="button">
+          <span class="st-badge st-badge--tc">TC</span>
+          <span class="st-label" title="${escapeHtml(tc.title)}">${escapeHtml(tc.title)}</span>
+        </button>
+      </div>`);
+    }
+    parts.push('</div>');
+  }
+  return parts.join('');
+}
+
+function buildReqNode(req, autoExpand) {
+  const nodeId = `str${req.id}`;
+  if (autoExpand) sidebarExpanded.add(nodeId);
+  const isOpen = sidebarExpanded.has(nodeId);
+  const stories = state.userStories.filter(u => u.requirementId === req.id);
+  const parts = [`<div class="st-row">
+    <button class="st-tog" data-toggle="${nodeId}" type="button">${isOpen ? '▾' : '▸'}</button>
+    <button class="st-item" data-action="edit-req" data-req-id="${req.id}" type="button">
+      <span class="st-badge st-badge--req">REQ</span>
+      <span class="st-label" title="${escapeHtml(req.code)}">${escapeHtml(req.code)}</span>
+    </button>
+  </div>`,
+  `<div class="st-kids${isOpen ? '' : ' hidden'}" id="${nodeId}">`];
+  for (const us of stories) parts.push(buildUSNode(us, autoExpand));
+  if (!stories.length) parts.push('<p class="st-empty">No User Stories</p>');
+  parts.push('</div>');
+  return parts.join('');
+}
+
+function buildFeatNode(feat, autoExpand) {
+  const nodeId = `stf${feat.id}`;
+  if (autoExpand) sidebarExpanded.add(nodeId);
+  const isOpen = sidebarExpanded.has(nodeId);
+  const reqs = state.requirements.filter(r => r.feature === feat.label);
+  const label = (feat.number ? feat.number + ' ' : '') + (feat.name || feat.label || '');
+  const parts = [`<div class="st-row">
+    <button class="st-tog" data-toggle="${nodeId}" type="button">${isOpen ? '▾' : '▸'}</button>
+    <button class="st-item" data-action="edit-feature" data-feature-id="${feat.id}" type="button">
+      <span class="st-badge st-badge--feat">F</span>
+      <span class="st-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+    </button>
+  </div>`,
+  `<div class="st-kids${isOpen ? '' : ' hidden'}" id="${nodeId}">`];
+  for (const req of reqs) parts.push(buildReqNode(req, autoExpand));
+  if (!reqs.length) parts.push('<p class="st-empty">No requirements</p>');
+  parts.push('</div>');
+  return parts.join('');
+}
+
+function renderSidebarTree() {
+  const el = document.querySelector('#sidebarTree');
+  if (!el) return;
+
+  const hasData = state.epics.length || state.features.length || state.requirements.length
+    || state.userStories.length || state.testCases.length;
+  if (!hasData) {
+    el.innerHTML = '<p class="st-hint">Загрузите данные, чтобы увидеть иерархию</p>';
+    return;
+  }
+
+  // Auto-expand top-level nodes on very first render (sidebarExpanded is empty)
+  const firstRender = sidebarExpanded.size === 0;
+
+  const parts = [];
+
+  // ── Epics (with Features → Reqs → US → TC inside) ──
+  for (const epic of state.epics) {
+    const nodeId = `ste${epic.id}`;
+    if (firstRender) sidebarExpanded.add(nodeId);
+    const isOpen = sidebarExpanded.has(nodeId);
+    const features = state.features.filter(f => f.epic === epic.label);
+    const label = (epic.number ? epic.number + ' ' : '') + (epic.name || epic.label || '');
+    parts.push(`<div class="st-row">
+      <button class="st-tog" data-toggle="${nodeId}" type="button">${isOpen ? '▾' : '▸'}</button>
+      <button class="st-item" data-action="edit-epic" data-epic-id="${epic.id}" type="button">
+        <span class="st-badge st-badge--epic">E</span>
+        <span class="st-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+      </button>
+    </div>
+    <div class="st-kids${isOpen ? '' : ' hidden'}" id="${nodeId}">`);
+    for (const feat of features) parts.push(buildFeatNode(feat, firstRender));
+    if (!features.length) parts.push('<p class="st-empty">No Features linked</p>');
+    parts.push('</div>');
+  }
+
+  // ── Features without Epic ──
+  const orphanFeats = state.features.filter(f => !f.epic || !state.epics.find(e => e.label === f.epic));
+  for (const feat of orphanFeats) parts.push(buildFeatNode(feat, firstRender));
+
+  // ── Requirements without Feature (shown directly, not as hidden group) ──
+  const orphanReqs = state.requirements.filter(
+    r => !r.feature || !state.features.find(f => f.label === r.feature)
+  );
+  for (const req of orphanReqs) parts.push(buildReqNode(req, firstRender));
+
+  // ── US without Requirement (edge case) ──
+  const orphanUS = state.userStories.filter(
+    u => !state.requirements.find(r => r.id === u.requirementId)
+  );
+  for (const us of orphanUS) parts.push(buildUSNode(us, firstRender));
+
+  el.innerHTML = parts.join('');
+}
+
+function handleSidebarTreeClick(e) {
+  const tog = e.target.closest('.st-tog');
+  if (tog) {
+    const id = tog.dataset.toggle;
+    const child = document.querySelector(`#${id}`);
+    if (child) {
+      const willOpen = child.classList.toggle('hidden') === false;
+      tog.textContent = willOpen ? '▾' : '▸';
+      if (willOpen) sidebarExpanded.add(id); else sidebarExpanded.delete(id);
+    }
+    return;
+  }
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  if (action === 'edit-epic') {
+    const ep = state.epics.find(e => e.id === btn.dataset.epicId);
+    if (ep) openEpicEditModal(ep);
+  } else if (action === 'edit-feature') {
+    const f = state.features.find(f => f.id === btn.dataset.featureId);
+    if (f) openFeatureEditModal(f);
+  } else if (action === 'edit-req') {
+    const req = state.requirements.find(r => r.id === btn.dataset.reqId);
+    if (req) openRequirementModal(req);
+  } else if (action === 'edit-us') {
+    const us = state.userStories.find(u => u.id === btn.dataset.usId);
+    if (us) { currentUSRequirementId = us.requirementId; openUSEditModal(us); }
+  } else if (action === 'edit-tc') {
+    const tc = state.testCases.find(t => t.id === btn.dataset.tcId);
+    if (tc) openTCEditModal(tc);
+  }
+}
+
+document.querySelector('#sidebarTree').addEventListener('click', handleSidebarTreeClick);
 
 document.querySelectorAll('.modal--resizable').forEach(modal => {
   const handle = document.createElement('div');
