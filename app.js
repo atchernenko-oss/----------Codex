@@ -2791,6 +2791,48 @@ function handleSidebarTreeClick(e) {
 
 document.querySelector('#sidebarTree').addEventListener('click', handleSidebarTreeClick);
 
+// ── Sidebar resize ────────────────────────────────────────────────────────
+(function initSidebarResize() {
+  const SIDEBAR_W_KEY = 'reqtracker.sidebarWidth';
+  const MIN_W = 160;
+  const MAX_W = 520;
+  const resizer = document.querySelector('#sidebarResizer');
+  const shell   = document.querySelector('.app-shell');
+
+  function applyWidth(w) {
+    shell.style.gridTemplateColumns = `${w}px 4px minmax(0, 1fr)`;
+  }
+
+  const saved = parseInt(localStorage.getItem(SIDEBAR_W_KEY), 10);
+  if (saved && saved >= MIN_W && saved <= MAX_W) applyWidth(saved);
+
+  resizer.addEventListener('mousedown', function (e) {
+    e.preventDefault();
+    resizer.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    function onMove(e) {
+      const w = Math.min(MAX_W, Math.max(MIN_W, e.clientX));
+      applyWidth(w);
+    }
+
+    function onUp(e) {
+      const w = Math.min(MAX_W, Math.max(MIN_W, e.clientX));
+      applyWidth(w);
+      localStorage.setItem(SIDEBAR_W_KEY, w);
+      resizer.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}());
+
 document.querySelectorAll('.modal--resizable').forEach(modal => {
   const handle = document.createElement('div');
   handle.className = 'modal-resize-handle';
