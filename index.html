@@ -403,6 +403,7 @@
             <div class="us-scenario-section us-scenario-section--main">
               <div class="us-scenario-section-header">
                 <span class="us-scenario-section-title">Основной сценарий</span>
+                <button type="button" id="tcFromMainBtn" class="tc-create-btn">+ Test Case</button>
               </div>
               <ol id="usScenarioList" class="us-scenario-list us-scenario-section-body"></ol>
               <button type="button" id="addScenarioStepBtn" class="us-add-rule-btn us-scenario-add-btn">+ Шаг</button>
@@ -410,6 +411,7 @@
             <div class="us-scenario-section hidden" id="usAltScenarioSection">
               <div class="us-scenario-section-header">
                 <span class="us-scenario-section-title">Альтернативный сценарий</span>
+                <button type="button" id="tcFromAltBtn" class="tc-create-btn">+ Test Case</button>
                 <button type="button" id="removeAltScenarioBtn" class="us-scenario-remove-btn" title="Убрать">✕</button>
               </div>
               <ol id="usAltScenarioList" class="us-scenario-list us-scenario-section-body"></ol>
@@ -421,6 +423,40 @@
         <div class="modal-footer">
           <button class="button ghost" id="usEditModalCancel" type="button">Отмена</button>
           <button class="button primary" id="usEditModalSave" type="button">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay hidden modal-overlay--top3" id="tcModal" role="dialog" aria-modal="true" aria-labelledby="tcModalTitle">
+      <div class="modal modal-wider modal--resizable">
+        <div class="modal-header">
+          <h3 id="tcModalTitle">Тест-кейс</h3>
+          <button class="modal-close" id="tcModalClose" type="button" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="modal-body modal-body--scroll">
+          <div class="modal-grid">
+            <label class="field">
+              <span class="field-label">Заголовок</span>
+              <input type="text" id="tcTitle" placeholder="Название тест-кейса" />
+            </label>
+            <label class="field">
+              <span class="field-label">Статус</span>
+              <select id="tcStatus">
+                <option value="Draft">Draft</option>
+                <option value="Pass">Pass</option>
+                <option value="Fail">Fail</option>
+                <option value="Blocked">Blocked</option>
+              </select>
+            </label>
+          </div>
+          <div class="field">
+            <span class="field-label">Шаги</span>
+            <ol id="tcStepsList" class="tc-steps-list"></ol>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="button ghost" id="tcModalCancel" type="button">Отмена</button>
+          <button class="button primary" id="tcModalSave" type="button">Сохранить</button>
         </div>
       </div>
     </div>

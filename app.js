@@ -3,6 +3,7 @@ const FEATURES_KEY = "reqtracker.features.v1";
 const EPICS_KEY = "reqtracker.epics.v1";
 const OWNERS_KEY = "reqtracker.owners.v1";
 const US_KEY = "reqtracker.userstories.v1";
+const TC_KEY = "reqtracker.testcases.v1";
 
 const state = {
   requirements: loadRequirements(),
@@ -18,6 +19,7 @@ const state = {
   selectedFeatureIds: new Set(),
   owners: loadOwners(),
   userStories: loadUserStories(),
+  testCases: loadTestCases(),
 };
 
 const elements = {
@@ -354,6 +356,8 @@ document.querySelector("#usEditModal").addEventListener("click", (e) => {
 });
 document.querySelector("#usEditModalSave").addEventListener("click", saveUserStory);
 document.querySelector("#usAutoNumber").addEventListener("click", autoAssignUSNumber);
+document.querySelector("#tcFromMainBtn").addEventListener("click", () => openTCFromEditModal('main'));
+document.querySelector("#tcFromAltBtn").addEventListener("click", () => openTCFromEditModal('alt'));
 document.querySelector("#usNumber").addEventListener("blur", () => padNumberField(document.querySelector("#usNumber")));
 document.querySelector("#usTitle").addEventListener("keydown", (e) => { if (e.key === "Enter") saveUserStory(); });
 document.querySelector("#openUSFromReqBtn").addEventListener("click", () => openUSListModal(editingRequirementId));
@@ -1303,6 +1307,22 @@ function closeUSListModal() {
   updateReqUSCount();
 }
 
+function buildScenarioBlock(us, type) {
+  const steps = type === 'main' ? us.scenario : us.altScenario;
+  if (!steps?.length) return '';
+  const label = type === 'main' ? 'Основной сценарий' : 'Альтернативный сценарий';
+  const cnt = state.testCases.filter(t => t.usId === us.id && t.scenarioType === type).length;
+  const badge = cnt > 0 ? `<span class="tc-count-badge">TC: ${cnt}</span>` : '';
+  const stepsHtml = steps.map(s => `<li class="us-item-scenario-step">${escapeHtml(s)}</li>`).join('');
+  return `<div class="us-item-scenario-block">
+    <div class="us-item-scenario-head">
+      <span class="us-item-scenario-label">${label}</span>
+      <span class="us-item-scenario-actions">${badge}<button class="tc-create-btn" data-us-id="${escapeHtml(us.id)}" data-scenario-type="${type}" type="button">+ Test Case</button></span>
+    </div>
+    <ol class="us-item-scenario">${stepsHtml}</ol>
+  </div>`;
+}
+
 function renderUSList() {
   const list = document.querySelector("#usListItems");
   list.innerHTML = "";
@@ -1329,8 +1349,8 @@ function renderUSList() {
         ${us.owner ? `<span class="us-item-meta-field"><span class="us-item-meta-label">Владелец:</span> <span class="us-item-meta-value">${escapeHtml(us.owner)}</span></span>` : ''}
       </div>
       ${us.text ? `<div class="us-item-text">${escapeHtml(us.text)}</div>` : ''}
-      ${us.scenario?.length ? `<div class="us-item-scenario-block"><span class="us-item-scenario-label">Основной сценарий</span><ol class="us-item-scenario">${us.scenario.map(s => `<li class="us-item-scenario-step">${escapeHtml(s)}</li>`).join('')}</ol></div>` : ''}
-      ${us.altScenario?.length ? `<div class="us-item-scenario-block"><span class="us-item-scenario-label">Альтернативный сценарий</span><ol class="us-item-scenario">${us.altScenario.map(s => `<li class="us-item-scenario-step">${escapeHtml(s)}</li>`).join('')}</ol></div>` : ''}
+      ${buildScenarioBlock(us, 'main')}
+      ${buildScenarioBlock(us, 'alt')}
       ${us.rules?.length ? `<ul class="us-item-rules">${us.rules.map(r => `<li class="us-item-rule">${escapeHtml(r)}</li>`).join('')}</ul>` : ''}
       ${us.criteria?.length ? `<div class="us-item-scenario-block"><span class="us-item-scenario-label">Критерии приёмки</span><ul class="us-item-rules">${us.criteria.map(c => `<li class="us-item-rule">${escapeHtml(c)}</li>`).join('')}</ul></div>` : ''}
     `;
@@ -1609,6 +1629,196 @@ function showAltScenario(steps) {
   else document.querySelector("#usAltScenarioList").innerHTML = "";
 }
 
+// ── Test Cases ──────────────────────────────────────────────────────────────
+
+function loadTestCases() {
+  try { return JSON.parse(localStorage.getItem(TC_KEY)) || []; } catch { return []; }
+}
+
+function saveTestCases(tcs) {
+  localStorage.setItem(TC_KEY, JSON.stringify(tcs));
+}
+
+let editingTCId = null;
+let currentTCUsId = null;
+let currentTCScenarioType = null;
+
+function openTCFromEditModal(scenarioType) {
+  const selector = scenarioType === 'main' ? '#usScenarioList .us-scenario-input' : '#usAltScenarioList .us-alt-scenario-input';
+  const steps = [...document.querySelectorAll(selector)]
+    .map(inp => inp.value.trim())
+    .filter(Boolean);
+  const usTitle = document.querySelector("#usTitle").value.trim() || "User Story";
+  openTCModal(editingUSId || null, scenarioType, steps, usTitle);
+}
+
+function openTCModal(usId, scenarioType, steps, usTitle) {
+  editingTCId = null;
+  currentTCUsId = usId;
+  currentTCScenarioType = scenarioType;
+  const label = scenarioType === 'main' ? 'основной сценарий' : 'альтернативный сценарий';
+  document.querySelector("#tcTitle").value = `TC: ${usTitle} (${label})`;
+  document.querySelector("#tcStatus").value = "Draft";
+  document.querySelector("#tcStepsList").innerHTML = "";
+  for (const step of steps) addTCStepRow({ text: step, expected: "", actual: "", screenshot: null });
+  document.querySelector("#tcModal").classList.remove("hidden");
+  document.querySelector("#tcTitle").focus();
+}
+
+function closeTCModal() {
+  document.querySelector("#tcModal").classList.add("hidden");
+}
+
+function saveTCModal() {
+  const title = document.querySelector("#tcTitle").value.trim() || "Тест-кейс";
+  const status = document.querySelector("#tcStatus").value;
+  const stepItems = document.querySelectorAll("#tcStepsList .tc-step-item");
+  const steps = [...stepItems].map(item => ({
+    text: item.querySelector(".tc-step-text").value.trim(),
+    expected: item.querySelector(".tc-expected-input").value.trim(),
+    actual: item.querySelector(".tc-actual-input").value.trim(),
+    screenshot: item.querySelector(".tc-screenshot-img")?.src || null,
+  }));
+  const tc = {
+    id: editingTCId || crypto.randomUUID(),
+    usId: currentTCUsId,
+    scenarioType: currentTCScenarioType,
+    title,
+    status,
+    steps,
+    createdAt: editingTCId
+      ? (state.testCases.find(t => t.id === editingTCId)?.createdAt || new Date().toISOString())
+      : new Date().toISOString(),
+  };
+  if (editingTCId) {
+    state.testCases = state.testCases.map(t => t.id === editingTCId ? tc : t);
+  } else {
+    state.testCases.push(tc);
+  }
+  saveTestCases(state.testCases);
+  closeTCModal();
+  renderUSList();
+}
+
+function addTCStepRow({ text = "", expected = "", actual = "", screenshot = null }) {
+  const list = document.querySelector("#tcStepsList");
+  const num = list.children.length + 1;
+  const li = document.createElement("li");
+  li.className = "tc-step-item";
+
+  const numEl = document.createElement("span");
+  numEl.className = "tc-step-num";
+  numEl.textContent = num;
+
+  const stepInput = document.createElement("input");
+  stepInput.type = "text";
+  stepInput.className = "tc-step-text";
+  stepInput.placeholder = "Шаг...";
+  stepInput.value = text;
+
+  const header = document.createElement("div");
+  header.className = "tc-step-header";
+  header.append(numEl, stepInput);
+
+  const expectedTA = document.createElement("textarea");
+  expectedTA.className = "tc-expected-input";
+  expectedTA.placeholder = "Ожидаемый результат...";
+  expectedTA.rows = 3;
+  expectedTA.value = expected;
+
+  const actualTA = document.createElement("textarea");
+  actualTA.className = "tc-actual-input";
+  actualTA.placeholder = "Фактический результат...";
+  actualTA.rows = 3;
+  actualTA.value = actual;
+
+  const fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.accept = "image/*";
+  fileInput.hidden = true;
+
+  const attachBtn = document.createElement("button");
+  attachBtn.type = "button";
+  attachBtn.className = "tc-attach-btn";
+  attachBtn.textContent = "📎 Скриншот";
+
+  const preview = document.createElement("div");
+  preview.className = "tc-screenshot-preview";
+  if (screenshot) renderTCScreenshot(preview, screenshot);
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => renderTCScreenshot(preview, e.target.result);
+    reader.readAsDataURL(file);
+  });
+  attachBtn.addEventListener("click", () => fileInput.click());
+
+  const screenshotArea = document.createElement("div");
+  screenshotArea.className = "tc-screenshot-area";
+  screenshotArea.append(attachBtn, fileInput, preview);
+
+  const expectedCell = document.createElement("div");
+  expectedCell.className = "tc-step-field";
+  const expectedLabel = document.createElement("span");
+  expectedLabel.className = "tc-step-field-label";
+  expectedLabel.textContent = "Ожидаемый результат";
+  expectedCell.append(expectedLabel, expectedTA);
+
+  const actualCell = document.createElement("div");
+  actualCell.className = "tc-step-field";
+  const actualLabel = document.createElement("span");
+  actualLabel.className = "tc-step-field-label";
+  actualLabel.textContent = "Фактический результат";
+  actualCell.append(actualLabel, actualTA, screenshotArea);
+
+  const fields = document.createElement("div");
+  fields.className = "tc-step-fields";
+  fields.append(expectedCell, actualCell);
+
+  li.append(header, fields);
+  list.append(li);
+}
+
+function renderTCScreenshot(container, src) {
+  container.innerHTML = "";
+  const img = document.createElement("img");
+  img.className = "tc-screenshot-img";
+  img.src = src;
+  img.title = "Нажмите для просмотра";
+  img.addEventListener("click", () => window.open(src, "_blank"));
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "tc-screenshot-remove";
+  removeBtn.title = "Удалить скриншот";
+  removeBtn.textContent = "✕";
+  removeBtn.addEventListener("click", () => { container.innerHTML = ""; });
+  container.append(img, removeBtn);
+}
+
+// TC modal event listeners
+document.querySelector("#tcModalClose").addEventListener("click", closeTCModal);
+document.querySelector("#tcModalCancel").addEventListener("click", closeTCModal);
+document.querySelector("#tcModalSave").addEventListener("click", saveTCModal);
+document.querySelector("#tcModal").addEventListener("click", e => {
+  if (e.target === document.querySelector("#tcModal")) closeTCModal();
+});
+document.querySelector("#tcModal").addEventListener("keydown", e => {
+  if (e.key === "Escape") closeTCModal();
+});
+enableModalKeyboard(document.querySelector("#tcModal"));
+
+// TC create buttons in US cards (event delegation on the list)
+document.querySelector("#usListItems").addEventListener("click", e => {
+  const btn = e.target.closest(".tc-create-btn");
+  if (!btn) return;
+  const us = state.userStories.find(u => u.id === btn.dataset.usId);
+  if (!us) return;
+  const steps = btn.dataset.scenarioType === 'main' ? us.scenario : us.altScenario;
+  openTCModal(us.id, btn.dataset.scenarioType, steps || [], us.title);
+});
+
 document.querySelectorAll('.modal--resizable').forEach(modal => {
   const handle = document.createElement('div');
   handle.className = 'modal-resize-handle';
@@ -1632,6 +1842,9 @@ document.querySelectorAll('.modal--resizable').forEach(modal => {
     const onUp = () => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      // Подавляем click-событие, которое браузер стреляет после drag,
+      // чтобы оно не закрыло модал через overlay-click-handler.
+      document.addEventListener('click', e => e.stopPropagation(), { capture: true, once: true });
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);

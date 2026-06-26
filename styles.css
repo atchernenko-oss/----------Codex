@@ -1222,6 +1222,10 @@ tr.selected td {
   z-index: 102;
 }
 
+.modal-overlay--top3 {
+  z-index: 103;
+}
+
 .us-col {
   width: 48px;
   text-align: center !important;
@@ -1692,4 +1696,210 @@ tr.selected td {
   position: absolute;
   left: 3px;
   color: var(--accent);
+}
+
+/* ── Scenario head with TC button ── */
+.us-item-scenario-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.us-item-scenario-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tc-create-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  min-height: 22px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.tc-create-btn:hover {
+  background: var(--accent-soft);
+}
+
+.tc-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── Test Case Modal Steps ── */
+.tc-steps-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.tc-step-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fafcff;
+}
+
+.tc-step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tc-step-num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tc-step-text {
+  flex: 1;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.tc-step-text:focus {
+  border-color: var(--accent);
+  background: #fff;
+}
+
+.tc-step-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 560px) {
+  .tc-step-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tc-step-field {
+  display: grid;
+  gap: 4px;
+}
+
+.tc-step-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+}
+
+.tc-expected-input,
+.tc-actual-input {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.tc-expected-input:focus,
+.tc-actual-input:focus {
+  border-color: var(--accent);
+  background: #fff;
+}
+
+.tc-screenshot-area {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.tc-attach-btn {
+  padding: 3px 10px;
+  min-height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.tc-attach-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.tc-screenshot-preview {
+  position: relative;
+  display: inline-block;
+}
+
+.tc-screenshot-img {
+  display: block;
+  max-width: 200px;
+  max-height: 120px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.tc-screenshot-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
