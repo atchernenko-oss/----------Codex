@@ -180,6 +180,12 @@ select {
   line-height: 1.5;
 }
 
+.st-item--selected {
+  background: rgba(122, 174, 222, 0.22);
+  color: #fff;
+  border-radius: 4px;
+}
+
 .brand {
   display: flex;
   align-items: center;

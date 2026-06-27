@@ -1333,6 +1333,7 @@ function buildEpicHeaderRow(epicLabel, epicObj, count) {
     : "";
   const row = document.createElement("tr");
   row.className = "epic-group-row";
+  if (epicObj) row.dataset.epicId = epicObj.id;
   row.innerHTML = `
     <td class="checkbox-cell"></td>
     <td colspan="9"><div class="epic-group-cell">
@@ -1365,6 +1366,7 @@ function buildFeatureHeaderRow(featureLabel, featureObj, count) {
   row.className = featureLabel
     ? `feature-group-row${isSelected ? " feature-selected" : ""}`
     : "feature-group-row feature-group-row--ungrouped";
+  if (featureObj) row.dataset.featureId = featureObj.id;
   row.innerHTML = `
     <td class="checkbox-cell">${checkboxHtml}</td>
     <td colspan="9"><div class="feature-group-cell">${tagHtml}<span class="feature-count">${count} тр.</span></div></td>
@@ -3019,7 +3021,7 @@ document.querySelector('#tcClearFilters').addEventListener('click', () => {
 // SIDEBAR HIERARCHY TREE
 // ═══════════════════════════════════════════════
 
-function buildUSNode(us, autoExpand) {
+function buildUSNode(us) {
   const nodeId = `stu${us.id}`;
   const tcs = state.testCases.filter(t => t.usId === us.id);
   const label = (us.number ? us.number + ' ' : '') + (us.title || '');
@@ -3028,7 +3030,7 @@ function buildUSNode(us, autoExpand) {
     ${tcs.length
       ? `<button class="st-tog" data-toggle="${nodeId}" type="button">${isOpen ? '▾' : '▸'}</button>`
       : '<span class="st-tog-ph"></span>'}
-    <button class="st-item" data-action="edit-us" data-us-id="${us.id}" type="button">
+    <button class="st-item" data-action="nav-us" data-us-id="${us.id}" type="button">
       <span class="st-badge st-badge--us">US</span>
       <span class="st-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
     </button>
@@ -3038,7 +3040,7 @@ function buildUSNode(us, autoExpand) {
     for (const tc of tcs) {
       parts.push(`<div class="st-row">
         <span class="st-tog-ph"></span>
-        <button class="st-item" data-action="edit-tc" data-tc-id="${tc.id}" type="button">
+        <button class="st-item" data-action="nav-tc" data-tc-id="${tc.id}" type="button">
           <span class="st-badge st-badge--tc">TC</span>
           <span class="st-label" title="${escapeHtml(tc.title)}">${escapeHtml(tc.title)}</span>
         </button>
@@ -3049,40 +3051,38 @@ function buildUSNode(us, autoExpand) {
   return parts.join('');
 }
 
-function buildReqNode(req, autoExpand) {
+function buildReqNode(req) {
   const nodeId = `str${req.id}`;
-  if (autoExpand) sidebarExpanded.add(nodeId);
   const isOpen = sidebarExpanded.has(nodeId);
   const stories = state.userStories.filter(u => u.requirementId === req.id);
   const parts = [`<div class="st-row">
     <button class="st-tog" data-toggle="${nodeId}" type="button">${isOpen ? '▾' : '▸'}</button>
-    <button class="st-item" data-action="edit-req" data-req-id="${req.id}" type="button">
+    <button class="st-item" data-action="nav-req" data-req-id="${req.id}" type="button">
       <span class="st-badge st-badge--req">REQ</span>
       <span class="st-label" title="${escapeHtml(req.code)}">${escapeHtml(req.code)}</span>
     </button>
   </div>`,
   `<div class="st-kids${isOpen ? '' : ' hidden'}" id="${nodeId}">`];
-  for (const us of stories) parts.push(buildUSNode(us, autoExpand));
+  for (const us of stories) parts.push(buildUSNode(us));
   if (!stories.length) parts.push('<p class="st-empty">No User Stories</p>');
   parts.push('</div>');
   return parts.join('');
 }
 
-function buildFeatNode(feat, autoExpand) {
+function buildFeatNode(feat) {
   const nodeId = `stf${feat.id}`;
-  if (autoExpand) sidebarExpanded.add(nodeId);
   const isOpen = sidebarExpanded.has(nodeId);
   const reqs = state.requirements.filter(r => r.feature === feat.label);
   const label = (feat.number ? feat.number + ' ' : '') + (feat.name || feat.label || '');
   const parts = [`<div class="st-row">
     <button class="st-tog" data-toggle="${nodeId}" type="button">${isOpen ? '▾' : '▸'}</button>
-    <button class="st-item" data-action="edit-feature" data-feature-id="${feat.id}" type="button">
+    <button class="st-item" data-action="nav-feature" data-feature-id="${feat.id}" type="button">
       <span class="st-badge st-badge--feat">F</span>
       <span class="st-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
     </button>
   </div>`,
   `<div class="st-kids${isOpen ? '' : ' hidden'}" id="${nodeId}">`];
-  for (const req of reqs) parts.push(buildReqNode(req, autoExpand));
+  for (const req of reqs) parts.push(buildReqNode(req));
   if (!reqs.length) parts.push('<p class="st-empty">No requirements</p>');
   parts.push('</div>');
   return parts.join('');
@@ -3099,48 +3099,73 @@ function renderSidebarTree() {
     return;
   }
 
-  // Auto-expand top-level nodes on very first render (sidebarExpanded is empty)
-  const firstRender = sidebarExpanded.size === 0;
-
   const parts = [];
 
   // ── Epics (with Features → Reqs → US → TC inside) ──
   for (const epic of state.epics) {
     const nodeId = `ste${epic.id}`;
-    if (firstRender) sidebarExpanded.add(nodeId);
     const isOpen = sidebarExpanded.has(nodeId);
     const features = state.features.filter(f => f.epic === epic.label);
     const label = (epic.number ? epic.number + ' ' : '') + (epic.name || epic.label || '');
     parts.push(`<div class="st-row">
       <button class="st-tog" data-toggle="${nodeId}" type="button">${isOpen ? '▾' : '▸'}</button>
-      <button class="st-item" data-action="edit-epic" data-epic-id="${epic.id}" type="button">
+      <button class="st-item" data-action="nav-epic" data-epic-id="${epic.id}" type="button">
         <span class="st-badge st-badge--epic">E</span>
         <span class="st-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
       </button>
     </div>
     <div class="st-kids${isOpen ? '' : ' hidden'}" id="${nodeId}">`);
-    for (const feat of features) parts.push(buildFeatNode(feat, firstRender));
+    for (const feat of features) parts.push(buildFeatNode(feat));
     if (!features.length) parts.push('<p class="st-empty">No Features linked</p>');
     parts.push('</div>');
   }
 
   // ── Features without Epic ──
   const orphanFeats = state.features.filter(f => !f.epic || !state.epics.find(e => e.label === f.epic));
-  for (const feat of orphanFeats) parts.push(buildFeatNode(feat, firstRender));
+  for (const feat of orphanFeats) parts.push(buildFeatNode(feat));
 
   // ── Requirements without Feature (shown directly, not as hidden group) ──
   const orphanReqs = state.requirements.filter(
     r => !r.feature || !state.features.find(f => f.label === r.feature)
   );
-  for (const req of orphanReqs) parts.push(buildReqNode(req, firstRender));
+  for (const req of orphanReqs) parts.push(buildReqNode(req));
 
   // ── US without Requirement (edge case) ──
   const orphanUS = state.userStories.filter(
     u => !state.requirements.find(r => r.id === u.requirementId)
   );
-  for (const us of orphanUS) parts.push(buildUSNode(us, firstRender));
+  for (const us of orphanUS) parts.push(buildUSNode(us));
 
   el.innerHTML = parts.join('');
+}
+
+let _stClickTimer = null;
+let _stClickTarget = null;
+let _stSelectedBtn = null;
+
+function sidebarOpenCard(action, btn) {
+  if (action === 'nav-epic') {
+    const ep = state.epics.find(e => e.id === btn.dataset.epicId);
+    if (ep) openEpicEditModal(ep);
+  } else if (action === 'nav-feature') {
+    const f = state.features.find(f => f.id === btn.dataset.featureId);
+    if (f) openFeatureEditModal(f);
+  } else if (action === 'nav-req') {
+    const req = state.requirements.find(r => r.id === btn.dataset.reqId);
+    if (req) openRequirementModal(req);
+  } else if (action === 'nav-us') {
+    const us = state.userStories.find(u => u.id === btn.dataset.usId);
+    if (us) { currentUSRequirementId = us.requirementId; openUSEditModal(us); }
+  } else if (action === 'nav-tc') {
+    const tc = state.testCases.find(t => t.id === btn.dataset.tcId);
+    if (tc) openTCEditModal(tc);
+  }
+}
+
+function sidebarSelectItem(btn) {
+  if (_stSelectedBtn) _stSelectedBtn.classList.remove('st-item--selected');
+  _stSelectedBtn = btn;
+  btn.classList.add('st-item--selected');
 }
 
 function handleSidebarTreeClick(e) {
@@ -3157,23 +3182,22 @@ function handleSidebarTreeClick(e) {
   }
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
-  const action = btn.dataset.action;
-  if (action === 'edit-epic') {
-    const ep = state.epics.find(e => e.id === btn.dataset.epicId);
-    if (ep) openEpicEditModal(ep);
-  } else if (action === 'edit-feature') {
-    const f = state.features.find(f => f.id === btn.dataset.featureId);
-    if (f) openFeatureEditModal(f);
-  } else if (action === 'edit-req') {
-    const req = state.requirements.find(r => r.id === btn.dataset.reqId);
-    if (req) openRequirementModal(req);
-  } else if (action === 'edit-us') {
-    const us = state.userStories.find(u => u.id === btn.dataset.usId);
-    if (us) { currentUSRequirementId = us.requirementId; openUSEditModal(us); }
-  } else if (action === 'edit-tc') {
-    const tc = state.testCases.find(t => t.id === btn.dataset.tcId);
-    if (tc) openTCEditModal(tc);
+
+  if (_stClickTimer && _stClickTarget === btn) {
+    // Двойной клик — открываем карточку
+    clearTimeout(_stClickTimer);
+    _stClickTimer = null;
+    _stClickTarget = null;
+    sidebarOpenCard(btn.dataset.action, btn);
+    return;
   }
+  // Одиночный клик — выбираем строку
+  sidebarSelectItem(btn);
+  _stClickTarget = btn;
+  _stClickTimer = setTimeout(() => {
+    _stClickTimer = null;
+    _stClickTarget = null;
+  }, 260);
 }
 
 document.querySelector('#sidebarTree').addEventListener('click', handleSidebarTreeClick);
