@@ -2731,6 +2731,9 @@ tr.selected td {
   background: none;
   border: none;
   border-right: 1px solid var(--line);
+  box-shadow: 0 1px 0 var(--line);
+  position: relative;
+  z-index: 1;
   padding: 5px 13px;
   font-size: 12px;
   font-weight: 500;
@@ -2756,6 +2759,7 @@ tr.selected td {
   font-weight: 500;
   color: var(--muted);
   background: var(--panel);
+  border-right: 1px solid var(--line);
   white-space: nowrap;
   display: flex;
   align-items: center;
