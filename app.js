@@ -7,6 +7,7 @@ const EPICS_KEY = "reqtracker.epics.v1";
 const OWNERS_KEY = "reqtracker.owners.v1";
 const US_KEY = "reqtracker.userstories.v1";
 const TC_KEY = "reqtracker.testcases.v1";
+const LINKS_KEY  = "reqtracker.links.v1";
 
 const state = {
   requirements: loadRequirements(),
@@ -23,6 +24,7 @@ const state = {
   owners: loadOwners(),
   userStories: loadUserStories(),
   testCases: loadTestCases(),
+  links: loadLinks(),
 };
 
 const elements = {
@@ -113,7 +115,8 @@ document.querySelector("#clearDataButton").addEventListener("click", () => {
   state.owners       = [];
   state.userStories  = [];
   state.testCases    = [];
-  saveRequirements([]); saveFeatures([]); saveEpics([]); saveOwners([]); saveUserStories([]); saveTestCases([]);
+  state.links        = [];
+  saveRequirements([]); saveFeatures([]); saveEpics([]); saveOwners([]); saveUserStories([]); saveTestCases([]); saveLinks([]);
   render();
 });
 elements.exportButton.addEventListener("click", openExportModal);
@@ -1972,6 +1975,13 @@ function saveTestCases(tcs) {
   localStorage.setItem(TC_KEY, JSON.stringify(tcs));
 }
 
+function loadLinks() {
+  try { return JSON.parse(localStorage.getItem(LINKS_KEY)) || []; } catch { return []; }
+}
+function saveLinks(links) {
+  localStorage.setItem(LINKS_KEY, JSON.stringify(links));
+}
+
 let editingTCId = null;
 let currentTCUsId = null;
 let currentTCScenarioType = null;
@@ -3312,6 +3322,8 @@ let _graphZoom       = null;
 let _graphSvg        = null;
 let _graphRoot       = null;
 let _selectedNodeId  = null;
+let _linkMode        = false;
+let _linkSource      = null; // nodeData объект источника
 
 function switchMainSection(name) {
   currentMainSection = name;
@@ -3525,11 +3537,35 @@ function renderGraphView() {
     .attr('fill', 'transparent')
     .on('click', resetGraphHighlight);
 
-  // Links
+  // Hierarchy links
   g.selectAll('.graph-link')
     .data(links).join('path')
     .attr('class', 'graph-link')
     .attr('d', d3.linkHorizontal().x(d => d.y).y(d => d.x));
+
+  // Influence links ──────────────────────────────────────────────────
+  // Карта позиций узлов: "type:entityId" → {cx, cy} (центр узла в координатах g)
+  const nodePos = new Map();
+  nodes.forEach(d => nodePos.set(`${d.data.type}:${d.data.data.id}`, { cx: d.y, cy: d.x }));
+
+  const infLinks = state.links.filter(l =>
+    nodePos.has(`${l.sourceType}:${l.sourceId}`) &&
+    nodePos.has(`${l.targetType}:${l.targetId}`)
+  );
+
+  g.selectAll('.influence-link')
+    .data(infLinks, l => l.id).join('path')
+    .attr('class', 'influence-link')
+    .attr('d', l => influencePath(nodePos, l))
+    .on('click', (ev, l) => {
+      ev.stopPropagation();
+      if (_linkMode) return;
+      if (confirm('Удалить эту связь влияния?')) {
+        state.links = state.links.filter(x => x.id !== l.id);
+        saveLinks(state.links);
+        renderGraphView();
+      }
+    });
 
   // Node groups
   const nodeG = g.selectAll('.graph-node')
@@ -3537,8 +3573,8 @@ function renderGraphView() {
     .attr('class', d => `graph-node gn-${d.data.type}`)
     .attr('transform', d => `translate(${d.y - NODE_W / 2},${d.x - NODE_H / 2})`)
     .style('cursor', 'pointer')
-    .on('click',    (ev, d) => { ev.stopPropagation(); highlightGraphNode(d.data.id); })
-    .on('dblclick', (ev, d) => { ev.stopPropagation(); openEntityModal(d.data); });
+    .on('click',    (ev, d) => { ev.stopPropagation(); _linkMode ? handleLinkClick(d.data) : highlightGraphNode(d.data.id); })
+    .on('dblclick', (ev, d) => { ev.stopPropagation(); if (!_linkMode) openEntityModal(d.data); });
 
   // Rect
   nodeG.append('rect')
@@ -3580,6 +3616,85 @@ function renderGraphView() {
   svg.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
 }
 
+// Путь для связи влияния — соединяет центры ближайших рёбер прямоугольников
+function influencePath(nodePos, l) {
+  const s = nodePos.get(`${l.sourceType}:${l.sourceId}`);
+  const t = nodePos.get(`${l.targetType}:${l.targetId}`);
+  const dx = t.cx - s.cx;
+  const dy = t.cy - s.cy;
+
+  let sx, sy, ex, ey;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    // Горизонтальное направление — входим/выходим через левый/правый край
+    sy = s.cy; ey = t.cy;
+    if (dx >= 0) { sx = s.cx + NODE_W / 2; ex = t.cx - NODE_W / 2; }
+    else          { sx = s.cx - NODE_W / 2; ex = t.cx + NODE_W / 2; }
+  } else {
+    // Вертикальное направление — через верхний/нижний край
+    sx = s.cx; ex = t.cx;
+    if (dy >= 0) { sy = s.cy + NODE_H / 2; ey = t.cy - NODE_H / 2; }
+    else          { sy = s.cy - NODE_H / 2; ey = t.cy + NODE_H / 2; }
+  }
+
+  // Квадратичная кривая Безье: дуга перпендикулярно вектору, чтобы не лезла поверх узлов
+  const len = Math.sqrt((ex - sx) ** 2 + (ey - sy) ** 2) || 1;
+  const arc = Math.min(70, len * 0.35);
+  // Перпендикуляр к вектору (sx→ex), отклоняемся вправо по ходу движения
+  const cpx = (sx + ex) / 2 - (ey - sy) / len * arc;
+  const cpy = (sy + ey) / 2 + (ex - sx) / len * arc;
+
+  return `M${sx},${sy} Q${cpx},${cpy} ${ex},${ey}`;
+}
+
+// ── Link creation ──────────────────────────────────────────────────────────────
+function enterLinkMode() {
+  _linkMode = true;
+  _linkSource = null;
+  document.querySelector('#addLinkBtn').classList.add('active');
+  const cnt = document.querySelector('#graphContainer');
+  cnt.classList.add('link-mode');
+  let hint = cnt.querySelector('.link-mode-hint');
+  if (!hint) { hint = document.createElement('div'); hint.className = 'link-mode-hint'; cnt.appendChild(hint); }
+  hint.textContent = 'Кликните на источник связи';
+  resetGraphHighlight();
+}
+
+function exitLinkMode() {
+  _linkMode = false;
+  _linkSource = null;
+  document.querySelector('#addLinkBtn').classList.remove('active');
+  const cnt = document.querySelector('#graphContainer');
+  cnt.classList.remove('link-mode');
+  cnt.querySelector('.link-mode-hint')?.remove();
+  d3.selectAll('.graph-node').classed('link-source', false);
+}
+
+function handleLinkClick(nodeData) {
+  if (!_linkSource) {
+    _linkSource = nodeData;
+    d3.selectAll('.graph-node').classed('link-source', d => d.data.id === nodeData.id);
+    const hint = document.querySelector('#graphContainer .link-mode-hint');
+    if (hint) hint.textContent = 'Теперь кликните на цель связи (Esc — отмена)';
+  } else {
+    if (_linkSource.id === nodeData.id) { // повторный клик — отмена
+      _linkSource = null;
+      d3.selectAll('.graph-node').classed('link-source', false);
+      return;
+    }
+    const link = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      sourceType: _linkSource.type,
+      sourceId:   _linkSource.data.id,
+      targetType: nodeData.type,
+      targetId:   nodeData.data.id,
+    };
+    state.links.push(link);
+    saveLinks(state.links);
+    exitLinkMode();
+    renderGraphView();
+  }
+}
+
 function openEntityModal(nodeData) {
   const { type, data } = nodeData;
   if (type === 'epic')         openEpicEditModal(data);
@@ -3589,36 +3704,134 @@ function openEntityModal(nodeData) {
   else if (type === 'tc')      openTCEditModal(data);
 }
 
+function getCurrentGraphMode() {
+  return document.querySelector('.graph-mode-btn.active')?.dataset.mode || 'all';
+}
+
 function highlightGraphNode(clickedId) {
-  if (_selectedNodeId === clickedId) {
-    resetGraphHighlight();
-    return;
-  }
+  if (_selectedNodeId === clickedId) { resetGraphHighlight(); return; }
   _selectedNodeId = clickedId;
 
-  // Собираем все связанные узлы: предки + сам + потомки
-  const related = new Set();
-  _graphRoot.each(d => {
-    if (d.data.id !== clickedId) return;
-    // Предки (до реального root, не virtual __root)
-    let cur = d;
+  const mode = getCurrentGraphMode();
+  const relatedKeys = new Set(); // "type:entityId"
+
+  // Находим D3-узел кликнутого элемента
+  let clickedNode = null;
+  _graphRoot.each(d => { if (d.data.id === clickedId) clickedNode = d; });
+  if (!clickedNode) return;
+
+  // ── Иерархические связи ──────────────────────────────────────────
+  if (mode === 'hierarchy' || mode === 'all') {
+    // Предки
+    let cur = clickedNode;
     while (cur) {
-      if (cur.data.type !== 'root') related.add(cur.data.id);
+      if (cur.data.type !== 'root') relatedKeys.add(`${cur.data.type}:${cur.data.data.id}`);
       cur = cur.parent;
     }
     // Потомки
-    d.each(desc => { if (desc.data.type !== 'root') related.add(desc.data.id); });
+    clickedNode.each(desc => {
+      if (desc.data.type !== 'root') relatedKeys.add(`${desc.data.type}:${desc.data.data.id}`);
+    });
+  }
+
+  // ── Связи влияния (BFS по ненаправленному графу) ─────────────────
+  if (mode === 'influence' || mode === 'all') {
+    const adj = new Map();
+    state.links.forEach(l => {
+      const sk = `${l.sourceType}:${l.sourceId}`;
+      const tk = `${l.targetType}:${l.targetId}`;
+      if (!adj.has(sk)) adj.set(sk, new Set());
+      if (!adj.has(tk)) adj.set(tk, new Set());
+      adj.get(sk).add(tk);
+      adj.get(tk).add(sk);
+    });
+    const startKey = `${clickedNode.data.type}:${clickedNode.data.data.id}`;
+    const queue = [startKey];
+    const seen  = new Set([startKey]);
+    while (queue.length) {
+      const key = queue.shift();
+      relatedKeys.add(key);
+      (adj.get(key) || []).forEach(nb => { if (!seen.has(nb)) { seen.add(nb); queue.push(nb); } });
+    }
+  }
+
+  // Конвертируем relatedKeys → related (graph node id)
+  const related = new Set();
+  _graphRoot.each(d => {
+    if (d.data.type !== 'root' && relatedKeys.has(`${d.data.type}:${d.data.data.id}`))
+      related.add(d.data.id);
   });
 
   d3.selectAll('.graph-node').classed('dimmed', d => !related.has(d.data.id));
   d3.selectAll('.graph-link').classed('link-dimmed',
     l => !related.has(l.source.data.id) || !related.has(l.target.data.id)
   );
+  d3.selectAll('.influence-link').classed('link-dimmed',
+    l => !relatedKeys.has(`${l.sourceType}:${l.sourceId}`) &&
+         !relatedKeys.has(`${l.targetType}:${l.targetId}`)
+  );
+}
+
+function applyPassiveDim(mode) {
+  d3.selectAll('.graph-link').classed('link-dimmed', false);
+  d3.selectAll('.influence-link').classed('link-dimmed', false);
+
+  if (mode === 'all') {
+    d3.selectAll('.graph-node').classed('dimmed', false);
+    return;
+  }
+
+  if (mode === 'hierarchy') {
+    // Гасим узлы без видимых иерархических связей:
+    // нет не-root родителя И нет детей в дереве
+    d3.selectAll('.graph-node').classed('dimmed', d => {
+      const hasRealParent = d.parent && d.parent.data.type !== 'root';
+      const hasChildren   = d.children && d.children.length > 0;
+      return !hasRealParent && !hasChildren;
+    });
+    return;
+  }
+
+  if (mode === 'influence') {
+    // Гасим узлы без единой связи влияния
+    const infKeys = new Set();
+    state.links.forEach(l => {
+      infKeys.add(`${l.sourceType}:${l.sourceId}`);
+      infKeys.add(`${l.targetType}:${l.targetId}`);
+    });
+    d3.selectAll('.graph-node').classed('dimmed',
+      d => !infKeys.has(`${d.data.type}:${d.data.data.id}`)
+    );
+  }
 }
 
 function resetGraphHighlight() {
   _selectedNodeId = null;
-  d3.selectAll('.graph-node').classed('dimmed', false);
-  d3.selectAll('.graph-link').classed('link-dimmed', false);
+  applyPassiveDim(getCurrentGraphMode());
 }
+
+document.querySelector('#addLinkBtn').addEventListener('click', () => {
+  _linkMode ? exitLinkMode() : enterLinkMode();
+});
+
+document.querySelector('.graph-mode-group').addEventListener('click', ev => {
+  const btn = ev.target.closest('.graph-mode-btn');
+  if (!btn) return;
+  document.querySelectorAll('.graph-mode-btn').forEach(b => b.classList.toggle('active', b === btn));
+  const cnt = document.querySelector('#graphContainer');
+  cnt.classList.remove('mode-all', 'mode-hierarchy', 'mode-influence');
+  cnt.classList.add(`mode-${btn.dataset.mode}`);
+  if (_selectedNodeId) {
+    // Перерисовываем активное выделение по правилам нового режима
+    const prevId = _selectedNodeId;
+    _selectedNodeId = null;
+    highlightGraphNode(prevId);
+  } else {
+    applyPassiveDim(btn.dataset.mode);
+  }
+});
+
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape' && _linkMode) exitLinkMode();
+});
 

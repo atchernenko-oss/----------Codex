@@ -2372,6 +2372,81 @@ tr.selected td {
   font-size: 15px;
 }
 
+/* ── Influence links ─────────────────────────────────────────────────────── */
+.influence-link {
+  fill: none;
+  stroke: #e05151;
+  stroke-width: 2;
+  stroke-dasharray: 7 4;
+  cursor: pointer;
+  transition: opacity .2s, stroke-width .15s;
+}
+.influence-link:hover     { stroke-width: 3.5; }
+.influence-link.link-dimmed { opacity: 0.07; }
+
+/* Legend item for influence */
+.graph-legend-item--influence::before { background: #e05151; border-radius: 50%; }
+.graph-legend-item--influence { color: #e05151; }
+
+/* Link-creation mode */
+.graph-container.link-mode { cursor: crosshair; }
+.graph-actions { display: flex; align-items: center; gap: 8px; }
+
+/* Режимы отображения связей */
+#graphContainer.mode-hierarchy .influence-link { display: none; }
+#graphContainer.mode-influence .graph-link     { display: none; }
+
+/* Сегментированная группа кнопок */
+.graph-mode-group {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.graph-mode-btn {
+  background: none;
+  border: none;
+  border-right: 1px solid var(--line);
+  padding: 5px 13px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--muted);
+  white-space: nowrap;
+  transition: background .15s, color .15s;
+}
+.graph-mode-btn:last-child { border-right: none; }
+.graph-mode-btn:hover:not(.active) { background: var(--panel); color: var(--text); }
+.graph-mode-btn.active { background: var(--accent); color: #fff; }
+
+#addLinkBtn.active {
+  background: #e05151;
+  color: #fff;
+  border-color: #e05151;
+}
+
+.graph-node.link-source .gn-rect {
+  stroke: #fff;
+  stroke-width: 3;
+  paint-order: stroke;
+}
+
+/* Подсказка в режиме добавления связи */
+.link-mode-hint {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(224,81,81,.9);
+  color: #fff;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 10;
+}
+
 /* ── Export modal ──────────────────────────────────────────────────── */
 .export-modal {
   max-width: 540px;

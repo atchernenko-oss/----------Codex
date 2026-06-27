@@ -370,9 +370,18 @@
               <span class="graph-legend-item graph-legend-item--req">Требование</span>
               <span class="graph-legend-item graph-legend-item--us">User Story</span>
               <span class="graph-legend-item graph-legend-item--tc">Test Case</span>
+              <span class="graph-legend-item graph-legend-item--influence">Связь влияния</span>
+            </div>
+            <div class="graph-actions">
+              <div class="graph-mode-group" role="group" aria-label="Режим отображения связей">
+                <button class="graph-mode-btn active" data-mode="all">Все</button>
+                <button class="graph-mode-btn" data-mode="hierarchy">Иерархия</button>
+                <button class="graph-mode-btn" data-mode="influence">Влияние</button>
+              </div>
+              <button id="addLinkBtn" class="button ghost" type="button">+ Добавить связь</button>
             </div>
           </div>
-          <div id="graphContainer" class="graph-container"></div>
+          <div id="graphContainer" class="graph-container mode-all"></div>
         </div>
 
       </main>
