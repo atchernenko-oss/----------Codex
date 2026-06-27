@@ -384,6 +384,11 @@ select {
 .workspace {
   min-width: 0;
   padding: 28px;
+  box-sizing: border-box;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .topbar {
@@ -615,12 +620,23 @@ h2 {
   border-color: var(--accent);
 }
 
+#registryContent {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .table-panel {
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
   box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .panel-head {
@@ -639,7 +655,8 @@ h2 {
 
 .table-scroll {
   overflow: auto;
-  max-height: calc(100vh - 340px);
+  flex: 1;
+  min-height: 0;
 }
 
 table {
@@ -2537,14 +2554,25 @@ tr.selected td {
    VIEW PANELS — реестры Эпики / Фичи / US / TC
    ══════════════════════════════════════════════════ */
 
-.view-panel { margin: 0; }
+.view-panel {
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 
-.view-content { padding: 0; }
+.view-content {
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
 
 /* ── registry table ── */
 .reg-table-wrap {
-  overflow-x: auto;
   padding: 0 24px 32px;
+  min-width: max-content;
 }
 
 .reg-table {
