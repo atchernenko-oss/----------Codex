@@ -3772,6 +3772,39 @@ function highlightGraphNode(clickedId) {
     l => !relatedKeys.has(`${l.sourceType}:${l.sourceId}`) &&
          !relatedKeys.has(`${l.targetType}:${l.targetId}`)
   );
+
+  zoomToRelated(related);
+}
+
+function zoomToRelated(related) {
+  if (!_graphRoot || !_graphSvg || !_graphZoom) return;
+
+  // Собираем позиции связанных узлов (d.y = горизонталь, d.x = вертикаль в LR-дереве)
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  _graphRoot.each(d => {
+    if (d.data.type === 'root' || !related.has(d.data.id)) return;
+    x0 = Math.min(x0, d.y - NODE_W / 2);
+    x1 = Math.max(x1, d.y + NODE_W / 2);
+    y0 = Math.min(y0, d.x - NODE_H / 2);
+    y1 = Math.max(y1, d.x + NODE_H / 2);
+  });
+  if (!isFinite(x0)) return;
+
+  const container = document.querySelector('#graphContainer');
+  const W = container.clientWidth  || 800;
+  const H = container.clientHeight || 600;
+  const pad = 64;
+
+  const scale = Math.min(
+    (W - pad * 2) / (x1 - x0),
+    (H - pad * 2) / (y1 - y0),
+    2.5  // не увеличиваем больше 2.5×
+  );
+  const tx = W / 2 - scale * ((x0 + x1) / 2);
+  const ty = H / 2 - scale * ((y0 + y1) / 2);
+
+  _graphSvg.transition().duration(500)
+    .call(_graphZoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
 }
 
 function applyPassiveDim(mode) {
