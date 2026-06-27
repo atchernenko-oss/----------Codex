@@ -1881,10 +1881,15 @@ function renderInfluenceSection(sectionId, entityType, entityId) {
   });
 
   document.addEventListener('mousedown', function closeOnOut(ev) {
-    if (!ms.contains(ev.target) && !msDrop.contains(ev.target)) {
-      msDrop.classList.add('hidden');
-      if (!sec.isConnected) document.removeEventListener('mousedown', closeOnOut);
-    }
+    if (!sec.isConnected) { document.removeEventListener('mousedown', closeOnOut); return; }
+    if (msDrop.classList.contains('hidden')) return;
+    // Используем viewport-координаты, т.к. msDrop — position:fixed DOM-внутри ms,
+    // и ms.contains(ev.target) всегда TRUE при клике на dropdown
+    const msR   = msDisp.getBoundingClientRect();
+    const dropR = msDrop.getBoundingClientRect();
+    const inMs   = ev.clientX >= msR.left   && ev.clientX <= msR.right   && ev.clientY >= msR.top   && ev.clientY <= msR.bottom;
+    const inDrop = ev.clientX >= dropR.left && ev.clientX <= dropR.right && ev.clientY >= dropR.top && ev.clientY <= dropR.bottom;
+    if (!inMs && !inDrop) msDrop.classList.add('hidden');
   });
 
   addBtn.addEventListener('click', () => {
@@ -1923,6 +1928,7 @@ function renderInfluenceSection(sectionId, entityType, entityId) {
     sec.querySelector('.inf-link-desc').value = '';
     msDrop.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
     updateMsDisplay();
+    if (currentView === 'graph') renderGraphView();
   });
 
   list.addEventListener('click', ev => {
@@ -1933,6 +1939,7 @@ function renderInfluenceSection(sectionId, entityType, entityId) {
       state.links = state.links.filter(l => l.id !== lid);
       saveLinks(state.links);
       list.innerHTML = buildInfluenceListHtml(entityType, entityId);
+      if (currentView === 'graph') renderGraphView();
     }
   });
 }
