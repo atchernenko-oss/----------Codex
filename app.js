@@ -4249,8 +4249,50 @@ function renderGraphView() {
   const tx = (W - bW * scale) / 2 - minY * scale;
   const ty = (H - bH * scale) / 2 - minX * scale;
   svg.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+
+  renderEpicPicker();
 }
 
+
+// ── Epic picker ────────────────────────────────────────────────────────────────
+function renderEpicPicker() {
+  const cnt = document.querySelector('#graphContainer');
+  const picker = document.createElement('div');
+  picker.className = 'graph-epic-picker';
+  const items = (state.epics || []).map(e =>
+    `<button class="graph-epic-item" data-id="${escapeHtml(e.id)}">${escapeHtml(
+      [e.number ? `E-${e.number}` : '', e.label || ''].filter(Boolean).join(' ')
+    )}</button>`
+  ).join('');
+  picker.innerHTML = `
+    <button class="graph-epic-btn" title="Перейти к Epic">&#9678;</button>
+    <div class="graph-epic-drop hidden">${items || '<span class="graph-epic-empty">Нет эпиков</span>'}</div>`;
+  cnt.appendChild(picker);
+
+  const btn  = picker.querySelector('.graph-epic-btn');
+  const drop = picker.querySelector('.graph-epic-drop');
+  btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('hidden'); });
+  drop.addEventListener('click', e => {
+    const item = e.target.closest('.graph-epic-item');
+    if (!item) return;
+    drop.classList.add('hidden');
+    zoomToEpic(item.dataset.id);
+  });
+  document.addEventListener('click', function closeOnOut() {
+    drop.classList.add('hidden');
+    if (!cnt.contains(picker)) document.removeEventListener('click', closeOnOut);
+  });
+}
+
+function zoomToEpic(epicId) {
+  if (!_graphRoot || !_graphSvg || !_graphZoom) return;
+  let epicNode = null;
+  _graphRoot.each(d => { if (d.data.type === 'epic' && d.data.data.id === epicId) epicNode = d; });
+  if (!epicNode) return;
+  const related = new Set();
+  epicNode.each(d => { if (d.data.type !== 'root') related.add(d.data.id); });
+  zoomToRelated(related);
+}
 
 // ── Link creation ──────────────────────────────────────────────────────────────
 function enterLinkMode() {
