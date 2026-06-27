@@ -4316,41 +4316,21 @@ function highlightGraphNode(clickedId) {
   }
 
   d3.selectAll('.graph-node')
-    .classed('dimmed',      d => !related.has(d.data.id) && !contextIds.has(d.data.id))
-    .classed('gn-context',  d => !related.has(d.data.id) &&  contextIds.has(d.data.id))
+    .classed('dimmed',      d => !related.has(d.data.id))
+    .classed('gn-context',  false)
     .classed('gn-selected', d => d.data.id === clickedId);
   d3.selectAll('.graph-link')
-    .classed('link-dimmed', l => {
-      const srcVis = related.has(l.source.data.id) || contextIds.has(l.source.data.id);
-      const tgtVis = related.has(l.target.data.id) || contextIds.has(l.target.data.id);
-      return !srcVis || !tgtVis;
-    })
-    .classed('link-context', l => {
-      const srcRel = related.has(l.source.data.id);
-      const tgtRel = related.has(l.target.data.id);
-      const srcCtx = contextIds.has(l.source.data.id);
-      const tgtCtx = contextIds.has(l.target.data.id);
-      return (srcRel || srcCtx) && (tgtRel || tgtCtx) && !(srcRel && tgtRel);
-    });
+    .classed('link-dimmed',  l => !related.has(l.source.data.id) || !related.has(l.target.data.id))
+    .classed('link-context', false);
   d3.selectAll('.influence-link')
     .classed('link-dimmed', l => {
       const sk = `${l.sourceType}:${l.sourceId}`;
       const tk = `${l.targetType}:${l.targetId}`;
-      return !relatedKeys.has(sk) && !relatedKeys.has(tk) &&
-             !contextKeys.has(sk) && !contextKeys.has(tk);
+      return !relatedKeys.has(sk) || !relatedKeys.has(tk);
     })
-    .classed('link-context', l => {
-      if (mode === 'hierarchy') return false;
-      const sk = `${l.sourceType}:${l.sourceId}`;
-      const tk = `${l.targetType}:${l.targetId}`;
-      const srcVis = relatedKeys.has(sk) || contextKeys.has(sk);
-      const tgtVis = relatedKeys.has(tk) || contextKeys.has(tk);
-      return srcVis && tgtVis && !(relatedKeys.has(sk) && relatedKeys.has(tk));
-    });
+    .classed('link-context', false);
 
-  // В зум включаем и контекстные узлы — линия должна быть видна целиком
-  const allVisible = new Set([...related, ...contextIds]);
-  zoomToRelated(allVisible);
+  zoomToRelated(related);
 }
 
 function zoomToRelated(related) {
