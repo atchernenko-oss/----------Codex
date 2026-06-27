@@ -2900,6 +2900,25 @@ tr.selected td {
 }
 .gn-rect:hover { opacity: .85; }
 
+/* Разделитель основного дерева и изолированных узлов */
+.graph-iso-sep {
+  stroke: #c8cdd6;
+  stroke-width: 1.5px;
+  stroke-dasharray: 6 4;
+}
+.graph-iso-label {
+  fill: #9ca3af;
+  font-size: 11px;
+  font-family: inherit;
+}
+/* Связи внутри изолированных подграфов */
+.graph-iso-link {
+  fill: none;
+  stroke: #c8cdd6;
+  stroke-width: 1.5px;
+  stroke-dasharray: 4 3;
+}
+
 /* Dimming при выделении ветки */
 .graph-node.dimmed .gn-rect     { opacity: 0.28; filter: none; }
 .graph-node.dimmed .gn-label    { opacity: 0.7; }

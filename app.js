@@ -4092,43 +4092,85 @@ reqSectionBtn.addEventListener('click', () => {
 // ── Build hierarchy data ──────────────────────────────────────────────────────
 
 function buildGraphTree() {
-  const children = [];
-  const usedReqIds = new Set();
+  const mainChildren = [];
+  const isolated = [];
+  const usedReqIds  = new Set();
+  const usedFeatIds = new Set();
+  const usedUSIds   = new Set();
+  const usedTCIds   = new Set();
 
   for (const epic of state.epics) {
     const epicFeats = state.features.filter(f => f.epic === epic.label);
     const featNodes = [];
     for (const feat of epicFeats) {
-      const featNode = buildFeatTreeNode(feat, usedReqIds);
-      if (featNode) featNodes.push(featNode);
+      const featNode = buildFeatTreeNode(feat, usedReqIds, usedUSIds, usedTCIds);
+      if (featNode) { usedFeatIds.add(feat.id); featNodes.push(featNode); }
     }
-    children.push({
+    const epicNode = {
       id: `e_${epic.id}`, type: 'epic',
       label: epic.number || '', sublabel: epic.name || epic.label,
       data: epic, children: featNodes,
+    };
+    if (featNodes.length > 0) mainChildren.push(epicNode);
+    else isolated.push({ ...epicNode, isolated: true, children: [] });
+  }
+
+  // Orphan features (no epic, or epic has no reqs)
+  const orphanFeats = state.features.filter(f => !usedFeatIds.has(f.id));
+  for (const feat of orphanFeats) {
+    const featNode = buildFeatTreeNode(feat, usedReqIds, usedUSIds, usedTCIds);
+    if (featNode) isolated.push({ ...featNode, isolated: true });
+    else isolated.push({
+      id: `f_${feat.id}`, type: 'feature', isolated: true,
+      label: feat.number || '', sublabel: feat.name || feat.label,
+      data: feat, children: [],
     });
   }
 
-  // Orphan features
-  const orphanFeats = state.features.filter(f => !f.epic || !state.epics.find(e => e.label === f.epic));
-  for (const feat of orphanFeats) {
-    const featNode = buildFeatTreeNode(feat, usedReqIds);
-    if (featNode) children.push(featNode);
-  }
-
-  // Orphan reqs
+  // Orphan reqs (no feature)
   const orphanReqs = state.requirements.filter(r => !usedReqIds.has(r.id));
   for (const req of orphanReqs) {
-    children.push(buildReqTreeNode(req));
+    const node = buildReqTreeNode(req, usedUSIds, usedTCIds);
+    isolated.push({ ...node, isolated: true });
   }
 
-  return { id: '__root', type: 'root', children };
+  // Orphan US (no requirement)
+  const orphanUS = state.userStories.filter(u => !usedUSIds.has(u.id));
+  for (const us of orphanUS) {
+    const tcs = state.testCases.filter(t => t.usId === us.id);
+    tcs.forEach(t => usedTCIds.add(t.id));
+    isolated.push({
+      id: `u_${us.id}`, type: 'us', isolated: true,
+      label: us.number || '', sublabel: us.title || '',
+      data: us,
+      children: tcs.map(tc => ({
+        id: `t_${tc.id}`, type: 'tc', isolated: true,
+        label: tc.code || 'TC', sublabel: (tc.title || '').replace(/^TC:\s*/i, ''),
+        data: tc, children: [],
+      })),
+    });
+  }
+
+  // Orphan TC (no US)
+  const orphanTC = state.testCases.filter(t => !usedTCIds.has(t.id));
+  for (const tc of orphanTC) {
+    isolated.push({
+      id: `t_${tc.id}`, type: 'tc', isolated: true,
+      label: tc.code || 'TC', sublabel: (tc.title || '').replace(/^TC:\s*/i, ''),
+      data: tc, children: [],
+    });
+  }
+
+  return {
+    mainTree: { id: '__root', type: 'root', children: mainChildren },
+    isolated,
+  };
 }
 
-function buildFeatTreeNode(feat, usedReqIds) {
+function buildFeatTreeNode(feat, usedReqIds, usedUSIds, usedTCIds) {
   const reqs = state.requirements.filter(r => r.feature === feat.label);
   if (!reqs.length) return null;
-  const reqNodes = reqs.map(r => { usedReqIds.add(r.id); return buildReqTreeNode(r); });
+  const reqNodes = reqs.map(r => { usedReqIds.add(r.id); return buildReqTreeNode(r, usedUSIds, usedTCIds); });
   return {
     id: `f_${feat.id}`, type: 'feature',
     label: feat.number || '', sublabel: feat.name || feat.label,
@@ -4136,22 +4178,27 @@ function buildFeatTreeNode(feat, usedReqIds) {
   };
 }
 
-function buildReqTreeNode(req) {
+function buildReqTreeNode(req, usedUSIds, usedTCIds) {
   const stories = state.userStories.filter(u => u.requirementId === req.id);
+  if (usedUSIds) stories.forEach(u => usedUSIds.add(u.id));
   return {
     id: `r_${req.id}`, type: 'req',
     label: req.code, sublabel: req.text || '',
     data: req,
-    children: stories.map(us => ({
-      id: `u_${us.id}`, type: 'us',
-      label: us.number || '', sublabel: us.title || '',
-      data: us,
-      children: state.testCases.filter(t => t.usId === us.id).map(tc => ({
-        id: `t_${tc.id}`, type: 'tc',
-        label: 'TC', sublabel: (tc.title || '').replace(/^TC:\s*/i, ''),
-        data: tc, children: [],
-      })),
-    })),
+    children: stories.map(us => {
+      const tcs = state.testCases.filter(t => t.usId === us.id);
+      if (usedTCIds) tcs.forEach(t => usedTCIds.add(t.id));
+      return {
+        id: `u_${us.id}`, type: 'us',
+        label: us.number || '', sublabel: us.title || '',
+        data: us,
+        children: tcs.map(tc => ({
+          id: `t_${tc.id}`, type: 'tc',
+          label: tc.code || 'TC', sublabel: (tc.title || '').replace(/^TC:\s*/i, ''),
+          data: tc, children: [],
+        })),
+      };
+    }),
   };
 }
 
@@ -4335,8 +4382,8 @@ function renderGraphView() {
   const container = document.querySelector('#graphContainer');
   container.innerHTML = '';
 
-  const treeData = buildGraphTree();
-  if (!treeData.children.length) {
+  const { mainTree, isolated } = buildGraphTree();
+  if (!mainTree.children.length && !isolated.length) {
     container.innerHTML = '<p class="graph-empty">Загрузите данные для отображения графа связей</p>';
     return;
   }
@@ -4388,18 +4435,74 @@ function renderGraphView() {
     dynSepV = Math.ceil(Math.max(NODE_SEP_V, 2 * hSpread - NODE_H + 8, 0));
   }
 
-  // D3 hierarchy + tree layout
-  const root = d3.hierarchy(treeData);
+  // SVG hatch patterns for isolated nodes
+  const defs = svg.append('defs');
+  const HATCH_COLORS = { epic: '#7c4dbc', feature: '#2563eb', req: '#475569', us: '#059669', tc: '#d97706' };
+  Object.entries(HATCH_COLORS).forEach(([type, color]) => {
+    const pat = defs.append('pattern')
+      .attr('id', `hatch-${type}`)
+      .attr('patternUnits', 'userSpaceOnUse')
+      .attr('width', 8).attr('height', 8)
+      .attr('patternTransform', 'rotate(45)');
+    pat.append('rect').attr('width', 4).attr('height', 8).attr('fill', color).attr('opacity', 0.7);
+    pat.append('rect').attr('x', 4).attr('width', 4).attr('height', 8).attr('fill', color).attr('opacity', 0.18);
+  });
+
+  // D3 hierarchy + tree layout (main tree only)
+  const root = d3.hierarchy(mainTree);
   _graphRoot = root;
 
+  const colStep = NODE_W + dynSepH;
+  // Depth → column: epic=1, feature=2, req=3, us=4, tc=5
+  const COL_DEPTH = { epic: 1, feature: 2, req: 3, us: 4, tc: 5 };
+
   const treeLayout = d3.tree()
-    .nodeSize([NODE_H + dynSepV, NODE_W + dynSepH]);
+    .nodeSize([NODE_H + dynSepV, colStep]);
 
   treeLayout(root);
 
   // Filter out invisible root node
   const nodes = root.descendants().filter(d => d.data.type !== 'root');
   const links = root.links().filter(l => l.source.data.type !== 'root');
+
+  // --- Compute isolated node positions ---
+  const mainMaxX = nodes.length > 0 ? Math.max(...nodes.map(d => d.x)) : 0;
+  const isoGap   = nodes.length > 0 ? 80 : 0;
+  let   isoBaseX = mainMaxX + NODE_H / 2 + isoGap;
+
+  // Within each column we stack nodes vertically; track current row per column
+  const isoColRow = {}; // type → next row index
+
+  // Flatten isolated subtree into [{nodeData, svgX, svgY}] and links
+  const isoFlatNodes = [];
+  const isoFlatLinks = [];
+
+  function placeIsoSubtree(nodeData, rootDepth, rowX) {
+    const svgY = COL_DEPTH[nodeData.type] * colStep;
+    const svgX = rowX;
+    isoFlatNodes.push({ data: nodeData, x: svgX, y: svgY });
+    const kids = nodeData.children || [];
+    kids.forEach(child => {
+      placeIsoSubtree(child, rootDepth + 1, rowX);
+      isoFlatLinks.push({
+        sx: svgX, sy: svgY,
+        tx: rowX, ty: COL_DEPTH[child.type] * colStep,
+      });
+    });
+  }
+
+  // Sort isolated by type depth so columns fill in order
+  const isoSorted = [...isolated].sort((a, b) => (COL_DEPTH[a.type] || 0) - (COL_DEPTH[b.type] || 0));
+  isoSorted.forEach(nodeData => {
+    const row = isoColRow[nodeData.type] || 0;
+    isoColRow[nodeData.type] = row + 1;
+    const rowX = isoBaseX + row * (NODE_H + dynSepV);
+    placeIsoSubtree(nodeData, 0, rowX);
+  });
+
+  // Merge iso nodes into the nodePos map for influence links
+  const allIsoX = isoFlatNodes.map(n => n.x);
+  const isoMaxX = allIsoX.length ? Math.max(...allIsoX) : isoBaseX;
 
   // Background click — сбросить выделение
   g.append('rect')
@@ -4418,34 +4521,59 @@ function renderGraphView() {
   // Карта позиций узлов: "type:entityId" → {cx, cy} (центр узла в координатах g)
   const nodePos = new Map();
   nodes.forEach(d => nodePos.set(`${d.data.type}:${d.data.data.id}`, { cx: d.y, cy: d.x }));
+  isoFlatNodes.forEach(n => nodePos.set(`${n.data.type}:${n.data.data.id}`, { cx: n.y, cy: n.x }));
 
   const infLinks = state.links.filter(l =>
     nodePos.has(`${l.sourceType}:${l.sourceId}`) &&
     nodePos.has(`${l.targetType}:${l.targetId}`)
   );
 
+  // Separator line + label for isolated section
+  if (isolated.length > 0 && nodes.length > 0) {
+    const sepY = mainMaxX + NODE_H / 2 + isoGap / 2;
+    g.append('line')
+      .attr('class', 'graph-iso-sep')
+      .attr('x1', -colStep).attr('x2', (COL_DEPTH.tc + 0.5) * colStep)
+      .attr('y1', sepY).attr('y2', sepY);
+    g.append('text')
+      .attr('class', 'graph-iso-label')
+      .attr('x', -colStep).attr('y', sepY + 14)
+      .text('Без иерархических связей');
+  }
+
+  // Isolated hierarchy links (within isolated subtrees — separate class, not dimmed with main)
+  g.selectAll('.graph-iso-link')
+    .data(isoFlatLinks).join('path')
+    .attr('class', 'graph-iso-link')
+    .attr('d', d => d3.linkHorizontal()({ source: [d.sy, d.sx], target: [d.ty, d.tx] }));
+
+  // Combined node list: main tree + isolated
+  const allNodeData = [
+    ...nodes.map(d => ({ data: d.data, x: d.x, y: d.y, isIso: false })),
+    ...isoFlatNodes.map(n => ({ data: n.data, x: n.x, y: n.y, isIso: true })),
+  ];
 
   // Node groups
   const nodeG = g.selectAll('.graph-node')
-    .data(nodes).join('g')
+    .data(allNodeData).join('g')
     .attr('class', d => `graph-node gn-${d.data.type}`)
     .attr('transform', d => `translate(${d.y - NODE_W / 2},${d.x - NODE_H / 2})`)
     .style('cursor', 'pointer')
     .on('click',    (ev, d) => { ev.stopPropagation(); _linkMode ? handleLinkClick(d.data) : highlightGraphNode(d.data.id); })
     .on('dblclick', (ev, d) => { ev.stopPropagation(); if (!_linkMode) openEntityModal(d.data); });
 
-  // Фоновый прямоугольник: перекрывает линии под узлом, чтобы цветной rect
-  // мог быть полупрозрачным без «просвечивания» связей
+  // Фоновый прямоугольник: перекрывает линии под узлом
   nodeG.append('rect')
     .attr('class', 'gn-backdrop')
     .attr('width', NODE_W).attr('height', NODE_H)
     .attr('rx', 6).attr('ry', 6);
 
-  // Rect
+  // Rect — для изолированных узлов штриховая заливка вместо сплошной
   nodeG.append('rect')
     .attr('class', d => `gn-rect gn-${d.data.type}`)
     .attr('width', NODE_W).attr('height', NODE_H)
-    .attr('rx', 6).attr('ry', 6);
+    .attr('rx', 6).attr('ry', 6)
+    .attr('fill', d => d.data.isolated ? `url(#hatch-${d.data.type})` : null);
 
   // Label + sublabel — позиционируем как единый блок, центрируем вертикально
   nodeG.each(function(d) {
@@ -4924,7 +5052,15 @@ function highlightGraphNode(clickedId) {
   // Находим D3-узел кликнутого элемента
   let clickedNode = null;
   _graphRoot.each(d => { if (d.data.id === clickedId) clickedNode = d; });
-  if (!clickedNode) return;
+  if (!clickedNode) {
+    // Изолированный узел — просто выделяем его, без dimming остальных
+    d3.selectAll('.graph-node')
+      .classed('dimmed', false)
+      .classed('gn-context', false)
+      .classed('gn-selected', d => d.data.id === clickedId);
+    d3.selectAll('.graph-link').classed('link-dimmed', false).classed('link-context', false);
+    return;
+  }
 
   // ── Иерархические связи ──────────────────────────────────────────
   if (mode === 'hierarchy' || mode === 'all') {
