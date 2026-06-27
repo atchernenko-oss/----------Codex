@@ -1622,15 +1622,83 @@ function escapeHtml(value) {
 
 // ── Influence section in entity modals ────────────────────────────────────────
 
+function buildMsHierarchyHtml(entityType, entityId) {
+  const skip   = (type, id) => type === entityType && id === entityId;
+  const labels = { epic: 'Epic', feature: 'Feature', req: 'Req', us: 'US', tc: 'TC' };
+  const rows   = [];
+  let rootCount = 0, prevDepth = -1;
+  const usedFeatureIds = new Set(), usedReqIds = new Set(),
+        usedUsIds = new Set(), usedTcIds = new Set();
+
+  const row = (type, entity, depth) => {
+    if (skip(type, entity.id)) return;
+    if (depth === 0 && rootCount++ > 0) rows.push('<div class="inf-ms-sep"></div>');
+    else if (depth < prevDepth) rows.push('<div class="inf-ms-sep inf-ms-sep--minor"></div>');
+    prevDepth = depth;
+    const conn = depth > 0 ? `<span class="inf-ms-conn">${'└─'}</span>` : '';
+    rows.push(
+      `<label class="inf-ms-item inf-ms-item--${type}" style="padding-left:${10 + depth * 16}px">` +
+      conn +
+      `<input type="checkbox" value="${type}:${escapeHtml(entity.id)}">` +
+      `<span class="inf-ms-badge inf-ms-badge--${type}">${labels[type]}</span>` +
+      `<span class="inf-ms-name">${escapeHtml(entityLabel(type, entity.id))}</span>` +
+      `</label>`
+    );
+  };
+
+  const walkUs = (us, depth) => {
+    usedUsIds.add(us.id);
+    row('us', us, depth);
+    state.testCases.filter(tc => tc.usId === us.id).forEach(tc => {
+      usedTcIds.add(tc.id); row('tc', tc, depth + 1);
+    });
+  };
+  const walkReq = (req, depth) => {
+    usedReqIds.add(req.id);
+    row('req', req, depth);
+    state.userStories.filter(us => us.requirementId === req.id).forEach(us => walkUs(us, depth + 1));
+  };
+  const walkFeature = (feature, depth) => {
+    usedFeatureIds.add(feature.id);
+    row('feature', feature, depth);
+    state.requirements.filter(r => r.feature === feature.label).forEach(r => walkReq(r, depth + 1));
+  };
+
+  state.epics.forEach(epic => {
+    row('epic', epic, 0);
+    state.features.filter(f => f.epic === (epic.label || epic.number))
+      .forEach(f => walkFeature(f, 1));
+  });
+
+  state.features.filter(f => !usedFeatureIds.has(f.id)).forEach(f => walkFeature(f, 0));
+  state.requirements.filter(r => !usedReqIds.has(r.id)).forEach(r => walkReq(r, 0));
+  state.userStories.filter(us => !usedUsIds.has(us.id)).forEach(us => walkUs(us, 0));
+  state.testCases.filter(tc => !usedTcIds.has(tc.id)).forEach(tc => row('tc', tc, 0));
+
+  return rows.join('') || '<div class="inf-ms-empty">Нет доступных объектов</div>';
+}
+
 function entityLabel(type, id) {
   const map = { epic: state.epics, feature: state.features, req: state.requirements, us: state.userStories, tc: state.testCases };
   const e = (map[type] || []).find(x => x.id === id);
   if (!e) return id;
   if (type === 'epic')    return [e.number, e.name].filter(Boolean).join(' ');
   if (type === 'feature') return [e.number, e.name].filter(Boolean).join(' ');
-  if (type === 'req')     return [e.code, (e.text || '').slice(0, 50)].filter(Boolean).join(' ');
-  if (type === 'us')      return [e.number ? `US-${e.number}` : '', e.title].filter(Boolean).join(' ');
+  if (type === 'req')     return [e.code, e.text].filter(Boolean).join(' ');
+  if (type === 'us')      return [e.number ? `US-${String(e.number).replace(/^US-/i, '')}` : '', e.title].filter(Boolean).join(' ');
   if (type === 'tc')      return e.title || id;
+  return id;
+}
+
+function entityCode(type, id) {
+  const map = { epic: state.epics, feature: state.features, req: state.requirements, us: state.userStories, tc: state.testCases };
+  const e = (map[type] || []).find(x => x.id === id);
+  if (!e) return id;
+  if (type === 'epic')    return e.number || e.label || id;
+  if (type === 'feature') return e.number || e.label || id;
+  if (type === 'req')     return e.code || id;
+  if (type === 'us')      return e.number ? `US-${String(e.number).replace(/^US-/i, '')}` : id;
+  if (type === 'tc')      return e.code || e.title?.slice(0, 10) || id;
   return id;
 }
 
@@ -1661,33 +1729,7 @@ function renderInfluenceSection(sectionId, entityType, entityId) {
   const sec = document.getElementById(sectionId);
   if (!sec) return;
 
-  const groups = [
-    { type: 'epic',    label: 'Epic',         items: state.epics },
-    { type: 'feature', label: 'Feature',       items: state.features },
-    { type: 'req',     label: 'Требование',    items: state.requirements },
-    { type: 'us',      label: 'User Story',    items: state.userStories },
-    { type: 'tc',      label: 'Test Case',     items: state.testCases },
-  ];
-
-  const opts = groups.map(g => {
-    const filtered = g.items.filter(x => !(g.type === entityType && x.id === entityId));
-    if (!filtered.length) return '';
-    return `<optgroup label="${g.label}">${
-      filtered.map(x => `<option value="${g.type}:${escapeHtml(x.id)}">${escapeHtml(entityLabel(g.type, x.id))}</option>`).join('')
-    }</optgroup>`;
-  }).join('');
-
-  const msItemsHtml = groups.map(g => {
-    const filtered = g.items.filter(x => !(g.type === entityType && x.id === entityId));
-    if (!filtered.length) return '';
-    return `<div class="inf-ms-group">
-      <div class="inf-ms-group-label">${g.label}</div>
-      ${filtered.map(x => `<label class="inf-ms-item">
-        <input type="checkbox" value="${g.type}:${escapeHtml(x.id)}">
-        <span>${escapeHtml(entityLabel(g.type, x.id))}</span>
-      </label>`).join('')}
-    </div>`;
-  }).join('');
+  const msItemsHtml = buildMsHierarchyHtml(entityType, entityId);
 
   sec.innerHTML = `
     <div class="inf-header">
@@ -1736,16 +1778,39 @@ function renderInfluenceSection(sectionId, entityType, entityId) {
     if (!checked.length) {
       msDisp.innerHTML = '<span class="inf-ms-placeholder">Выберите объекты...</span>';
     } else {
-      msDisp.innerHTML = checked.map(cb =>
-        `<span class="inf-ms-tag">${escapeHtml(cb.nextElementSibling.textContent.trim())}</span>`
-      ).join('');
+      msDisp.innerHTML = checked.map(cb => {
+        const [t, i] = cb.value.split(':');
+        return `<span class="inf-ms-tag" title="${escapeHtml(entityLabel(t, i))}">${escapeHtml(entityCode(t, i))}<button type="button" class="inf-ms-tag-del" data-value="${escapeHtml(cb.value)}">✕</button></span>`;
+      }).join('');
+    }
+  }
+
+  function positionDrop() {
+    const r = msDisp.getBoundingClientRect();
+    const dropH = Math.min(260, msDrop.scrollHeight || 260);
+    const spaceBelow = window.innerHeight - r.bottom - 8;
+    msDrop.style.left  = r.left + 'px';
+    msDrop.style.width = r.width + 'px';
+    if (spaceBelow >= dropH || spaceBelow >= r.top - 8) {
+      msDrop.style.top    = (r.bottom + 4) + 'px';
+      msDrop.style.bottom = 'auto';
+    } else {
+      msDrop.style.bottom = (window.innerHeight - r.top + 4) + 'px';
+      msDrop.style.top    = 'auto';
     }
   }
 
   ms.addEventListener('click', ev => {
+    const delBtn = ev.target.closest('.inf-ms-tag-del');
+    if (delBtn) {
+      const cb = msDrop.querySelector(`input[value="${delBtn.dataset.value}"]`);
+      if (cb) { cb.checked = false; updateMsDisplay(); }
+      return;
+    }
     if (ev.target.closest('input[type=checkbox]')) return;
+    const wasHidden = msDrop.classList.contains('hidden');
     msDrop.classList.toggle('hidden');
-    if (!msDrop.classList.contains('hidden')) ms.focus();
+    if (wasHidden) { positionDrop(); ms.focus(); }
   });
 
   msDrop.addEventListener('change', updateMsDisplay);
@@ -1755,7 +1820,7 @@ function renderInfluenceSection(sectionId, entityType, entityId) {
   });
 
   document.addEventListener('mousedown', function closeOnOut(ev) {
-    if (!ms.contains(ev.target)) {
+    if (!ms.contains(ev.target) && !msDrop.contains(ev.target)) {
       msDrop.classList.add('hidden');
       if (!sec.isConnected) document.removeEventListener('mousedown', closeOnOut);
     }
