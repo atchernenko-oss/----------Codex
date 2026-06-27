@@ -3798,17 +3798,19 @@ function _roundedPolyline(pts, r) {
 // Строит SVG-путь связи влияния, огибающий узлы, не участвующие в связи.
 // Маршрут проходит через «коридоры» между колонками (NODE_SEP_H = 60px),
 // где нет узлов, и выбирает y-уровень, свободный от промежуточных узлов.
-function _routeInfluencePath(l, s, t, nodePos) {
+// laneShift: смещение для разнесения параллельных путей.
+// Для одноколоночных — сдвигает x в коридоре; для межколоночных — сдвигает travelY.
+function _routeInfluencePath(l, s, t, nodePos, laneShift = 0) {
   const allCx = [...new Set([...nodePos.values()].map(p => p.cx))].sort((a, b) => a - b);
   const si = allCx.indexOf(s.cx), ti = allCx.indexOf(t.cx);
   const gapMid = i => (allCx[i] + allCx[i + 1]) / 2;
   const HW = NODE_W / 2, HH = NODE_H / 2, R = 8;
 
   if (si === ti) {
-    // Одна колонка: C-образный маршрут через соседний коридор
+    // Одна колонка: C-образный маршрут через соседний коридор (сдвигаем x в коридоре)
     const gi = si < allCx.length - 1 ? si : si - 1;
-    const gx = gapMid(gi);
-    const useRight = gx > s.cx; // коридор справа → выходим/входим с правого края
+    const gx = gapMid(gi) + laneShift;
+    const useRight = gapMid(gi) > s.cx;
     const edgeX = useRight ? s.cx + HW : s.cx - HW;
     return _roundedPolyline([
       { x: edgeX, y: s.cy },
@@ -3834,7 +3836,8 @@ function _routeInfluencePath(l, s, t, nodePos) {
     .filter(([k, p]) => k !== srcKey && k !== tgtKey && p.cx > minCx && p.cx < maxCx)
     .map(([, p]) => p);
   const blocked = intNodes.map(p => [p.cy - HH, p.cy + HH]);
-  const travelY = _findClearY((s.cy + t.cy) / 2, blocked);
+  // laneShift сдвигает предпочтительный y, чтобы параллельные связи не накладывались
+  const travelY = _findClearY((s.cy + t.cy) / 2 + laneShift, blocked);
 
   // Выходим из узла с нужного края, чтобы не рисовать линию через центр узла
   const sEdge = { x: goRight ? s.cx + HW : s.cx - HW, y: s.cy };
@@ -4030,6 +4033,33 @@ function renderGraphView() {
         { maxLines: 2, initFontSize: 10, minFontSize: 8, fontWeight: 'normal', lineH: 13 });
     });
 
+  // Вычисляем смещения (laneShift) для разнесения параллельных путей.
+  // Одноколоночные группируются по индексу коридора, межколоночные — по паре колонок.
+  const _infLaneShift = new Map();
+  {
+    const _cx = [...new Set([...nodePos.values()].map(p => p.cx))].sort((a, b) => a - b);
+    const _gm = i => (_cx[i] + _cx[i + 1]) / 2;
+    const LANE = 14; // px между соседними путями в одном коридоре
+    const buckets = new Map();
+    infLinks.forEach(l => {
+      const s = nodePos.get(`${l.sourceType}:${l.sourceId}`);
+      const t = nodePos.get(`${l.targetType}:${l.targetId}`);
+      const si = _cx.indexOf(s.cx), ti = _cx.indexOf(t.cx);
+      const key = si === ti
+        ? `s${si < _cx.length - 1 ? si : si - 1}`            // по индексу коридора
+        : `c${Math.min(si, ti)}-${Math.max(si, ti)}`;          // по паре колонок
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push({ l, sortKey: s.cy });
+    });
+    buckets.forEach(items => {
+      if (items.length <= 1) return;
+      items.sort((a, b) => a.sortKey - b.sortKey);
+      items.forEach(({ l }, rank) =>
+        _infLaneShift.set(l.id, (rank - (items.length - 1) / 2) * LANE)
+      );
+    });
+  }
+
   // Influence links — рисуем ПОСЛЕ узлов (поверх них).
   // Маршрут огибает узлы, не участвующие в связи, через коридоры между колонками.
   g.selectAll('.influence-link')
@@ -4038,7 +4068,7 @@ function renderGraphView() {
     .attr('d', l => {
       const s = nodePos.get(`${l.sourceType}:${l.sourceId}`);
       const t = nodePos.get(`${l.targetType}:${l.targetId}`);
-      return _routeInfluencePath(l, s, t, nodePos);
+      return _routeInfluencePath(l, s, t, nodePos, _infLaneShift.get(l.id) || 0);
     })
     .on('click', (ev, l) => {
       ev.stopPropagation();
