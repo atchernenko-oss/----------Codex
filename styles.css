@@ -2760,10 +2760,10 @@ tr.selected td {
   font-weight: 500;
   color: var(--muted);
   background: var(--panel);
-  border-right: 1px solid var(--line);
   white-space: nowrap;
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 .graph-depth-btn {
   background: none;
