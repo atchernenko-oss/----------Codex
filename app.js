@@ -1037,10 +1037,11 @@ function saveRequirement() {
   }
 
   if (editingRequirementId === null) {
-    const rawCode = elements.reqCode.value.trim();
+    let rawCode = elements.reqCode.value.trim();
+    if (!rawCode) rawCode = nextAutoNum(state.requirements.map(r => r.code || ''), 'REQ-');
     state.requirements.push({
       id: crypto.randomUUID(),
-      code: rawCode ? `REQ-${rawCode}` : "",
+      code: `REQ-${rawCode}`,
       text,
       status: elements.reqStatus.value,
       priority: elements.reqPriority.value,
@@ -1120,6 +1121,15 @@ function padNum(n) {
   return String(n).padStart(3, '0');
 }
 
+// Возвращает следующий номер в формате "001", "002"... без диалогов
+function nextAutoNum(existingWithPrefix, prefix) {
+  const re = new RegExp(`^${prefix}`, 'i');
+  const used = existingWithPrefix
+    .map(s => parseInt((s || '').replace(re, ''), 10))
+    .filter(n => Number.isFinite(n) && n > 0);
+  return padNum(used.length ? Math.max(...used) + 1 : 1);
+}
+
 function autoAssignNumber(targetEl, rawNums, prefix) {
   const re = new RegExp(`^${prefix}`, 'i');
   const used = rawNums
@@ -1189,7 +1199,10 @@ function closeFeatureModal() {
 }
 
 function saveFeature() {
-  const rawNumber = elements.featureNumber.value.trim();
+  let rawNumber = elements.featureNumber.value.trim();
+  if (!rawNumber && !editingFeatureId) {
+    rawNumber = nextAutoNum(state.features.map(f => f.number || ''), 'F-');
+  }
   const number = rawNumber ? `F-${rawNumber}` : '';
   const name = elements.featureName.value.trim();
   const description = elements.featureDescription.value.trim();
@@ -1605,7 +1618,10 @@ function closeEpicModal() {
 }
 
 function saveEpic() {
-  const rawEpicNum = document.querySelector("#epicNumber").value.trim();
+  let rawEpicNum = document.querySelector("#epicNumber").value.trim();
+  if (!rawEpicNum && !editingEpicId) {
+    rawEpicNum = nextAutoNum(state.epics.map(e => e.number || ''), 'E-');
+  }
   const number = rawEpicNum ? `E-${rawEpicNum}` : '';
   const name = document.querySelector("#epicName").value.trim();
   const description = document.querySelector("#epicDescription").value.trim();
@@ -2379,7 +2395,10 @@ function saveUserStory() {
     document.querySelector("#usTitle").focus();
     return;
   }
-  const rawNum = document.querySelector("#usNumber").value.trim();
+  let rawNum = document.querySelector("#usNumber").value.trim();
+  if (!rawNum && !editingUSId) {
+    rawNum = nextAutoNum(state.userStories.map(u => u.number || ''), 'US-');
+  }
   const number = rawNum ? `US-${rawNum}` : '';
   const role = document.querySelector("#usRole").value.trim();
   const action = document.querySelector("#usAction").value.trim();
@@ -2665,7 +2684,10 @@ function openTCEditModal(tc) {
 }
 
 function saveTCModal() {
-  const rawCode = document.querySelector("#tcCode").value.trim();
+  let rawCode = document.querySelector("#tcCode").value.trim();
+  if (!rawCode && !editingTCId) {
+    rawCode = nextAutoNum(state.testCases.map(t => t.code || ''), 'TC-');
+  }
   const code = rawCode ? `TC-${rawCode}` : '';
   const title = document.querySelector("#tcTitle").value.trim() || "Test Case";
   const status = document.querySelector("#tcStatus").value;
