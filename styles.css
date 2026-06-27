@@ -2740,7 +2740,10 @@ tr.selected td {
   white-space: nowrap;
   transition: background .15s, color .15s;
 }
-.graph-mode-btn:last-child { border-right: none; }
+.graph-mode-btn:last-child {
+  border-right: none;
+  flex: 1; /* заполняет остаток ряда, если блок расширился из-за нижнего ряда */
+}
 .graph-mode-btn:hover:not(.active) { background: var(--panel); color: var(--text); }
 .graph-mode-btn.active { background: var(--accent); color: #fff; }
 
@@ -2777,16 +2780,23 @@ tr.selected td {
 .graph-depth-btn:last-of-type { border-right: none; }
 .graph-depth-btn:hover:not(.active) { background: var(--panel); color: var(--text); }
 .graph-depth-btn.active { background: var(--accent); color: #fff; }
+/* Кнопка N и поле ввода — одинаковая ширина, чтобы не менять ширину блока */
+#depthBtnN { min-width: 48px; }
 /* Поле ввода N — занимает место кнопки N */
 .depth-n-input {
-  width: 40px;
-  padding: 4px 6px;
+  width: 48px;
+  box-sizing: border-box;
+  padding: 4px 4px;
   font-size: 12px;
   border: none;
   border-right: 1px solid var(--line);
   color: var(--text);
-  text-align: center;
   outline: none;
+}
+/* Стрелки спиннера всегда видны */
+.depth-n-input::-webkit-inner-spin-button,
+.depth-n-input::-webkit-outer-spin-button {
+  opacity: 1;
 }
 .depth-n-input.hidden { display: none; }
 
