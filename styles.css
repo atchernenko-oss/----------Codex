@@ -2330,13 +2330,22 @@ tr.selected td {
 .gn-rect:hover { opacity: .85; }
 
 /* Dimming при выделении ветки */
-.graph-node.dimmed .gn-rect    { opacity: 0.1; filter: none; }
-.graph-node.dimmed .gn-label   { opacity: 0.12; }
+.graph-node.dimmed .gn-rect     { opacity: 0.1; filter: none; }
+.graph-node.dimmed .gn-label    { opacity: 0.12; }
 .graph-node.dimmed .gn-sublabel { opacity: 0.12; }
-.gn-label, .gn-sublabel        { transition: opacity .2s; }
+
+/* Контекстный узел: конечная точка видимой influence-связи, не входящая в related */
+.gn-backdrop { fill: var(--bg); }
+
+.graph-node.gn-context .gn-rect     { opacity: 0.45; }
+.graph-node.gn-context .gn-label    { opacity: 0.5; }
+.graph-node.gn-context .gn-sublabel { opacity: 0.5; }
+
+.gn-label, .gn-sublabel             { transition: opacity .2s; }
 
 .graph-link { transition: opacity .2s; }
-.graph-link.link-dimmed { opacity: 0.08; }
+.graph-link.link-dimmed   { opacity: 0.08; }
+.graph-link.link-context  { opacity: 1; }
 
 .gn-label {
   fill: #fff;
@@ -2382,7 +2391,8 @@ tr.selected td {
   transition: opacity .2s, stroke-width .15s;
 }
 .influence-link:hover     { stroke-width: 3.5; }
-.influence-link.link-dimmed { opacity: 0.07; }
+.influence-link.link-dimmed  { opacity: 0.07; }
+.influence-link.link-context { opacity: 0.35; }
 
 /* Legend item for influence */
 .graph-legend-item--influence::before { background: #e05151; border-radius: 50%; }
@@ -2394,7 +2404,7 @@ tr.selected td {
 
 /* Режимы отображения связей */
 #graphContainer.mode-hierarchy .influence-link { display: none; }
-#graphContainer.mode-influence .graph-link     { display: none; }
+#graphContainer.mode-influence .graph-link:not(.link-context) { display: none; }
 
 /* Сегментированная группа кнопок */
 .graph-mode-group {

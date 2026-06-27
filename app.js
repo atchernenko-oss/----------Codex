@@ -3576,6 +3576,13 @@ function renderGraphView() {
     .on('click',    (ev, d) => { ev.stopPropagation(); _linkMode ? handleLinkClick(d.data) : highlightGraphNode(d.data.id); })
     .on('dblclick', (ev, d) => { ev.stopPropagation(); if (!_linkMode) openEntityModal(d.data); });
 
+  // Фоновый прямоугольник: перекрывает линии под узлом, чтобы цветной rect
+  // мог быть полупрозрачным без «просвечивания» связей
+  nodeG.append('rect')
+    .attr('class', 'gn-backdrop')
+    .attr('width', NODE_W).attr('height', NODE_H)
+    .attr('rx', 6).attr('ry', 6);
+
   // Rect
   nodeG.append('rect')
     .attr('class', d => `gn-rect gn-${d.data.type}`)
@@ -3762,18 +3769,112 @@ function highlightGraphNode(clickedId) {
       related.add(d.data.id);
   });
 
-  d3.selectAll('.graph-node')
-    .classed('dimmed',      d => !related.has(d.data.id))
-    .classed('gn-selected', d => d.data.id === clickedId);
-  d3.selectAll('.graph-link').classed('link-dimmed',
-    l => !related.has(l.source.data.id) || !related.has(l.target.data.id)
-  );
-  d3.selectAll('.influence-link').classed('link-dimmed',
-    l => !relatedKeys.has(`${l.sourceType}:${l.sourceId}`) &&
-         !relatedKeys.has(`${l.targetType}:${l.targetId}`)
-  );
+  // ── Контекстные узлы (режимы «влияние» и «все») ─────────────────
+  // В режиме «влияние» дополнительно ищем косвенные influence-связи:
+  // иерархические родственники related-узлов → их influence-цели → context.
+  const contextIds  = new Set();
+  const contextKeys = new Set();
+  if (mode !== 'hierarchy') {
+    // Расширенное множество «источников»: related + иерархические родственники (только влияние)
+    const sourceKeys = new Set(relatedKeys);
+    if (mode === 'influence') {
+      _graphRoot.each(d => {
+        if (d.data.type === 'root') return;
+        if (!relatedKeys.has(`${d.data.type}:${d.data.data.id}`)) return;
+        // предки
+        let cur = d.parent;
+        while (cur && cur.data.type !== 'root') {
+          sourceKeys.add(`${cur.data.type}:${cur.data.data.id}`);
+          cur = cur.parent;
+        }
+        // потомки
+        d.each(desc => {
+          if (desc.data.type !== 'root') sourceKeys.add(`${desc.data.type}:${desc.data.data.id}`);
+        });
+      });
+    }
 
-  zoomToRelated(related);
+    // Для каждой influence-связи: если один конец в sourceKeys, а другой не в relatedKeys —
+    // оба конца помечаем как контекст (показываем приглушённо)
+    state.links.forEach(l => {
+      const sk = `${l.sourceType}:${l.sourceId}`;
+      const tk = `${l.targetType}:${l.targetId}`;
+      const srcSrc = sourceKeys.has(sk);
+      const tgtSrc = sourceKeys.has(tk);
+      const srcRel = relatedKeys.has(sk);
+      const tgtRel = relatedKeys.has(tk);
+      if (srcSrc && !tgtRel) { contextKeys.add(sk); contextKeys.add(tk); }
+      if (tgtSrc && !srcRel) { contextKeys.add(sk); contextKeys.add(tk); }
+    });
+    // Убираем из contextKeys то, что уже в relatedKeys (не надо дублировать)
+    relatedKeys.forEach(k => contextKeys.delete(k));
+
+    _graphRoot.each(d => {
+      if (d.data.type !== 'root' && contextKeys.has(`${d.data.type}:${d.data.data.id}`))
+        contextIds.add(d.data.id);
+    });
+  }
+
+  // В режиме «влияние»: добавляем иерархические узлы на пути от context-узла
+  // до его ближайшего related-предка (чтобы иерархическая цепочка была видна)
+  if (mode === 'influence' && contextIds.size > 0) {
+    const toAdd = new Set();
+    contextIds.forEach(ctxId => {
+      let dNode = null;
+      _graphRoot.each(d => { if (d.data.id === ctxId) dNode = d; });
+      if (!dNode) return;
+      const path = [];
+      let cur = dNode.parent;
+      while (cur && cur.data.type !== 'root') {
+        if (related.has(cur.data.id)) { path.forEach(id => toAdd.add(id)); break; }
+        path.push(cur.data.id);
+        cur = cur.parent;
+      }
+    });
+    toAdd.forEach(id => {
+      contextIds.add(id);
+      _graphRoot.each(d => {
+        if (d.data.id === id) contextKeys.add(`${d.data.type}:${d.data.data.id}`);
+      });
+    });
+  }
+
+  d3.selectAll('.graph-node')
+    .classed('dimmed',      d => !related.has(d.data.id) && !contextIds.has(d.data.id))
+    .classed('gn-context',  d => !related.has(d.data.id) &&  contextIds.has(d.data.id))
+    .classed('gn-selected', d => d.data.id === clickedId);
+  d3.selectAll('.graph-link')
+    .classed('link-dimmed', l => {
+      const srcVis = related.has(l.source.data.id) || contextIds.has(l.source.data.id);
+      const tgtVis = related.has(l.target.data.id) || contextIds.has(l.target.data.id);
+      return !srcVis || !tgtVis;
+    })
+    .classed('link-context', l => {
+      const srcRel = related.has(l.source.data.id);
+      const tgtRel = related.has(l.target.data.id);
+      const srcCtx = contextIds.has(l.source.data.id);
+      const tgtCtx = contextIds.has(l.target.data.id);
+      return (srcRel || srcCtx) && (tgtRel || tgtCtx) && !(srcRel && tgtRel);
+    });
+  d3.selectAll('.influence-link')
+    .classed('link-dimmed', l => {
+      const sk = `${l.sourceType}:${l.sourceId}`;
+      const tk = `${l.targetType}:${l.targetId}`;
+      return !relatedKeys.has(sk) && !relatedKeys.has(tk) &&
+             !contextKeys.has(sk) && !contextKeys.has(tk);
+    })
+    .classed('link-context', l => {
+      if (mode === 'hierarchy') return false;
+      const sk = `${l.sourceType}:${l.sourceId}`;
+      const tk = `${l.targetType}:${l.targetId}`;
+      const srcVis = relatedKeys.has(sk) || contextKeys.has(sk);
+      const tgtVis = relatedKeys.has(tk) || contextKeys.has(tk);
+      return srcVis && tgtVis && !(relatedKeys.has(sk) && relatedKeys.has(tk));
+    });
+
+  // В зум включаем и контекстные узлы — линия должна быть видна целиком
+  const allVisible = new Set([...related, ...contextIds]);
+  zoomToRelated(allVisible);
 }
 
 function zoomToRelated(related) {
@@ -3808,9 +3909,9 @@ function zoomToRelated(related) {
 }
 
 function applyPassiveDim(mode) {
-  d3.selectAll('.graph-node').classed('gn-selected', false);
-  d3.selectAll('.graph-link').classed('link-dimmed', false);
-  d3.selectAll('.influence-link').classed('link-dimmed', false);
+  d3.selectAll('.graph-node').classed('gn-selected', false).classed('gn-context', false);
+  d3.selectAll('.graph-link').classed('link-dimmed', false).classed('link-context', false);
+  d3.selectAll('.influence-link').classed('link-dimmed', false).classed('link-context', false);
 
   if (mode === 'all') {
     d3.selectAll('.graph-node').classed('dimmed', false);
