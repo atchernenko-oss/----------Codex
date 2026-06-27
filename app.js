@@ -3966,12 +3966,44 @@ function renderGraphView() {
   _graphSvg  = svg;
   _selectedNodeId = null;
 
+  // Динамическая ширина коридоров: растём пропорционально числу линий влияния
+  let dynSepH = NODE_SEP_H, dynSepV = NODE_SEP_V;
+  {
+    const TYPE_COL = { epic: 0, feature: 1, req: 2, us: 3, tc: 4 };
+    const NCOLS = 5;
+    const vertCount = new Array(NCOLS - 1).fill(0);
+    const horzSide = new Map();
+    state.links.forEach(l => {
+      const sc = TYPE_COL[l.sourceType], tc = TYPE_COL[l.targetType];
+      if (sc == null || tc == null) return;
+      const gi = Math.min(sc, tc), gj = Math.max(sc, tc);
+      if (gi === gj) {
+        vertCount[Math.min(gi, NCOLS - 2)]++;
+      } else {
+        for (let i = gi; i < gj; i++) vertCount[i]++;
+      }
+      const srcS = sc < tc ? 'R' : sc > tc ? 'L' : (sc < NCOLS - 1 ? 'R' : 'L');
+      const tgtS = sc < tc ? 'L' : sc > tc ? 'R' : srcS;
+      const sk = `${l.sourceType}:${l.sourceId}:${srcS}`;
+      const tk = `${l.targetType}:${l.targetId}:${tgtS}`;
+      horzSide.set(sk, (horzSide.get(sk) || 0) + 1);
+      horzSide.set(tk, (horzSide.get(tk) || 0) + 1);
+    });
+    const maxV = vertCount.length ? Math.max(...vertCount) : 0;
+    const maxH = horzSide.size ? Math.max(...horzSide.values()) : 0;
+    // Вертикальный коридор: LANE=12px × N линий + 16px поля
+    dynSepH = Math.max(NODE_SEP_H, maxV * 12 + 16);
+    // Горизонтальный коридор: spread = (maxH-1)/2*7; если выходит за пределы узла — расширяем отступ
+    const hSpread = maxH <= 1 ? 0 : (maxH - 1) / 2 * 7;
+    dynSepV = Math.ceil(Math.max(NODE_SEP_V, 2 * hSpread - NODE_H + 8, 0));
+  }
+
   // D3 hierarchy + tree layout
   const root = d3.hierarchy(treeData);
   _graphRoot = root;
 
   const treeLayout = d3.tree()
-    .nodeSize([NODE_H + NODE_SEP_V, NODE_W + NODE_SEP_H]);
+    .nodeSize([NODE_H + dynSepV, NODE_W + dynSepH]);
 
   treeLayout(root);
 
@@ -4083,7 +4115,7 @@ function renderGraphView() {
   {
     const _cx = _routeAllCx;
     const LANE = 12;   // px между соседними путями (идеальный шаг)
-    const MAX_OFF = 26; // макс. отклонение от центра коридора (коридор ≈ 60px → ±30px)
+    const MAX_OFF = Math.floor(dynSepH / 2 - 4); // половина коридора минус поля
 
     // Для каждой связи — список индексов коридоров с вертикальными отрезками
     const linkVertCorrs = infLinks.map(l => {
@@ -4132,7 +4164,7 @@ function renderGraphView() {
   const _srcYOff = new Map(); // linkId → смещение y у источника
   const _tgtYOff = new Map(); // linkId → смещение y у цели
   {
-    const LANE = 7, MAX_OFF = NODE_H / 2 - 8; // 19px макс. (HH=27, отступ 8)
+    const LANE = 7, MAX_OFF = Math.floor((NODE_H + dynSepV) / 2 - 4); // растёт вместе с коридором
     const _cx = _routeAllCx;
     const byNodeSide = new Map(); // `${nodeKey}:${side}` → [{linkId, isSrc, sortKey}]
 
