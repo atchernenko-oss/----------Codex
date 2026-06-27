@@ -3796,22 +3796,18 @@ function _roundedPolyline(pts, r) {
 }
 
 // Строит SVG-путь связи влияния, огибающий узлы, не участвующие в связи.
-// Маршрут проходит через «коридоры» между колонками (NODE_SEP_H = 60px),
-// где нет узлов, и выбирает y-уровень, свободный от промежуточных узлов.
-// laneShift: смещение для разнесения параллельных путей.
-// Для одноколоночных — сдвигает x в коридоре; для межколоночных — сдвигает travelY.
-function _routeInfluencePath(l, s, t, nodePos, laneShift = 0) {
+// getCorrX(idx) → x-позиция коридора с учётом назначенной полосы.
+function _routeInfluencePath(l, s, t, nodePos, getCorrX) {
   const allCx = [...new Set([...nodePos.values()].map(p => p.cx))].sort((a, b) => a - b);
   const si = allCx.indexOf(s.cx), ti = allCx.indexOf(t.cx);
   const gapMid = i => (allCx[i] + allCx[i + 1]) / 2;
+  const gapX   = i => getCorrX ? getCorrX(i) : gapMid(i);
   const HW = NODE_W / 2, HH = NODE_H / 2, R = 8;
 
   if (si === ti) {
-    // Одна колонка: C-образный маршрут через соседний коридор (сдвигаем x в коридоре)
     const gi = si < allCx.length - 1 ? si : si - 1;
-    const gx = gapMid(gi) + laneShift;
-    const useRight = gapMid(gi) > s.cx;
-    const edgeX = useRight ? s.cx + HW : s.cx - HW;
+    const gx = gapX(gi);
+    const edgeX = gapMid(gi) > s.cx ? s.cx + HW : s.cx - HW;
     return _roundedPolyline([
       { x: edgeX, y: s.cy },
       { x: gx,    y: s.cy },
@@ -3822,48 +3818,48 @@ function _routeInfluencePath(l, s, t, nodePos, laneShift = 0) {
 
   const goRight = si < ti;
   const minI = goRight ? si : ti, maxI = goRight ? ti : si;
-  const gaps = [];
-  for (let i = minI; i < maxI; i++) gaps.push(gapMid(i));
-  if (!goRight) gaps.reverse();
+  // corrIs — индексы коридоров в порядке source→target
+  const corrIs = [];
+  for (let i = minI; i < maxI; i++) corrIs.push(i);
+  if (!goRight) corrIs.reverse();
 
-  const firstGap = gaps[0], lastGap = gaps[gaps.length - 1];
+  const firstGapX = gapX(corrIs[0]);
+  const lastGapX  = gapX(corrIs[corrIs.length - 1]);
+
   const srcKey = `${l.sourceType}:${l.sourceId}`;
   const tgtKey = `${l.targetType}:${l.targetId}`;
   const minCx = Math.min(s.cx, t.cx), maxCx = Math.max(s.cx, t.cx);
 
-  // Промежуточные узлы (не источник, не цель, между двумя крайними колонками)
   const intNodes = [...nodePos.entries()]
     .filter(([k, p]) => k !== srcKey && k !== tgtKey && p.cx > minCx && p.cx < maxCx)
     .map(([, p]) => p);
   const blocked = intNodes.map(p => [p.cy - HH, p.cy + HH]);
-  // laneShift сдвигает предпочтительный y, чтобы параллельные связи не накладывались
-  const travelY = _findClearY((s.cy + t.cy) / 2 + laneShift, blocked);
+  const travelY = _findClearY((s.cy + t.cy) / 2, blocked);
 
-  // Выходим из узла с нужного края, чтобы не рисовать линию через центр узла
   const sEdge = { x: goRight ? s.cx + HW : s.cx - HW, y: s.cy };
   const tEdge = { x: goRight ? t.cx - HW : t.cx + HW, y: t.cy };
 
-  const raw = [sEdge];
-  raw.push({ x: firstGap, y: s.cy });
-  // travelY нужен только если есть промежуточные колонки (иначе коридор один и s.cy→t.cy — прямая)
-  if (gaps.length > 1) {
-    if (Math.abs(travelY - s.cy) > 2) raw.push({ x: firstGap, y: travelY });
-    raw.push({ x: lastGap, y: travelY });
+  const raw = [sEdge, { x: firstGapX, y: s.cy }];
+  if (corrIs.length > 1) {
+    if (Math.abs(travelY - s.cy) > 2) raw.push({ x: firstGapX, y: travelY });
+    // Промежуточные коридоры (только горизонталь на travelY) — используем midpoint,
+    // вертикальных отрезков там нет, полосы не нужны
+    for (let k = 1; k < corrIs.length - 1; k++) raw.push({ x: gapMid(corrIs[k]), y: travelY });
+    raw.push({ x: lastGapX, y: travelY });
   }
-  if (Math.abs(t.cy - (gaps.length > 1 ? travelY : s.cy)) > 2) raw.push({ x: lastGap, y: t.cy });
+  if (Math.abs(t.cy - (corrIs.length > 1 ? travelY : s.cy)) > 2) raw.push({ x: lastGapX, y: t.cy });
   raw.push(tEdge);
 
-  // Удаляем дубли и коллинеарные промежуточные точки
+  // Удаляем дубли и коллинеарные точки
   const pts = [raw[0]];
   for (let i = 1; i < raw.length; i++) {
     const prev = pts[pts.length - 1];
     if (Math.abs(raw[i].x - prev.x) < 0.5 && Math.abs(raw[i].y - prev.y) < 0.5) continue;
-    // Убираем коллинеарность: если предыдущие два и текущая — одна прямая, заменяем последнюю
     if (pts.length >= 2) {
       const p0 = pts[pts.length - 2], p1 = pts[pts.length - 1], p2 = raw[i];
-      const sameX = Math.abs(p0.x - p1.x) < 0.5 && Math.abs(p1.x - p2.x) < 0.5;
-      const sameY = Math.abs(p0.y - p1.y) < 0.5 && Math.abs(p1.y - p2.y) < 0.5;
-      if (sameX || sameY) { pts[pts.length - 1] = p2; continue; }
+      if ((Math.abs(p0.x - p1.x) < 0.5 && Math.abs(p1.x - p2.x) < 0.5) ||
+          (Math.abs(p0.y - p1.y) < 0.5 && Math.abs(p1.y - p2.y) < 0.5))
+        { pts[pts.length - 1] = p2; continue; }
     }
     pts.push(raw[i]);
   }
@@ -4033,42 +4029,69 @@ function renderGraphView() {
         { maxLines: 2, initFontSize: 10, minFontSize: 8, fontWeight: 'normal', lineH: 13 });
     });
 
-  // Вычисляем смещения (laneShift) для разнесения параллельных путей.
-  // Одноколоночные группируются по индексу коридора, межколоночные — по паре колонок.
-  const _infLaneShift = new Map();
+  // Назначаем x-полосы для вертикальных отрезков в каждом коридоре отдельно.
+  // Группировка per-corridor гарантирует, что любые два пути,
+  // делящие один коридор вертикально, получают разные x и никогда не накладываются.
+  const _infCorrOffsets = new Map(); // linkId → Map<corridorIdx, xOffset>
+  const _routeAllCx = [...new Set([...nodePos.values()].map(p => p.cx))].sort((a, b) => a - b);
   {
-    const _cx = [...new Set([...nodePos.values()].map(p => p.cx))].sort((a, b) => a - b);
-    const _gm = i => (_cx[i] + _cx[i + 1]) / 2;
-    const LANE = 14; // px между соседними путями в одном коридоре
-    const buckets = new Map();
-    infLinks.forEach(l => {
+    const _cx = _routeAllCx;
+    const LANE = 8;    // px между соседними путями
+    const MAX_OFF = 22; // макс. отклонение от центра коридора (коридор ≈ 60px → ±30px)
+
+    // Для каждой связи — список индексов коридоров с вертикальными отрезками
+    const linkVertCorrs = infLinks.map(l => {
       const s = nodePos.get(`${l.sourceType}:${l.sourceId}`);
       const t = nodePos.get(`${l.targetType}:${l.targetId}`);
       const si = _cx.indexOf(s.cx), ti = _cx.indexOf(t.cx);
-      const key = si === ti
-        ? `s${si < _cx.length - 1 ? si : si - 1}`            // по индексу коридора
-        : `c${Math.min(si, ti)}-${Math.max(si, ti)}`;          // по паре колонок
-      if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key).push({ l, sortKey: s.cy });
+      if (si === ti) {
+        const gi = si < _cx.length - 1 ? si : si - 1;
+        return { l, vertCorrs: [gi], sortKey: Math.min(s.cy, t.cy) };
+      }
+      const goRight = si < ti;
+      const minI = goRight ? si : ti, maxI = goRight ? ti : si;
+      const corrIs = [];
+      for (let i = minI; i < maxI; i++) corrIs.push(i);
+      if (!goRight) corrIs.reverse();
+      // Только первый и последний коридор имеют вертикальные отрезки;
+      // промежуточные коридоры — лишь горизонтальный пролёт на travelY
+      const vertCorrs = corrIs.length === 1
+        ? [corrIs[0]]
+        : [corrIs[0], corrIs[corrIs.length - 1]];
+      return { l, vertCorrs, sortKey: s.cy };
     });
-    buckets.forEach(items => {
-      if (items.length <= 1) return;
+
+    // Группируем по коридору и назначаем смещения
+    const byCorr = new Map();
+    linkVertCorrs.forEach(info => {
+      info.vertCorrs.forEach(ci => {
+        if (!byCorr.has(ci)) byCorr.set(ci, []);
+        byCorr.get(ci).push({ l: info.l, sortKey: info.sortKey });
+      });
+    });
+    byCorr.forEach((items, ci) => {
       items.sort((a, b) => a.sortKey - b.sortKey);
-      items.forEach(({ l }, rank) =>
-        _infLaneShift.set(l.id, (rank - (items.length - 1) / 2) * LANE)
-      );
+      items.forEach(({ l }, rank) => {
+        if (!_infCorrOffsets.has(l.id)) _infCorrOffsets.set(l.id, new Map());
+        const off = Math.max(-MAX_OFF, Math.min(MAX_OFF,
+          (rank - (items.length - 1) / 2) * LANE));
+        _infCorrOffsets.get(l.id).set(ci, off);
+      });
     });
   }
 
   // Influence links — рисуем ПОСЛЕ узлов (поверх них).
-  // Маршрут огибает узлы, не участвующие в связи, через коридоры между колонками.
   g.selectAll('.influence-link')
     .data(infLinks, l => l.id).join('path')
     .attr('class', 'influence-link')
     .attr('d', l => {
       const s = nodePos.get(`${l.sourceType}:${l.sourceId}`);
       const t = nodePos.get(`${l.targetType}:${l.targetId}`);
-      return _routeInfluencePath(l, s, t, nodePos, _infLaneShift.get(l.id) || 0);
+      const corrMap = _infCorrOffsets.get(l.id);
+      const getCorrX = corrMap
+        ? i => (_routeAllCx[i] + _routeAllCx[i + 1]) / 2 + (corrMap.get(i) || 0)
+        : null;
+      return _routeInfluencePath(l, s, t, nodePos, getCorrX);
     })
     .on('click', (ev, l) => {
       ev.stopPropagation();
