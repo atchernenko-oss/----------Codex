@@ -1890,6 +1890,7 @@ function renderInfluenceSection(sectionId, entityType, entityId) {
   addBtn.addEventListener('click', () => {
     form.classList.remove('hidden');
     addBtn.classList.add('hidden');
+    requestAnimationFrame(() => form.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
   });
 
   sec.querySelector('.inf-form-cancel').addEventListener('click', () => {
@@ -3798,22 +3799,24 @@ function _roundedPolyline(pts, r) {
 
 // Строит SVG-путь связи влияния, огибающий узлы, не участвующие в связи.
 // getCorrX(idx) → x-позиция коридора с учётом назначенной полосы.
-function _routeInfluencePath(l, s, t, nodePos, getCorrX) {
+// srcYOff/tgtYOff — вертикальные смещения точки выхода/входа от центра узла.
+function _routeInfluencePath(l, s, t, nodePos, getCorrX, srcYOff = 0, tgtYOff = 0) {
   const allCx = [...new Set([...nodePos.values()].map(p => p.cx))].sort((a, b) => a - b);
   const si = allCx.indexOf(s.cx), ti = allCx.indexOf(t.cx);
   const gapMid = i => (allCx[i] + allCx[i + 1]) / 2;
   const gapX   = i => getCorrX ? getCorrX(i) : gapMid(i);
   const HW = NODE_W / 2, HH = NODE_H / 2, R = 8;
+  const sY = s.cy + srcYOff, tY = t.cy + tgtYOff;
 
   if (si === ti) {
     const gi = si < allCx.length - 1 ? si : si - 1;
     const gx = gapX(gi);
     const edgeX = gapMid(gi) > s.cx ? s.cx + HW : s.cx - HW;
     return _roundedPolyline([
-      { x: edgeX, y: s.cy },
-      { x: gx,    y: s.cy },
-      { x: gx,    y: t.cy },
-      { x: edgeX, y: t.cy },
+      { x: edgeX, y: sY },
+      { x: gx,    y: sY },
+      { x: gx,    y: tY },
+      { x: edgeX, y: tY },
     ], R);
   }
 
@@ -3837,18 +3840,18 @@ function _routeInfluencePath(l, s, t, nodePos, getCorrX) {
   const blocked = intNodes.map(p => [p.cy - HH, p.cy + HH]);
   const travelY = _findClearY((s.cy + t.cy) / 2, blocked);
 
-  const sEdge = { x: goRight ? s.cx + HW : s.cx - HW, y: s.cy };
-  const tEdge = { x: goRight ? t.cx - HW : t.cx + HW, y: t.cy };
+  const sEdge = { x: goRight ? s.cx + HW : s.cx - HW, y: sY };
+  const tEdge = { x: goRight ? t.cx - HW : t.cx + HW, y: tY };
 
-  const raw = [sEdge, { x: firstGapX, y: s.cy }];
+  const raw = [sEdge, { x: firstGapX, y: sY }];
   if (corrIs.length > 1) {
-    if (Math.abs(travelY - s.cy) > 2) raw.push({ x: firstGapX, y: travelY });
+    if (Math.abs(travelY - sY) > 2) raw.push({ x: firstGapX, y: travelY });
     // Промежуточные коридоры (только горизонталь на travelY) — используем midpoint,
     // вертикальных отрезков там нет, полосы не нужны
     for (let k = 1; k < corrIs.length - 1; k++) raw.push({ x: gapMid(corrIs[k]), y: travelY });
     raw.push({ x: lastGapX, y: travelY });
   }
-  if (Math.abs(t.cy - (corrIs.length > 1 ? travelY : s.cy)) > 2) raw.push({ x: lastGapX, y: t.cy });
+  if (Math.abs(tY - (corrIs.length > 1 ? travelY : sY)) > 2) raw.push({ x: lastGapX, y: tY });
   raw.push(tEdge);
 
   // Удаляем дубли и коллинеарные точки
@@ -4081,6 +4084,52 @@ function renderGraphView() {
     });
   }
 
+  // Y-смещения точек выхода/входа у рёбер узлов — разводим горизонтальные отрезки.
+  const _srcYOff = new Map(); // linkId → смещение y у источника
+  const _tgtYOff = new Map(); // linkId → смещение y у цели
+  {
+    const LANE = 7, MAX_OFF = NODE_H / 2 - 8; // 19px макс. (HH=27, отступ 8)
+    const _cx = _routeAllCx;
+    const byNodeSide = new Map(); // `${nodeKey}:${side}` → [{linkId, isSrc, sortKey}]
+
+    infLinks.forEach(l => {
+      const s = nodePos.get(`${l.sourceType}:${l.sourceId}`);
+      const t = nodePos.get(`${l.targetType}:${l.targetId}`);
+      const si = _cx.indexOf(s.cx), ti = _cx.indexOf(t.cx);
+      const srcKey = `${l.sourceType}:${l.sourceId}`;
+      const tgtKey = `${l.targetType}:${l.targetId}`;
+
+      let srcSide, tgtSide;
+      if (si === ti) {
+        const gi = si < _cx.length - 1 ? si : si - 1;
+        const side = (_cx[gi] + _cx[gi + 1]) / 2 > s.cx ? 'R' : 'L';
+        srcSide = tgtSide = side;
+      } else if (si < ti) {
+        srcSide = 'R'; tgtSide = 'L';
+      } else {
+        srcSide = 'L'; tgtSide = 'R';
+      }
+
+      const sKey = `${srcKey}:${srcSide}`;
+      const tKey = `${tgtKey}:${tgtSide}`;
+      if (!byNodeSide.has(sKey)) byNodeSide.set(sKey, []);
+      byNodeSide.get(sKey).push({ linkId: l.id, isSrc: true,  sortKey: t.cy });
+      if (!byNodeSide.has(tKey)) byNodeSide.set(tKey, []);
+      byNodeSide.get(tKey).push({ linkId: l.id, isSrc: false, sortKey: s.cy });
+    });
+
+    byNodeSide.forEach(items => {
+      items.sort((a, b) => a.sortKey - b.sortKey);
+      const n = items.length;
+      items.forEach(({ linkId, isSrc }, rank) => {
+        const off = n === 1 ? 0 : Math.max(-MAX_OFF, Math.min(MAX_OFF,
+          (rank - (n - 1) / 2) * LANE));
+        if (isSrc) _srcYOff.set(linkId, off);
+        else        _tgtYOff.set(linkId, off);
+      });
+    });
+  }
+
   // Influence links — рисуем ПОСЛЕ узлов (поверх них).
   g.selectAll('.influence-link')
     .data(infLinks, l => l.id).join('path')
@@ -4092,7 +4141,8 @@ function renderGraphView() {
       const getCorrX = corrMap
         ? i => (_routeAllCx[i] + _routeAllCx[i + 1]) / 2 + (corrMap.get(i) || 0)
         : null;
-      return _routeInfluencePath(l, s, t, nodePos, getCorrX);
+      return _routeInfluencePath(l, s, t, nodePos, getCorrX,
+        _srcYOff.get(l.id) || 0, _tgtYOff.get(l.id) || 0);
     })
     .on('click', (ev, l) => {
       ev.stopPropagation();
