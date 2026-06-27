@@ -915,7 +915,13 @@ function openRequirementModal(req) {
   elements.reqText.classList.remove("input-error");
   elements.requirementModal.classList.remove("hidden");
   elements.reqText.focus();
-  if (!isNew) updateReqUSCount();
+  if (!isNew) {
+    updateReqUSCount();
+    renderInfluenceSection('reqInfluenceSection', 'req', req.id);
+  } else {
+    const sec = document.getElementById('reqInfluenceSection');
+    if (sec) sec.innerHTML = '';
+  }
 }
 
 function closeRequirementModal() {
@@ -1006,6 +1012,7 @@ function openFeatureEditModal(featureObj) {
   elements.featureDescription.value = featureObj.description;
   elements.featureName.classList.remove("input-error");
   elements.featureModal.classList.remove("hidden");
+  renderInfluenceSection('featureInfluenceSection', 'feature', featureObj.id);
   requestAnimationFrame(() => elements.featureNumber.focus());
 }
 
@@ -1463,6 +1470,7 @@ function openEpicEditModal(epicObj) {
   document.querySelector("#epicDescription").value = epicObj.description;
   document.querySelector("#epicName").classList.remove("input-error");
   document.querySelector("#epicModal").classList.remove("hidden");
+  renderInfluenceSection('epicInfluenceSection', 'epic', epicObj.id);
   requestAnimationFrame(() => document.querySelector("#epicNumber").focus());
 }
 
@@ -1612,6 +1620,196 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+// ── Influence section in entity modals ────────────────────────────────────────
+
+function entityLabel(type, id) {
+  const map = { epic: state.epics, feature: state.features, req: state.requirements, us: state.userStories, tc: state.testCases };
+  const e = (map[type] || []).find(x => x.id === id);
+  if (!e) return id;
+  if (type === 'epic')    return [e.number, e.name].filter(Boolean).join(' ');
+  if (type === 'feature') return [e.number, e.name].filter(Boolean).join(' ');
+  if (type === 'req')     return [e.code, (e.text || '').slice(0, 50)].filter(Boolean).join(' ');
+  if (type === 'us')      return [e.number ? `US-${e.number}` : '', e.title].filter(Boolean).join(' ');
+  if (type === 'tc')      return e.title || id;
+  return id;
+}
+
+function buildInfluenceListHtml(entityType, entityId) {
+  const out = state.links.filter(l => l.sourceType === entityType && l.sourceId === entityId);
+  const inc = state.links.filter(l => l.targetType === entityType && l.targetId === entityId);
+  if (!out.length && !inc.length) return '<li class="inf-empty">Связей нет</li>';
+
+  const row = (l, typeLabel, name) => `
+    <li class="inf-item">
+      <span class="inf-type">${typeLabel}</span>
+      <span class="inf-target">${escapeHtml(name)}</span>
+      ${l.description ? `<span class="inf-desc">${escapeHtml(l.description)}</span>` : ''}
+      <button type="button" class="inf-delete" data-link-id="${l.id}" title="Удалить">✕</button>
+    </li>`;
+
+  return [
+    ...out.map(l => row(l,
+      l.linkType === 'depends_on' ? 'Зависит от' : 'Влияет на',
+      entityLabel(l.targetType, l.targetId))),
+    ...inc.map(l => row(l,
+      l.linkType === 'depends_on' ? 'Нужен для' : 'Влияет ↑',
+      entityLabel(l.sourceType, l.sourceId))),
+  ].join('');
+}
+
+function renderInfluenceSection(sectionId, entityType, entityId) {
+  const sec = document.getElementById(sectionId);
+  if (!sec) return;
+
+  const groups = [
+    { type: 'epic',    label: 'Epic',         items: state.epics },
+    { type: 'feature', label: 'Feature',       items: state.features },
+    { type: 'req',     label: 'Требование',    items: state.requirements },
+    { type: 'us',      label: 'User Story',    items: state.userStories },
+    { type: 'tc',      label: 'Test Case',     items: state.testCases },
+  ];
+
+  const opts = groups.map(g => {
+    const filtered = g.items.filter(x => !(g.type === entityType && x.id === entityId));
+    if (!filtered.length) return '';
+    return `<optgroup label="${g.label}">${
+      filtered.map(x => `<option value="${g.type}:${escapeHtml(x.id)}">${escapeHtml(entityLabel(g.type, x.id))}</option>`).join('')
+    }</optgroup>`;
+  }).join('');
+
+  const msItemsHtml = groups.map(g => {
+    const filtered = g.items.filter(x => !(g.type === entityType && x.id === entityId));
+    if (!filtered.length) return '';
+    return `<div class="inf-ms-group">
+      <div class="inf-ms-group-label">${g.label}</div>
+      ${filtered.map(x => `<label class="inf-ms-item">
+        <input type="checkbox" value="${g.type}:${escapeHtml(x.id)}">
+        <span>${escapeHtml(entityLabel(g.type, x.id))}</span>
+      </label>`).join('')}
+    </div>`;
+  }).join('');
+
+  sec.innerHTML = `
+    <div class="inf-header">
+      <span class="field-label">Влияние</span>
+      <button type="button" class="button ghost inf-add-btn">+ Добавить связь</button>
+    </div>
+    <ul class="inf-list">${buildInfluenceListHtml(entityType, entityId)}</ul>
+    <div class="inf-form hidden">
+      <div class="inf-form-fields">
+        <label class="inf-field">
+          <span class="field-label">Тип связи</span>
+          <select class="inf-link-type">
+            <option value="influences">Влияет на</option>
+            <option value="depends_on">Зависит от</option>
+          </select>
+        </label>
+        <div class="inf-field">
+          <span class="field-label">Объект</span>
+          <div class="inf-ms" tabindex="0">
+            <div class="inf-ms-display">
+              <span class="inf-ms-placeholder">Выберите объекты...</span>
+            </div>
+            <div class="inf-ms-dropdown hidden">${msItemsHtml}</div>
+          </div>
+        </div>
+      </div>
+      <label class="inf-field">
+        <span class="field-label">Описание</span>
+        <textarea class="inf-link-desc" placeholder="Описание взаимосвязи..."></textarea>
+      </label>
+      <div class="inf-form-actions">
+        <button type="button" class="button ghost inf-form-cancel">Отмена</button>
+        <button type="button" class="button primary inf-form-save">Добавить</button>
+      </div>
+    </div>`;
+
+  const list   = sec.querySelector('.inf-list');
+  const form   = sec.querySelector('.inf-form');
+  const addBtn = sec.querySelector('.inf-add-btn');
+  const ms     = sec.querySelector('.inf-ms');
+  const msDrop = sec.querySelector('.inf-ms-dropdown');
+  const msDisp = sec.querySelector('.inf-ms-display');
+
+  function updateMsDisplay() {
+    const checked = [...msDrop.querySelectorAll('input[type=checkbox]:checked')];
+    if (!checked.length) {
+      msDisp.innerHTML = '<span class="inf-ms-placeholder">Выберите объекты...</span>';
+    } else {
+      msDisp.innerHTML = checked.map(cb =>
+        `<span class="inf-ms-tag">${escapeHtml(cb.nextElementSibling.textContent.trim())}</span>`
+      ).join('');
+    }
+  }
+
+  ms.addEventListener('click', ev => {
+    if (ev.target.closest('input[type=checkbox]')) return;
+    msDrop.classList.toggle('hidden');
+    if (!msDrop.classList.contains('hidden')) ms.focus();
+  });
+
+  msDrop.addEventListener('change', updateMsDisplay);
+
+  ms.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape') msDrop.classList.add('hidden');
+  });
+
+  document.addEventListener('mousedown', function closeOnOut(ev) {
+    if (!ms.contains(ev.target)) {
+      msDrop.classList.add('hidden');
+      if (!sec.isConnected) document.removeEventListener('mousedown', closeOnOut);
+    }
+  });
+
+  addBtn.addEventListener('click', () => {
+    form.classList.remove('hidden');
+    addBtn.classList.add('hidden');
+  });
+
+  sec.querySelector('.inf-form-cancel').addEventListener('click', () => {
+    form.classList.add('hidden');
+    addBtn.classList.remove('hidden');
+  });
+
+  sec.querySelector('.inf-form-save').addEventListener('click', () => {
+    const checked = [...msDrop.querySelectorAll('input[type=checkbox]:checked')];
+    if (!checked.length) return;
+    const linkType   = sec.querySelector('.inf-link-type').value;
+    const description = sec.querySelector('.inf-link-desc').value.trim();
+    checked.forEach(cb => {
+      const [targetType, targetId] = cb.value.split(':');
+      state.links.push({
+        id:          Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        sourceType:  entityType,
+        sourceId:    entityId,
+        targetType,
+        targetId,
+        linkType,
+        description,
+      });
+    });
+    saveLinks(state.links);
+    list.innerHTML = buildInfluenceListHtml(entityType, entityId);
+    form.classList.add('hidden');
+    addBtn.classList.remove('hidden');
+    sec.querySelector('.inf-link-type').value = 'influences';
+    sec.querySelector('.inf-link-desc').value = '';
+    msDrop.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+    updateMsDisplay();
+  });
+
+  list.addEventListener('click', ev => {
+    const btn = ev.target.closest('.inf-delete');
+    if (!btn) return;
+    const lid = btn.dataset.linkId;
+    if (confirm('Удалить эту связь?')) {
+      state.links = state.links.filter(l => l.id !== lid);
+      saveLinks(state.links);
+      list.innerHTML = buildInfluenceListHtml(entityType, entityId);
+    }
+  });
+}
+
 function loadUserStories() {
   try { return JSON.parse(localStorage.getItem(US_KEY)) || []; } catch { return []; }
 }
@@ -1729,6 +1927,8 @@ function openUSEditModal(us) {
   updateUSCombined();
   document.querySelector("#usTitle").classList.remove("input-error");
   document.querySelector("#usEditModal").classList.remove("hidden");
+  if (us) renderInfluenceSection('usInfluenceSection', 'us', us.id);
+  else { const s = document.getElementById('usInfluenceSection'); if (s) s.innerHTML = ''; }
   requestAnimationFrame(() => document.querySelector("#usTitle").focus());
 }
 
@@ -2022,6 +2222,7 @@ function openTCEditModal(tc) {
   for (const step of (tc.steps || [])) addTCStepRow(step);
   document.querySelector("#tcModalTitle").textContent = "Edit Test Case";
   document.querySelector("#tcModal").classList.remove("hidden");
+  renderInfluenceSection('tcInfluenceSection', 'tc', tc.id);
   document.querySelector("#tcTitle").focus();
 }
 
@@ -3669,6 +3870,8 @@ function handleLinkClick(nodeData) {
       sourceId:   _linkSource.data.id,
       targetType: nodeData.type,
       targetId:   nodeData.data.id,
+      linkType:   'influences',
+      description: '',
     };
     state.links.push(link);
     saveLinks(state.links);
