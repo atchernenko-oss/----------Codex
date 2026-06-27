@@ -28,7 +28,13 @@
               Реестр требований
             </button>
             <div class="nav-section-body" id="navBodyRequirements">
-              <span class="nav-sub-label">Hierarchy</span>
+              <div class="st-level-btns">
+                <button class="st-badge st-badge--epic" data-expand-level="epic"    title="Свернуть/развернуть Epics"         type="button">E</button>
+                <button class="st-badge st-badge--feat" data-expand-level="feature" title="Свернуть/развернуть Features"       type="button">F</button>
+                <button class="st-badge st-badge--req"  data-expand-level="req"     title="Свернуть/развернуть Requirements"   type="button">REQ</button>
+                <button class="st-badge st-badge--us"   data-expand-level="us"      title="Свернуть/развернуть User Stories"   type="button">US</button>
+                <button class="st-badge st-badge--tc"   data-expand-level="tc"      title="Свернуть/развернуть Test Cases"     type="button">TC</button>
+              </div>
               <div id="sidebarTree" class="sidebar-tree"></div>
             </div>
           </div>

@@ -3163,6 +3163,11 @@ function sidebarOpenCard(action, btn) {
 }
 
 function sidebarSelectItem(btn) {
+  if (_stSelectedBtn === btn) {
+    btn.classList.remove('st-item--selected');
+    _stSelectedBtn = null;
+    return;
+  }
   if (_stSelectedBtn) _stSelectedBtn.classList.remove('st-item--selected');
   _stSelectedBtn = btn;
   btn.classList.add('st-item--selected');
@@ -3201,6 +3206,56 @@ function handleSidebarTreeClick(e) {
 }
 
 document.querySelector('#sidebarTree').addEventListener('click', handleSidebarTreeClick);
+
+function setKidsState(el, open) {
+  if (open) {
+    el.classList.remove('hidden');
+    sidebarExpanded.add(el.id);
+  } else {
+    el.classList.add('hidden');
+    sidebarExpanded.delete(el.id);
+  }
+  const tog = document.querySelector(`.st-tog[data-toggle="${el.id}"]`);
+  if (tog) tog.textContent = open ? '▾' : '▸';
+}
+
+function handleLevelBtnClick(level) {
+  // Кнопка "F" = развернуть дерево до уровня Features:
+  //   • ste-узлы (дети Epics) → EXPAND (чтобы фичи стали видны)
+  //   • stf-узлы (дети Features) → COLLAPSE (реквайерменты скрыты)
+  //   • str/stu-узлы → COLLAPSE
+  // Общее правило: для prefix[i] открыть если levelIdx > i
+
+  const levelOrder = ['epic', 'feature', 'req', 'us', 'tc'];
+  const levelIdx = levelOrder.indexOf(level);
+  if (levelIdx === -1) return;
+
+  // prefixes[i] — st-kids которые показывают уровень i+1
+  const prefixes = ['ste', 'stf', 'str', 'stu'];
+
+  const tree = document.querySelector('#sidebarTree');
+  if (!tree) return;
+
+  let scope = tree;
+  if (_stSelectedBtn) {
+    const stRow = _stSelectedBtn.closest('.st-row');
+    const nextEl = stRow?.nextElementSibling;
+    if (nextEl?.classList.contains('st-kids')) scope = nextEl;
+  }
+
+  prefixes.forEach((prefix, i) => {
+    const shouldOpen = levelIdx > i;
+    const candidates = Array.from(scope.querySelectorAll(`.st-kids[id^="${prefix}"]`));
+    // Если scope сам является st-kids нужного уровня — включаем его тоже
+    if (scope !== tree && scope.id && scope.id.startsWith(prefix)) candidates.unshift(scope);
+    candidates.forEach(el => setKidsState(el, shouldOpen));
+  });
+}
+
+document.querySelector('.st-level-btns').addEventListener('click', e => {
+  const btn = e.target.closest('[data-expand-level]');
+  if (btn) handleLevelBtnClick(btn.dataset.expandLevel);
+});
 
 // ── Sidebar resize ────────────────────────────────────────────────────────
 (function initSidebarResize() {

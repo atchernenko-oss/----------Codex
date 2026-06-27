@@ -180,6 +180,23 @@ select {
   line-height: 1.5;
 }
 
+.st-level-btns {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px 4px;
+  flex-wrap: wrap;
+}
+.st-level-btns .st-badge {
+  cursor: pointer;
+  border: none;
+  opacity: 0.75;
+  transition: opacity .15s, transform .1s;
+}
+.st-level-btns .st-badge:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
 .st-item--selected {
   background: rgba(122, 174, 222, 0.22);
   color: #fff;
