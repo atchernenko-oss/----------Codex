@@ -4208,20 +4208,98 @@ function handleLinkClick(nodeData) {
       d3.selectAll('.graph-node').classed('link-source', false);
       return;
     }
+    const src = _linkSource, tgt = nodeData;
+    exitLinkMode();
+    openGraphLinkModal(src, tgt);
+  }
+}
+
+function openGraphLinkModal(srcNode, tgtNode) {
+  document.getElementById('graphLinkModal')?.remove();
+
+  const typeLabels = { epic: 'Epic', feature: 'Feature', req: 'Req', us: 'US', tc: 'TC' };
+
+  const entityChip = (type, id) =>
+    `<div class="glm-entity-chip">
+      <span class="inf-ms-badge inf-ms-badge--${type}">${typeLabels[type]}</span>
+      <span class="glm-entity-name">${escapeHtml(entityLabel(type, id))}</span>
+    </div>`;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'graphLinkModal';
+  overlay.className = 'modal-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Добавить связь</h3>
+        <button class="modal-close" type="button" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="glm-body">
+          <div class="inf-field">
+            <span class="field-label">От</span>
+            ${entityChip(srcNode.type, srcNode.data.id)}
+          </div>
+          <div class="inf-field">
+            <span class="field-label">Тип связи</span>
+            <select class="inf-link-type" id="glmLinkType">
+              <option value="influences">Влияет на</option>
+              <option value="depends_on">Зависит от</option>
+            </select>
+          </div>
+          <div class="inf-field">
+            <span class="field-label">На</span>
+            ${entityChip(tgtNode.type, tgtNode.data.id)}
+          </div>
+          <label class="inf-field">
+            <span class="field-label">Описание</span>
+            <textarea class="inf-link-desc" id="glmDescription" placeholder="Описание взаимосвязи..." rows="3"></textarea>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="button ghost" id="glmCancel" type="button">Отмена</button>
+        <button class="button primary" id="glmSave" type="button">Добавить</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  enableModalKeyboard(overlay);
+
+  const close = () => overlay.remove();
+
+  overlay.querySelector('.modal-close').addEventListener('click', close);
+  overlay.querySelector('#glmCancel').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  overlay.addEventListener('keydown', e => {
+    if (e.key === 'Escape') close();
+    if (e.key === 'Enter' && document.activeElement !== overlay.querySelector('#glmDescription')) {
+      e.preventDefault();
+      overlay.querySelector('#glmSave').click();
+    }
+  });
+
+  overlay.querySelector('#glmSave').addEventListener('click', () => {
+    const linkType   = overlay.querySelector('#glmLinkType').value;
+    const description = overlay.querySelector('#glmDescription').value.trim();
     const link = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-      sourceType: _linkSource.type,
-      sourceId:   _linkSource.data.id,
-      targetType: nodeData.type,
-      targetId:   nodeData.data.id,
-      linkType:   'influences',
-      description: '',
+      id:          Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      sourceType:  srcNode.type,
+      sourceId:    srcNode.data.id,
+      targetType:  tgtNode.type,
+      targetId:    tgtNode.data.id,
+      linkType,
+      description,
     };
     state.links.push(link);
     saveLinks(state.links);
-    exitLinkMode();
+    close();
     renderGraphView();
-  }
+  });
+
+  requestAnimationFrame(() => overlay.querySelector('#glmLinkType').focus());
 }
 
 function openEntityModal(nodeData) {

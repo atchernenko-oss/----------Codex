@@ -1813,6 +1813,30 @@ tr.selected td {
   gap: 8px;
 }
 
+/* Модалка создания связи на графе */
+.glm-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.glm-entity-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+.glm-entity-name {
+  font-size: 13px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .us-req-row {
   display: flex;
   align-items: center;
