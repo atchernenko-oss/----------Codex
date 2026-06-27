@@ -877,10 +877,17 @@ tr.selected td {
   max-height: 90vh;
 }
 
+.modal--resizable .modal-header,
+.modal--resizable .modal-footer {
+  flex-shrink: 0;
+}
+
 .modal--resizable .modal-body {
   flex: 1 1 auto;
+  overflow-x: hidden;
   overflow-y: auto;
   min-height: 0;
+  min-width: 0;
 }
 
 .modal--resizable .modal-body--scroll {
@@ -1818,6 +1825,8 @@ tr.selected td {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
+  overflow: hidden;
 }
 .glm-entity-chip {
   display: flex;
@@ -1828,13 +1837,13 @@ tr.selected td {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--panel);
+  min-width: 0;
 }
 .glm-entity-name {
   font-size: 13px;
   color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  word-break: break-word;
 }
 .glm-description {
   font-size: 13px;
@@ -1845,7 +1854,9 @@ tr.selected td {
   border-radius: 6px;
   background: var(--panel);
   white-space: pre-wrap;
+  word-break: break-word;
   min-height: 36px;
+  min-width: 0;
 }
 .glm-view-footer {
   justify-content: space-between;

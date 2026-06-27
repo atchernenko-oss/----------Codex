@@ -3220,12 +3220,17 @@ function enableModalResize(modal) {
 
   handle.addEventListener('mousedown', e => {
     e.preventDefault();
+    const overlay = modal.closest('.modal-overlay');
     const startX = e.clientX;
     const startY = e.clientY;
     const startW = modal.offsetWidth;
     const startH = modal.offsetHeight;
-    modal.style.maxWidth = 'none';
+    modal.style.width  = startW + 'px';
+    modal.style.height = startH + 'px';
+    modal.style.maxWidth  = 'none';
     modal.style.maxHeight = 'none';
+    // backdrop-filter вызывает моргание при каждом resize — отключаем на время drag
+    if (overlay) overlay.style.backdropFilter = 'none';
 
     const onMove = e => {
       const w = Math.max(340, Math.min(window.innerWidth - 32, startW + e.clientX - startX));
@@ -3236,6 +3241,7 @@ function enableModalResize(modal) {
     const onUp = () => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      if (overlay) overlay.style.backdropFilter = '';
       // Подавляем click-событие, которое браузер стреляет после drag,
       // чтобы оно не закрыло модал через overlay-click-handler.
       document.addEventListener('click', e => e.stopPropagation(), { capture: true, once: true });
@@ -4042,8 +4048,8 @@ function renderGraphView() {
   const _routeAllCx = [...new Set([...nodePos.values()].map(p => p.cx))].sort((a, b) => a - b);
   {
     const _cx = _routeAllCx;
-    const LANE = 8;    // px между соседними путями
-    const MAX_OFF = 22; // макс. отклонение от центра коридора (коридор ≈ 60px → ±30px)
+    const LANE = 12;   // px между соседними путями (идеальный шаг)
+    const MAX_OFF = 26; // макс. отклонение от центра коридора (коридор ≈ 60px → ±30px)
 
     // Для каждой связи — список индексов коридоров с вертикальными отрезками
     const linkVertCorrs = infLinks.map(l => {
@@ -4077,10 +4083,12 @@ function renderGraphView() {
     });
     byCorr.forEach((items, ci) => {
       items.sort((a, b) => a.sortKey - b.sortKey);
+      const n = items.length;
+      // Если линий много — уменьшаем шаг, чтобы все вошли в ±MAX_OFF без дублей
+      const lane = n <= 1 ? 0 : Math.min(LANE, (MAX_OFF * 2) / (n - 1));
       items.forEach(({ l }, rank) => {
         if (!_infCorrOffsets.has(l.id)) _infCorrOffsets.set(l.id, new Map());
-        const off = Math.max(-MAX_OFF, Math.min(MAX_OFF,
-          (rank - (items.length - 1) / 2) * LANE));
+        const off = (rank - (n - 1) / 2) * lane;
         _infCorrOffsets.get(l.id).set(ci, off);
       });
     });
@@ -4123,9 +4131,9 @@ function renderGraphView() {
     byNodeSide.forEach(items => {
       items.sort((a, b) => a.sortKey - b.sortKey);
       const n = items.length;
+      const lane = n <= 1 ? 0 : Math.min(LANE, (MAX_OFF * 2) / (n - 1));
       items.forEach(({ linkId, isSrc }, rank) => {
-        const off = n === 1 ? 0 : Math.max(-MAX_OFF, Math.min(MAX_OFF,
-          (rank - (n - 1) / 2) * LANE));
+        const off = n === 1 ? 0 : (rank - (n - 1) / 2) * lane;
         if (isSrc) _srcYOff.set(linkId, off);
         else        _tgtYOff.set(linkId, off);
       });
@@ -4305,7 +4313,6 @@ function openGraphLinkViewModal(link) {
   document.getElementById('graphLinkViewModal')?.remove();
 
   const typeLabels = { epic: 'Epic', feature: 'Feature', req: 'Req', us: 'US', tc: 'TC' };
-  const linkTypeLabel = link.linkType === 'depends_on' ? 'Зависит от' : 'Влияет на';
 
   const entityChip = (type, id) =>
     `<div class="glm-entity-chip">
@@ -4332,22 +4339,27 @@ function openGraphLinkViewModal(link) {
           </div>
           <div class="inf-field">
             <span class="field-label">Тип связи</span>
-            <div class="glm-entity-chip">${escapeHtml(linkTypeLabel)}</div>
+            <select class="inf-link-type" id="glvLinkType">
+              <option value="influences" ${link.linkType !== 'depends_on' ? 'selected' : ''}>Влияет на</option>
+              <option value="depends_on" ${link.linkType === 'depends_on' ? 'selected' : ''}>Зависит от</option>
+            </select>
           </div>
           <div class="inf-field">
             <span class="field-label">На</span>
             ${entityChip(link.targetType, link.targetId)}
           </div>
-          ${link.description ? `
-          <div class="inf-field">
+          <label class="inf-field">
             <span class="field-label">Описание</span>
-            <div class="glm-description">${escapeHtml(link.description)}</div>
-          </div>` : ''}
+            <textarea class="inf-link-desc" id="glvDescription" placeholder="Описание взаимосвязи..." rows="3">${escapeHtml(link.description || '')}</textarea>
+          </label>
         </div>
       </div>
       <div class="modal-footer glm-view-footer">
         <button class="button danger" id="glvDelete" type="button">Удалить связь</button>
-        <button class="button ghost" id="glvClose" type="button">Закрыть</button>
+        <div style="display:flex;gap:8px">
+          <button class="button ghost" id="glvClose" type="button">Отмена</button>
+          <button class="button primary" id="glvSave" type="button">Сохранить</button>
+        </div>
       </div>
     </div>`;
 
@@ -4360,7 +4372,13 @@ function openGraphLinkViewModal(link) {
   overlay.querySelector('.modal-close').addEventListener('click', close);
   overlay.querySelector('#glvClose').addEventListener('click', close);
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-  overlay.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  overlay.addEventListener('keydown', e => {
+    if (e.key === 'Escape') close();
+    if (e.key === 'Enter' && document.activeElement !== overlay.querySelector('#glvDescription')) {
+      e.preventDefault();
+      overlay.querySelector('#glvSave').click();
+    }
+  });
 
   overlay.querySelector('#glvDelete').addEventListener('click', () => {
     state.links = state.links.filter(x => x.id !== link.id);
@@ -4369,7 +4387,19 @@ function openGraphLinkViewModal(link) {
     renderGraphView();
   });
 
-  requestAnimationFrame(() => overlay.querySelector('#glvClose').focus());
+  overlay.querySelector('#glvSave').addEventListener('click', () => {
+    const linkType    = overlay.querySelector('#glvLinkType').value;
+    const description = overlay.querySelector('#glvDescription').value.trim();
+    const idx = state.links.findIndex(x => x.id === link.id);
+    if (idx !== -1) {
+      state.links[idx] = { ...state.links[idx], linkType, description };
+      saveLinks(state.links);
+    }
+    close();
+    renderGraphView();
+  });
+
+  requestAnimationFrame(() => overlay.querySelector('#glvLinkType').focus());
 }
 
 function openEntityModal(nodeData) {
