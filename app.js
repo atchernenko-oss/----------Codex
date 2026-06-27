@@ -4573,7 +4573,7 @@ function renderGraphView() {
     .attr('class', d => `gn-rect gn-${d.data.type}`)
     .attr('width', NODE_W).attr('height', NODE_H)
     .attr('rx', 6).attr('ry', 6)
-    .attr('fill', d => d.data.isolated ? `url(#hatch-${d.data.type})` : null);
+    .style('fill', d => d.data.isolated ? `url(#hatch-${d.data.type})` : null);
 
   // Label + sublabel — позиционируем как единый блок, центрируем вертикально
   nodeG.each(function(d) {
