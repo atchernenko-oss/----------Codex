@@ -378,6 +378,14 @@
                 <button class="graph-mode-btn" data-mode="hierarchy">Иерархия</button>
                 <button class="graph-mode-btn" data-mode="influence">Влияние</button>
               </div>
+              <div class="graph-depth-group hidden" id="influenceDepthGroup" role="group" aria-label="Глубина влияния">
+                <span class="graph-depth-label">Круги:</span>
+                <button class="graph-depth-btn active" data-depth="1">1-й</button>
+                <button class="graph-depth-btn" data-depth="2">2-й</button>
+                <button class="graph-depth-btn" data-depth="n">N</button>
+                <button class="graph-depth-btn" data-depth="all">Все</button>
+                <input type="number" id="influenceDepthN" class="depth-n-input hidden" min="1" max="99" value="3">
+              </div>
               <button id="addLinkBtn" class="button ghost" type="button">+ Добавить связь</button>
             </div>
           </div>

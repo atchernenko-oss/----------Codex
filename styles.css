@@ -2738,6 +2738,50 @@ tr.selected td {
 .graph-mode-btn:hover:not(.active) { background: var(--panel); color: var(--text); }
 .graph-mode-btn.active { background: var(--accent); color: #fff; }
 
+/* Селектор глубины кругов влияния (виден только в режиме «Влияние») */
+.graph-depth-group {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.graph-depth-group.hidden { display: none; }
+.graph-depth-label {
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  white-space: nowrap;
+}
+.graph-depth-btn {
+  background: none;
+  border: none;
+  border-right: 1px solid var(--line);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--muted);
+  white-space: nowrap;
+  transition: background .15s, color .15s;
+}
+.graph-depth-btn:last-of-type { border-right: none; }
+.graph-depth-btn:hover:not(.active) { background: var(--panel); color: var(--text); }
+.graph-depth-btn.active { background: var(--accent); color: #fff; }
+.depth-n-input {
+  width: 44px;
+  padding: 3px 6px;
+  font-size: 12px;
+  border: none;
+  border-left: 1px solid var(--line);
+  color: var(--text);
+  outline: none;
+}
+.depth-n-input.hidden { display: none; }
+
 #addLinkBtn.active {
   background: #e05151;
   color: #fff;

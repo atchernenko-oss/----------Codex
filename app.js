@@ -3656,6 +3656,7 @@ let _graphRoot       = null;
 let _selectedNodeId  = null;
 let _linkMode        = false;
 let _linkSource      = null; // nodeData объект источника
+let _influenceDepth  = 1;    // кол-во кругов влияния: 1, 2, ... или Infinity
 
 function switchMainSection(name) {
   currentMainSection = name;
@@ -4224,12 +4225,16 @@ function highlightGraphNode(clickedId) {
       adj.get(tk).add(sk);
     });
     const startKey = `${clickedNode.data.type}:${clickedNode.data.data.id}`;
-    const queue = [startKey];
+    const queue = [{ key: startKey, depth: 0 }];
     const seen  = new Set([startKey]);
     while (queue.length) {
-      const key = queue.shift();
+      const { key, depth } = queue.shift();
       relatedKeys.add(key);
-      (adj.get(key) || []).forEach(nb => { if (!seen.has(nb)) { seen.add(nb); queue.push(nb); } });
+      if (depth < _influenceDepth) {
+        (adj.get(key) || []).forEach(nb => {
+          if (!seen.has(nb)) { seen.add(nb); queue.push({ key: nb, depth: depth + 1 }); }
+        });
+      }
     }
   }
 
@@ -4429,6 +4434,7 @@ document.querySelector('.graph-mode-group').addEventListener('click', ev => {
   const cnt = document.querySelector('#graphContainer');
   cnt.classList.remove('mode-all', 'mode-hierarchy', 'mode-influence');
   cnt.classList.add(`mode-${btn.dataset.mode}`);
+  document.querySelector('#influenceDepthGroup').classList.toggle('hidden', btn.dataset.mode !== 'influence');
   if (_selectedNodeId) {
     // Перерисовываем активное выделение по правилам нового режима
     const prevId = _selectedNodeId;
@@ -4436,6 +4442,34 @@ document.querySelector('.graph-mode-group').addEventListener('click', ev => {
     highlightGraphNode(prevId);
   } else {
     applyPassiveDim(btn.dataset.mode);
+  }
+});
+
+document.querySelector('#influenceDepthGroup').addEventListener('click', ev => {
+  const btn = ev.target.closest('.graph-depth-btn');
+  if (!btn) return;
+  document.querySelectorAll('.graph-depth-btn').forEach(b => b.classList.toggle('active', b === btn));
+  const depthInput = document.querySelector('#influenceDepthN');
+  const val = btn.dataset.depth;
+  depthInput.classList.toggle('hidden', val !== 'n');
+  _influenceDepth = val === 'all' ? Infinity
+                 : val === 'n'   ? (parseInt(depthInput.value, 10) || 3)
+                 : parseInt(val, 10);
+  if (_selectedNodeId) {
+    const prevId = _selectedNodeId;
+    _selectedNodeId = null;
+    highlightGraphNode(prevId);
+  }
+});
+
+document.querySelector('#influenceDepthN').addEventListener('change', ev => {
+  const val = Math.max(1, parseInt(ev.target.value, 10) || 1);
+  ev.target.value = val;
+  _influenceDepth = val;
+  if (_selectedNodeId) {
+    const prevId = _selectedNodeId;
+    _selectedNodeId = null;
+    highlightGraphNode(prevId);
   }
 });
 
