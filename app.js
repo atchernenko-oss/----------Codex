@@ -3556,7 +3556,11 @@ function renderGraphView() {
   g.selectAll('.influence-link')
     .data(infLinks, l => l.id).join('path')
     .attr('class', 'influence-link')
-    .attr('d', l => influencePath(nodePos, l))
+    .attr('d', l => {
+      const s = nodePos.get(`${l.sourceType}:${l.sourceId}`);
+      const t = nodePos.get(`${l.targetType}:${l.targetId}`);
+      return d3.linkHorizontal()({ source: [s.cx, s.cy], target: [t.cx, t.cy] });
+    })
     .on('click', (ev, l) => {
       ev.stopPropagation();
       if (_linkMode) return;
@@ -3623,35 +3627,6 @@ function renderGraphView() {
   svg.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
 }
 
-// Путь для связи влияния — соединяет центры ближайших рёбер прямоугольников
-function influencePath(nodePos, l) {
-  const s = nodePos.get(`${l.sourceType}:${l.sourceId}`);
-  const t = nodePos.get(`${l.targetType}:${l.targetId}`);
-  const dx = t.cx - s.cx;
-  const dy = t.cy - s.cy;
-
-  let sx, sy, ex, ey;
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    // Горизонтальное направление — входим/выходим через левый/правый край
-    sy = s.cy; ey = t.cy;
-    if (dx >= 0) { sx = s.cx + NODE_W / 2; ex = t.cx - NODE_W / 2; }
-    else          { sx = s.cx - NODE_W / 2; ex = t.cx + NODE_W / 2; }
-  } else {
-    // Вертикальное направление — через верхний/нижний край
-    sx = s.cx; ex = t.cx;
-    if (dy >= 0) { sy = s.cy + NODE_H / 2; ey = t.cy - NODE_H / 2; }
-    else          { sy = s.cy - NODE_H / 2; ey = t.cy + NODE_H / 2; }
-  }
-
-  // Квадратичная кривая Безье: дуга перпендикулярно вектору, чтобы не лезла поверх узлов
-  const len = Math.sqrt((ex - sx) ** 2 + (ey - sy) ** 2) || 1;
-  const arc = Math.min(70, len * 0.35);
-  // Перпендикуляр к вектору (sx→ex), отклоняемся вправо по ходу движения
-  const cpx = (sx + ex) / 2 - (ey - sy) / len * arc;
-  const cpy = (sy + ey) / 2 + (ex - sx) / len * arc;
-
-  return `M${sx},${sy} Q${cpx},${cpy} ${ex},${ey}`;
-}
 
 // ── Link creation ──────────────────────────────────────────────────────────────
 function enterLinkMode() {
