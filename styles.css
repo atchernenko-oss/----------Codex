@@ -2183,13 +2183,13 @@ tr.selected td {
   justify-content: center;
   width: 30px;
   height: 30px;
-  border: 1px solid transparent;
+  border: 1px solid #d0d5dd;
   border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
+  background: #f5f5f7;
+  color: #888;
   font-size: 13px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .us-rule-remove:hover {
@@ -2297,25 +2297,31 @@ tr.selected td {
   margin: 8px 14px 12px !important;
 }
 
-.us-scenario-remove-btn {
-  display: inline-flex;
+.us-scenario-footer {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  justify-content: space-between;
+  padding-right: 14px;
 }
 
-.us-scenario-remove-btn:hover {
+.us-remove-alt-btn {
+  font-size: 11px;
+  padding: 3px 10px;
+  min-height: 24px;
+  border: 1px solid #d0d5dd;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.us-remove-alt-btn:hover {
   background: #ffe3e6;
   color: var(--danger);
+  border-color: #f0b0b8;
 }
+
 
 .us-add-alt-btn {
   display: flex;
