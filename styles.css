@@ -2716,18 +2716,17 @@ tr.selected td {
 #graphContainer.mode-influence .graph-link:not(.link-context) { display: none; }
 
 /* Единый блок: режим + (опционально) круги влияния */
+/* Блок выровнен по 5-колоночной сетке: Круги: | 1-й | 2-й | N | Все */
 .graph-mode-block {
-  display: inline-flex;
-  flex-direction: column;
+  display: inline-grid;
+  grid-template-columns: auto auto auto auto auto;
   border: 1px solid var(--line);
   border-radius: 6px;
   overflow: hidden;
 }
 
-/* Ряд кнопок режима */
-.graph-mode-group {
-  display: flex;
-}
+/* Ряд кнопок режима — дети участвуют в сетке блока */
+.graph-mode-group { display: contents; }
 .graph-mode-btn {
   background: none;
   border: none;
@@ -2740,21 +2739,18 @@ tr.selected td {
   white-space: nowrap;
   transition: background .15s, color .15s;
 }
-.graph-mode-btn:last-child {
-  border-right: none;
-  flex: 1; /* заполняет остаток ряда, если блок расширился из-за нижнего ряда */
-}
+/* Все: col 1, Иерархия: cols 2-3, Влияние: cols 4-5 */
+.graph-mode-btn:nth-child(1) { grid-area: 1 / 1; }
+.graph-mode-btn:nth-child(2) { grid-area: 1 / 2 / 2 / 4; }
+.graph-mode-btn:nth-child(3) { grid-area: 1 / 4 / 2 / 6; border-right: none; }
 .graph-mode-btn:hover:not(.active) { background: var(--panel); color: var(--text); }
 .graph-mode-btn.active { background: var(--accent); color: #fff; }
 
-/* Ряд выбора глубины — второй ряд того же блока */
-.graph-depth-group {
-  display: flex;
-  align-items: stretch;
-  border-top: 1px solid var(--line);
-}
+/* Ряд выбора глубины — дети участвуют в сетке блока */
+.graph-depth-group { display: contents; }
 .graph-depth-group.hidden { display: none; }
 .graph-depth-label {
+  grid-area: 2 / 1;
   padding: 4px 8px;
   font-size: 11px;
   font-weight: 500;
@@ -2776,14 +2772,17 @@ tr.selected td {
   color: var(--muted);
   white-space: nowrap;
   transition: background .15s, color .15s;
+  min-width: 48px;
 }
-.graph-depth-btn:last-of-type { border-right: none; }
+.graph-depth-btn[data-depth="1"]   { grid-area: 2 / 2; }
+.graph-depth-btn[data-depth="2"]   { grid-area: 2 / 3; }
+#depthBtnN                         { grid-area: 2 / 4; min-width: 48px; }
+.graph-depth-btn[data-depth="all"] { grid-area: 2 / 5; border-right: none; }
 .graph-depth-btn:hover:not(.active) { background: var(--panel); color: var(--text); }
 .graph-depth-btn.active { background: var(--accent); color: #fff; }
-/* Кнопка N и поле ввода — одинаковая ширина, чтобы не менять ширину блока */
-#depthBtnN { min-width: 48px; }
-/* Поле ввода N — занимает место кнопки N */
+/* Поле ввода N — та же ячейка, что и кнопка N */
 .depth-n-input {
+  grid-area: 2 / 4;
   width: 48px;
   box-sizing: border-box;
   padding: 4px 4px;
