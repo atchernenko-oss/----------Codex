@@ -8,6 +8,35 @@ const OWNERS_KEY = "reqtracker.owners.v1";
 const US_KEY = "reqtracker.userstories.v1";
 const TC_KEY = "reqtracker.testcases.v1";
 const LINKS_KEY  = "reqtracker.links.v1";
+const DICT_KEY   = "reqtracker.dictionaries.v1";
+
+const DEFAULT_DICTS = [
+  { id: 'reqStatus', label: 'Статусы требований',  values: ['Draft', 'In Review', 'Approved', 'Changed', 'Deprecated'], colors: {} },
+  { id: 'usStatus',  label: 'Статусы User Story',   values: ['Draft', 'In Review', 'Approved', 'Done'], colors: {} },
+  { id: 'tcStatus',  label: 'Статусы тест-кейса',   values: ['Draft', 'Pass', 'Fail', 'Blocked'], colors: {} },
+  { id: 'priority',  label: 'Приоритеты',            values: ['High', 'Medium', 'Low'], colors: {} },
+  { id: 'linkType',  label: 'Типы связей',           values: ['influences', 'depends_on'], readonly: true },
+];
+
+function loadDictionaries() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DICT_KEY));
+    if (!saved) return DEFAULT_DICTS.map(d => ({ ...d, values: [...d.values], colors: d.colors ? { ...d.colors } : undefined }));
+    const byId = Object.fromEntries(saved.map(d => [d.id, d]));
+    return DEFAULT_DICTS.map(def => byId[def.id]
+      ? { ...def, values: byId[def.id].values ?? [...def.values], colors: def.colors !== undefined ? (byId[def.id].colors ?? {}) : undefined }
+      : { ...def, values: [...def.values], colors: def.colors ? { ...def.colors } : undefined }
+    );
+  } catch { return DEFAULT_DICTS.map(d => ({ ...d, values: [...d.values], colors: d.colors ? { ...d.colors } : undefined })); }
+}
+
+function saveDictionaries() {
+  localStorage.setItem(DICT_KEY, JSON.stringify(state.dictionaries));
+}
+
+function getDict(id) {
+  return state.dictionaries.find(d => d.id === id);
+}
 
 const state = {
   requirements: loadRequirements(),
@@ -25,6 +54,7 @@ const state = {
   userStories: loadUserStories(),
   testCases: loadTestCases(),
   links: loadLinks(),
+  dictionaries: loadDictionaries(),
 };
 
 const elements = {
@@ -397,6 +427,8 @@ elements.clearSelectionBtn.addEventListener("click", () => {
 });
 
 mergeOwners(state.requirements.map(r => r.owner));
+renderDictsNav();
+refreshDictSelects();
 render();
 
 async function handleFileUpload(event) {
@@ -951,8 +983,8 @@ function openRequirementModal(req) {
   elements.requirementModalTitle.textContent = isNew ? "Новое требование" : `Требование ${req.code}`;
   elements.reqCode.value = isNew ? "" : (req.code || '').replace(/^REQ-/i, '');
   elements.reqText.value = isNew ? "" : req.text;
-  elements.reqStatus.value = isNew ? "Draft" : req.status;
-  elements.reqPriority.value = isNew ? "Medium" : req.priority;
+  populateDictSelect(elements.reqStatus, 'reqStatus', null, isNew ? 'Draft' : req.status);
+  populateDictSelect(elements.reqPriority, 'priority', null, isNew ? 'Medium' : req.priority);
   populateOwnerSelect(isNew ? "" : (req.owner || ""));
   elements.reqSource.value = isNew ? "" : req.source;
 
@@ -1386,8 +1418,8 @@ function buildRequirementRow(item) {
     <td><strong>${escapeHtml(item.code)}</strong></td>
     <td class="requirement-text">${escapeHtml(item.text)}</td>
     <td>${item.feature ? `<span class="badge feature-badge-inline">${escapeHtml(getFeatureNumber(item.feature))}</span>` : ""}</td>
-    <td><span class="badge ${statusClass(item.status)}">${escapeHtml(item.status)}</span></td>
-    <td><span class="badge ${priorityClass(item.priority)}">${escapeHtml(item.priority)}</span></td>
+    <td><span class="badge ${statusClass(item.status)}" ${getDictBadgeStyle('reqStatus', item.status)}>${escapeHtml(item.status)}</span></td>
+    <td><span class="badge ${priorityClass(item.priority)}" ${getDictBadgeStyle('priority', item.priority)}>${escapeHtml(item.priority)}</span></td>
     <td>${escapeHtml(item.owner)}</td>
     <td>${escapeHtml(item.source)}</td>
     <td class="us-cell">${buildUSCell(item.id)}</td>
@@ -1459,6 +1491,23 @@ function priorityClass(priority) {
   if (lower === "high") return "high";
   if (lower === "medium") return "medium";
   return "";
+}
+
+function tcStatusClass(status) {
+  const lower = String(status).toLowerCase();
+  if (lower === "pass") return "approved";
+  if (lower === "fail") return "high";
+  if (lower === "blocked") return "medium";
+  return "";
+}
+
+function getDictBadgeStyle(dictId, value) {
+  const col = getDict(dictId)?.colors?.[value];
+  if (!col) return '';
+  const parts = [];
+  if (col.color) parts.push(`color:${col.color}`);
+  if (col.bg) parts.push(`background:${col.bg};border-color:${col.bg}`);
+  return parts.length ? `style="${parts.join(';')}"` : '';
 }
 
 function setStatus(message) {
@@ -1600,6 +1649,243 @@ function loadOwners() {
 function saveOwners(owners) {
   localStorage.setItem(OWNERS_KEY, JSON.stringify(owners));
 }
+
+// ── Dictionaries ──────────────────────────────────────────────────────────────
+
+function populateDictSelect(selEl, dictId, allLabel, currentValue) {
+  if (!selEl) return;
+  const dict = getDict(dictId);
+  const values = dict?.values || [];
+  const prev = currentValue !== undefined ? currentValue : selEl.value;
+  selEl.innerHTML = allLabel ? `<option value="">${escapeHtml(allLabel)}</option>` : '';
+  values.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    selEl.append(opt);
+  });
+  if (values.includes(prev)) selEl.value = prev;
+  else if (!allLabel && values.length) selEl.value = values[0];
+}
+
+function refreshDictSelects() {
+  // Фильтры
+  const pf = document.querySelector('#priorityFilter');
+  if (pf) populateDictSelect(pf, 'priority', 'Все приоритеты', pf.value);
+  const ussSel = document.querySelector('#usStatusFilter');
+  if (ussSel) populateDictSelect(ussSel, 'usStatus', 'Все статусы', ussSel.value);
+  const uspSel = document.querySelector('#usPriorityFilter');
+  if (uspSel) populateDictSelect(uspSel, 'priority', 'Все приоритеты', uspSel.value);
+  const tcsSel = document.querySelector('#tcStatusFilter');
+  if (tcsSel) populateDictSelect(tcsSel, 'tcStatus', 'Все статусы', tcsSel.value);
+}
+
+// Навигация справочников в сайдбаре
+function renderDictsNav() {
+  const container = document.querySelector('#dictNavItems');
+  if (!container) return;
+  container.innerHTML = state.dictionaries.filter(d => d.id !== 'linkType').map(d =>
+    `<button class="nav-sub-item" type="button" data-dict-id="${escapeHtml(d.id)}">${escapeHtml(d.label)}</button>`
+  ).join('');
+  container.querySelectorAll('[data-dict-id]').forEach(btn =>
+    btn.addEventListener('click', () => openDictModal(btn.dataset.dictId))
+  );
+}
+
+// Модальный редактор справочника
+let _editingDictId = null;
+
+function openDictModal(dictId) {
+  const dict = getDict(dictId);
+  if (!dict) return;
+  _editingDictId = dictId;
+  document.querySelector('#dictModalTitle').textContent = dict.label;
+  const addRow = document.querySelector('#dictAddRow');
+  if (addRow) addRow.classList.toggle('hidden', !!dict.readonly);
+  renderDictItems();
+  document.querySelector('#dictAddInput').value = '';
+  document.querySelector('#dictModal').classList.remove('hidden');
+  if (!dict.readonly) requestAnimationFrame(() => document.querySelector('#dictAddInput').focus());
+}
+
+function closeDictModal() {
+  document.querySelector('#dictModal').classList.add('hidden');
+  _editingDictId = null;
+}
+
+// CSS-цвета бейджей по умолчанию (совпадают со значениями из styles.css)
+const DICT_CSS_COLORS = {
+  reqStatus: {
+    'Draft':      { color: '#2d4a6e', bg: '#ddeaf8' },
+    'In Review':  { color: '#76530b', bg: '#fff1cf' },
+    'Approved':   { color: '#0d5c38', bg: '#d4f0e4' },
+    'Changed':    { color: '#9d2d35', bg: '#ffe3e6' },
+    'Deprecated': { color: '#2d4a6e', bg: '#ddeaf8' },
+  },
+  usStatus: {
+    'Draft':      { color: '#2d4a6e', bg: '#ddeaf8' },
+    'In Review':  { color: '#76530b', bg: '#fff1cf' },
+    'Approved':   { color: '#0d5c38', bg: '#d4f0e4' },
+    'Done':       { color: '#2d4a6e', bg: '#ddeaf8' },
+  },
+  tcStatus: {
+    'Draft':      { color: '#2d4a6e', bg: '#ddeaf8' },
+    'Pass':       { color: '#0d5c38', bg: '#d4f0e4' },
+    'Fail':       { color: '#9d2d35', bg: '#ffe3e6' },
+    'Blocked':    { color: '#a15c00', bg: '#fff0d8' },
+  },
+  priority: {
+    'High':   { color: '#9d2d35', bg: '#ffe3e6' },
+    'Medium': { color: '#a15c00', bg: '#fff0d8' },
+    'Low':    { color: '#2d4a6e', bg: '#ddeaf8' },
+  },
+};
+
+const DICT_COLOR_FALLBACK = { color: '#2d4a6e', bg: '#ddeaf8' };
+
+function dictEffectiveColors(dictId, value) {
+  const custom = getDict(dictId)?.colors?.[value];
+  return custom || DICT_CSS_COLORS[dictId]?.[value] || DICT_COLOR_FALLBACK;
+}
+
+function dictPreviewClass(dictId, value) {
+  if (dictId === 'reqStatus' || dictId === 'usStatus') return statusClass(value);
+  if (dictId === 'tcStatus') return tcStatusClass(value);
+  if (dictId === 'priority') return priorityClass(value);
+  return '';
+}
+
+function renderDictItems() {
+  const list = document.querySelector('#dictItemsList');
+  if (!list) return;
+  const dict = getDict(_editingDictId);
+  if (!dict) return;
+  const hasColors = !dict.readonly && dict.colors !== undefined;
+
+  if (!dict.values.length) {
+    list.innerHTML = '<li class="owners-empty">Список пуст.</li>';
+    return;
+  }
+
+  list.innerHTML = dict.values.map(v => {
+    const hasCustom = !!(hasColors && dict.colors[v]);
+    const eff = hasColors ? dictEffectiveColors(_editingDictId, v) : null;
+    const cssClass = dictPreviewClass(_editingDictId, v);
+    const previewStyle = hasCustom
+      ? `style="color:${eff.color};background:${eff.bg};border-color:${eff.bg}"`
+      : '';
+
+    const colorControls = hasColors ? `
+      <span class="dict-color-row">
+        <span class="dict-color-field" title="Цвет текста">
+          <span class="dict-color-field-label">Т</span>
+          <input type="color" class="dict-color-text dict-cpick" data-value="${escapeHtml(v)}" value="${eff.color}">
+        </span>
+        <span class="dict-color-field" title="Цвет заливки">
+          <span class="dict-color-field-label">Ф</span>
+          <input type="color" class="dict-color-bg dict-cpick" data-value="${escapeHtml(v)}" value="${eff.bg}">
+        </span>
+        ${hasCustom ? `<button class="dict-color-reset" data-value="${escapeHtml(v)}" title="Вернуть по умолчанию" type="button">↩</button>` : ''}
+      </span>` : '';
+
+    return `<li class="owner-item dict-item">
+      <span class="badge dict-item-preview ${cssClass}" ${previewStyle}>${escapeHtml(v)}</span>
+      ${colorControls}
+      ${dict.readonly ? '' : `<button class="owner-delete-btn button ghost dict-item-del" data-value="${escapeHtml(v)}" type="button">✕</button>`}
+    </li>`;
+  }).join('');
+
+  list.querySelectorAll('.dict-cpick').forEach(input => {
+    input.addEventListener('input', () => {
+      const v = input.dataset.value;
+      const item = input.closest('.dict-item');
+      const tc = item.querySelector('.dict-color-text').value;
+      const bc = item.querySelector('.dict-color-bg').value;
+      const preview = item.querySelector('.dict-item-preview');
+      preview.style.color = tc;
+      preview.style.background = bc;
+      preview.style.borderColor = bc;
+      setDictValueColor(v, tc, bc);
+      if (!item.querySelector('.dict-color-reset')) {
+        const btn = document.createElement('button');
+        btn.className = 'dict-color-reset';
+        btn.dataset.value = v;
+        btn.title = 'Вернуть по умолчанию';
+        btn.type = 'button';
+        btn.textContent = '↩';
+        btn.addEventListener('click', () => resetDictValueColor(v, item));
+        item.querySelector('.dict-color-row').append(btn);
+      }
+    });
+  });
+
+  list.querySelectorAll('.dict-color-reset').forEach(btn =>
+    btn.addEventListener('click', () => resetDictValueColor(btn.dataset.value, btn.closest('.dict-item')))
+  );
+
+  list.querySelectorAll('.dict-item-del').forEach(btn =>
+    btn.addEventListener('click', () => removeDictValue(btn.dataset.value))
+  );
+}
+
+function resetDictValueColor(value, item) {
+  clearDictValueColor(value);
+  item.querySelector('.dict-item-preview').removeAttribute('style');
+  item.querySelector('.dict-color-reset')?.remove();
+  const eff = dictEffectiveColors(_editingDictId, value);
+  const ti = item.querySelector('.dict-color-text');
+  const bi = item.querySelector('.dict-color-bg');
+  if (ti) ti.value = eff.color;
+  if (bi) bi.value = eff.bg;
+}
+
+function setDictValueColor(value, color, bg) {
+  const dict = getDict(_editingDictId);
+  if (!dict || dict.colors === undefined) return;
+  dict.colors[value] = { color, bg };
+  saveDictionaries();
+}
+
+function clearDictValueColor(value) {
+  const dict = getDict(_editingDictId);
+  if (!dict?.colors) return;
+  delete dict.colors[value];
+  saveDictionaries();
+}
+
+function addDictValue() {
+  const input = document.querySelector('#dictAddInput');
+  const val = input.value.trim();
+  if (!val) return;
+  const dict = getDict(_editingDictId);
+  if (!dict || dict.values.includes(val)) { input.select(); return; }
+  dict.values.push(val);
+  saveDictionaries();
+  refreshDictSelects();
+  renderDictItems();
+  input.value = '';
+  input.focus();
+}
+
+function removeDictValue(val) {
+  const dict = getDict(_editingDictId);
+  if (!dict) return;
+  dict.values = dict.values.filter(v => v !== val);
+  if (dict.colors) delete dict.colors[val];
+  saveDictionaries();
+  refreshDictSelects();
+  renderDictItems();
+}
+
+document.querySelector('#dictModalClose').addEventListener('click', closeDictModal);
+document.querySelector('#dictModal').addEventListener('click', e => {
+  if (e.target === document.querySelector('#dictModal')) closeDictModal();
+});
+document.querySelector('#dictAddBtn').addEventListener('click', addDictValue);
+document.querySelector('#dictAddInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addDictValue(); }
+});
+enableModalKeyboard(document.querySelector('#dictModal'));
 
 function mergeOwners(names) {
   const newOwners = [...new Set(names)].filter(n => n && !state.owners.includes(n));
@@ -2013,8 +2299,8 @@ function renderUSList() {
         </div>
       </div>
       <div class="us-item-meta">
-        <span class="us-item-meta-field"><span class="us-item-meta-label">Статус:</span> <span class="badge ${statusClass(us.status)}">${escapeHtml(us.status)}</span></span>
-        <span class="us-item-meta-field"><span class="us-item-meta-label">Приоритет:</span> <span class="badge ${priorityClass(us.priority)}">${escapeHtml(us.priority)}</span></span>
+        <span class="us-item-meta-field"><span class="us-item-meta-label">Статус:</span> <span class="badge ${statusClass(us.status)}" ${getDictBadgeStyle('usStatus', us.status)}>${escapeHtml(us.status)}</span></span>
+        <span class="us-item-meta-field"><span class="us-item-meta-label">Приоритет:</span> <span class="badge ${priorityClass(us.priority)}" ${getDictBadgeStyle('priority', us.priority)}>${escapeHtml(us.priority)}</span></span>
         ${us.owner ? `<span class="us-item-meta-field"><span class="us-item-meta-label">Владелец:</span> <span class="us-item-meta-value">${escapeHtml(us.owner)}</span></span>` : ''}
       </div>
       ${us.text ? `<div class="us-item-text">${escapeHtml(us.text)}</div>` : ''}
@@ -2037,8 +2323,8 @@ function openUSEditModal(us) {
     document.querySelector("#usRole").value = us.role || "";
     document.querySelector("#usAction").value = us.action || "";
     document.querySelector("#usGoal").value = us.goal || "";
-    document.querySelector("#usStatus").value = us.status;
-    document.querySelector("#usPriority").value = us.priority;
+    populateDictSelect(document.querySelector('#usStatus'), 'usStatus', null, us.status);
+    populateDictSelect(document.querySelector('#usPriority'), 'priority', null, us.priority);
     document.querySelector("#usOwner").value = us.owner || "";
     populateRulesList(us.rules || []);
     populateCriteriaList(us.criteria || []);
@@ -2052,8 +2338,8 @@ function openUSEditModal(us) {
     document.querySelector("#usRole").value = "";
     document.querySelector("#usAction").value = "";
     document.querySelector("#usGoal").value = "";
-    document.querySelector("#usStatus").value = "Draft";
-    document.querySelector("#usPriority").value = "Medium";
+    populateDictSelect(document.querySelector('#usStatus'), 'usStatus', null, 'Draft');
+    populateDictSelect(document.querySelector('#usPriority'), 'priority', null, 'Medium');
     document.querySelector("#usOwner").value = "";
     populateRulesList([]);
     populateCriteriaList([]);
@@ -2338,7 +2624,7 @@ function openTCModal(usId, scenarioType, steps, usTitle) {
   const label = scenarioType === 'main' ? 'основной сценарий' : 'альтернативный сценарий';
   document.querySelector("#tcCode").value = '';
   document.querySelector("#tcTitle").value = `TC: ${usTitle} (${label})`;
-  document.querySelector("#tcStatus").value = "Draft";
+  populateDictSelect(document.querySelector('#tcStatus'), 'tcStatus', null, 'Draft');
   document.querySelector("#tcStepsList").innerHTML = "";
   for (const step of steps) addTCStepRow({ text: typeof step === 'string' ? step : step.text, expected: step.expected || "", actual: step.actual || "", screenshotExpected: step.screenshotExpected || null, screenshotActual: step.screenshotActual || null });
   document.querySelector("#tcModal").classList.remove("hidden");
@@ -2355,7 +2641,7 @@ function openTCEditModal(tc) {
   currentTCScenarioType = tc.scenarioType;
   document.querySelector("#tcCode").value = (tc.code || '').replace(/^TC-/i, '');
   document.querySelector("#tcTitle").value = tc.title;
-  document.querySelector("#tcStatus").value = tc.status || "Draft";
+  populateDictSelect(document.querySelector('#tcStatus'), 'tcStatus', null, tc.status || 'Draft');
   document.querySelector("#tcStepsList").innerHTML = "";
   for (const step of (tc.steps || [])) addTCStepRow(step);
   document.querySelector("#tcModalTitle").textContent = "Edit Test Case";
@@ -2803,8 +3089,8 @@ function renderUSView() {
       <td>${req ? regLink(req.code, 'edit-req', { 'req-id': req.id }) : '<span class="reg-empty-cell">—</span>'}</td>
       <td>${feature ? regLink(feature.label || feature.name, 'edit-feature', { 'feature-id': feature.id }) : '<span class="reg-empty-cell">—</span>'}</td>
       <td>${epic ? regLink(epic.label || epic.name, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
-      <td>${us.status ? `<span class="badge ${statusClass(us.status)}">${escapeHtml(us.status)}</span>` : '—'}</td>
-      <td>${us.priority ? `<span class="badge ${priorityClass(us.priority)}">${escapeHtml(us.priority)}</span>` : '—'}</td>
+      <td>${us.status ? `<span class="badge ${statusClass(us.status)}" ${getDictBadgeStyle('usStatus', us.status)}>${escapeHtml(us.status)}</span>` : '—'}</td>
+      <td>${us.priority ? `<span class="badge ${priorityClass(us.priority)}" ${getDictBadgeStyle('priority', us.priority)}>${escapeHtml(us.priority)}</span>` : '—'}</td>
       <td class="reg-owner">${escapeHtml(us.owner || '—')}</td>
       <td class="reg-scenario">${scenCell}</td>
       <td>${tcCell}</td>
@@ -2849,7 +3135,6 @@ function renderTCView() {
       : viewEmpty('Нет тест-кейсов. Откройте User Story и создайте TC из сценариев.');
     return;
   }
-  const tcStatusMap = { Draft: 'Draft', Pass: 'Approved', Fail: 'High', Blocked: 'Medium' };
   const rows = filtered.map(tc => {
     const us = state.userStories.find(u => u.id === tc.usId);
     const { req, feature, epic } = resolveChain(us);
@@ -2862,7 +3147,7 @@ function renderTCView() {
       <td>${req ? regLink(req.code, 'edit-req', { 'req-id': req.id }) : '<span class="reg-empty-cell">—</span>'}</td>
       <td>${feature ? regLink(feature.label || feature.name, 'edit-feature', { 'feature-id': feature.id }) : '<span class="reg-empty-cell">—</span>'}</td>
       <td>${epic ? regLink(epic.label || epic.name, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
-      <td><span class="badge ${tcStatusMap[tc.status] || 'Draft'}">${escapeHtml(tc.status)}</span></td>
+      <td><span class="badge ${tcStatusClass(tc.status)}" ${getDictBadgeStyle('tcStatus', tc.status)}>${escapeHtml(tc.status)}</span></td>
       <td class="reg-scenario">${scenLabel}</td>
       <td class="reg-num">${steps}</td>
       <td class="reg-date">${date}</td>

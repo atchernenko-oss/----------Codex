@@ -65,6 +65,7 @@
             <div class="nav-section-body hidden" id="navBodyAdmin">
               <span class="nav-sub-label">Справочники</span>
               <button class="nav-sub-item" type="button" id="openOwnersDirectoryBtn">Владельцы</button>
+              <div id="dictNavItems"></div>
             </div>
           </div>
 
@@ -138,9 +139,6 @@
               </select>
               <select id="priorityFilter" aria-label="Фильтр по приоритету">
                 <option value="">Все приоритеты</option>
-                <option value="High">High</option>
-                <option value="Medium">Medium</option>
-                <option value="Low">Low</option>
               </select>
               <select id="featureFilter" aria-label="Фильтр по Feature">
                 <option value="">Все Features</option>
@@ -293,16 +291,9 @@
               <div class="toolbar-row">
                 <select id="usStatusFilter" aria-label="Фильтр по статусу">
                   <option value="">Все статусы</option>
-                  <option value="Draft">Draft</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
                 </select>
                 <select id="usPriorityFilter" aria-label="Фильтр по приоритету">
                   <option value="">Все приоритеты</option>
-                  <option value="High">High</option>
-                  <option value="Medium">Medium</option>
-                  <option value="Low">Low</option>
                 </select>
                 <select id="usFeatureFilter" aria-label="Фильтр по Feature">
                   <option value="">Все Features</option>
@@ -342,10 +333,6 @@
               <div class="toolbar-row">
                 <select id="tcStatusFilter" aria-label="Фильтр по статусу">
                   <option value="">Все статусы</option>
-                  <option value="Draft">Draft</option>
-                  <option value="Pass">Pass</option>
-                  <option value="Fail">Fail</option>
-                  <option value="Blocked">Blocked</option>
                 </select>
                 <select id="tcScenarioFilter" aria-label="Фильтр по типу сценария">
                   <option value="">Все сценарии</option>
@@ -461,21 +448,11 @@
             </label>
             <label class="field">
               <span class="field-label">Статус</span>
-              <select id="reqStatus">
-                <option value="Draft">Draft</option>
-                <option value="In Review">In Review</option>
-                <option value="Approved">Approved</option>
-                <option value="Changed">Changed</option>
-                <option value="Deprecated">Deprecated</option>
-              </select>
+              <select id="reqStatus"></select>
             </label>
             <label class="field">
               <span class="field-label">Приоритет</span>
-              <select id="reqPriority">
-                <option value="High">High</option>
-                <option value="Medium">Medium</option>
-                <option value="Low">Low</option>
-              </select>
+              <select id="reqPriority"></select>
             </label>
             <label class="field">
               <span class="field-label">Владелец <button type="button" id="openOwnersBtn" class="field-label-btn" title="Справочник владельцев">✎</button></span>
@@ -578,6 +555,22 @@
       </div>
     </div>
 
+    <div class="modal-overlay hidden modal-overlay--top" id="dictModal" role="dialog" aria-modal="true" aria-labelledby="dictModalTitle">
+      <div class="modal modal--resizable">
+        <div class="modal-header">
+          <h3 id="dictModalTitle">Справочник</h3>
+          <button class="modal-close" id="dictModalClose" type="button" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="modal-body">
+          <ul id="dictItemsList" class="owners-list"></ul>
+          <div class="add-owner-row" id="dictAddRow">
+            <input type="text" id="dictAddInput" placeholder="Новое значение" />
+            <button type="button" id="dictAddBtn" class="button primary">Добавить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-overlay hidden modal-overlay--top" id="usListModal" role="dialog" aria-modal="true" aria-labelledby="usListModalTitle">
       <div class="modal modal-wide">
         <div class="modal-header">
@@ -604,20 +597,11 @@
           <div class="modal-grid modal-grid--3">
             <label class="field">
               <span class="field-label">Статус</span>
-              <select id="usStatus">
-                <option value="Draft">Draft</option>
-                <option value="In Review">In Review</option>
-                <option value="Approved">Approved</option>
-                <option value="Done">Done</option>
-              </select>
+              <select id="usStatus"></select>
             </label>
             <label class="field">
               <span class="field-label">Приоритет</span>
-              <select id="usPriority">
-                <option value="High">High</option>
-                <option value="Medium">Medium</option>
-                <option value="Low">Low</option>
-              </select>
+              <select id="usPriority"></select>
             </label>
             <label class="field">
               <span class="field-label">Владелец</span>
@@ -710,12 +694,7 @@
             </label>
             <label class="field">
               <span class="field-label">Статус</span>
-              <select id="tcStatus">
-                <option value="Draft">Draft</option>
-                <option value="Pass">Pass</option>
-                <option value="Fail">Fail</option>
-                <option value="Blocked">Blocked</option>
-              </select>
+              <select id="tcStatus"></select>
             </label>
           </div>
           <label class="field">
