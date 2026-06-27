@@ -3750,15 +3750,15 @@ function buildReqTreeNode(req) {
   const stories = state.userStories.filter(u => u.requirementId === req.id);
   return {
     id: `r_${req.id}`, type: 'req',
-    label: req.code, sublabel: (req.text || '').slice(0, 30) + (req.text?.length > 30 ? '…' : ''),
+    label: req.code, sublabel: req.text || '',
     data: req,
     children: stories.map(us => ({
       id: `u_${us.id}`, type: 'us',
-      label: us.number || '', sublabel: (us.title || '').slice(0, 28) + (us.title?.length > 28 ? '…' : ''),
+      label: us.number || '', sublabel: us.title || '',
       data: us,
       children: state.testCases.filter(t => t.usId === us.id).map(tc => ({
         id: `t_${tc.id}`, type: 'tc',
-        label: 'TC', sublabel: (tc.title || '').replace(/^TC:\s*/i, '').slice(0, 28),
+        label: 'TC', sublabel: (tc.title || '').replace(/^TC:\s*/i, ''),
         data: tc, children: [],
       })),
     })),
@@ -4025,21 +4025,55 @@ function renderGraphView() {
     .attr('width', NODE_W).attr('height', NODE_H)
     .attr('rx', 6).attr('ry', 6);
 
-  // Label (code/number) — одна строка, bold
-  nodeG.append('text')
-    .attr('class', 'gn-label')
-    .each(function(d) {
-      fitTextInNode(d3.select(this), d.data.label, NODE_H / 2 - 9,
-        { maxLines: 1, initFontSize: 11, minFontSize: 8, fontWeight: '600', lineH: 13 });
-    });
+  // Label + sublabel — позиционируем как единый блок, центрируем вертикально
+  nodeG.each(function(d) {
+    const g = d3.select(this);
+    const maxW = NODE_W - NODE_TEXT_PAD * 2;
+    const cx   = NODE_W / 2;
 
-  // Sub-label (name/title) — до 2 строк с переносом
-  nodeG.append('text')
-    .attr('class', 'gn-sublabel')
-    .each(function(d) {
-      fitTextInNode(d3.select(this), d.data.sublabel, NODE_H / 2 + 10,
-        { maxLines: 2, initFontSize: 10, minFontSize: 8, fontWeight: 'normal', lineH: 13 });
-    });
+    const LABEL_FS = 11, LABEL_FW = '600', LABEL_LH = 13;
+    const SUB_LH = 11,   SUB_MAX  = 3,     SUB_GAP  = 3;
+
+    // Label: 1 строка, bold
+    const labelWords = String(d.data.label || '').split(/\s+/).filter(Boolean);
+    const labelLines = labelWords.length
+      ? buildWordLines(labelWords, maxW, LABEL_FS, LABEL_FW).slice(0, 1) : [];
+
+    // Sublabel: подбираем минимальный шрифт, чтобы уместить в SUB_MAX строк
+    const subWords = String(d.data.sublabel || '').split(/\s+/).filter(Boolean);
+    let subFS = 10, subLines = [];
+    if (subWords.length) {
+      do {
+        subLines = buildWordLines(subWords, maxW, subFS, 'normal');
+        if (subLines.length <= SUB_MAX || subFS <= 8) break;
+        subFS--;
+      } while (true);
+      if (subLines.length > SUB_MAX) {
+        subLines = subLines.slice(0, SUB_MAX);
+        let last = subLines[SUB_MAX - 1];
+        while (last.length > 1 && measureText(last + '…', subFS, 'normal') > maxW)
+          last = last.slice(0, -1);
+        subLines[SUB_MAX - 1] = last + '…';
+      }
+    }
+
+    // Высота всего блока и стартовая y (верх блока)
+    const nL = labelLines.length, nS = subLines.length;
+    const blockH = nL * LABEL_LH + (nL && nS ? SUB_GAP : 0) + nS * SUB_LH;
+    const blockTop = (NODE_H - blockH) / 2;
+
+    if (nL) {
+      const t = g.append('text').attr('class', 'gn-label').style('font-size', LABEL_FS + 'px');
+      labelLines.forEach((ln, i) =>
+        t.append('tspan').attr('x', cx).attr('y', blockTop + (i + 0.82) * LABEL_LH).text(ln));
+    }
+    if (nS) {
+      const subTop = blockTop + nL * LABEL_LH + (nL && nS ? SUB_GAP : 0);
+      const t = g.append('text').attr('class', 'gn-sublabel').style('font-size', subFS + 'px');
+      subLines.forEach((ln, i) =>
+        t.append('tspan').attr('x', cx).attr('y', subTop + (i + 0.82) * SUB_LH).text(ln));
+    }
+  });
 
   // Назначаем x-полосы для вертикальных отрезков в каждом коридоре отдельно.
   // Группировка per-corridor гарантирует, что любые два пути,
