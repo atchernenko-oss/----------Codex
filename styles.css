@@ -2727,8 +2727,8 @@ tr.selected td {
 
 .graph-link {
   fill: none;
-  stroke: #c8d8ee;
-  stroke-width: 1.5;
+  stroke: #7aaede;
+  stroke-width: 2;
 }
 
 .graph-empty {
@@ -2747,9 +2747,11 @@ tr.selected td {
   stroke-width: 2;
   stroke-dasharray: 7 4;
   cursor: pointer;
-  pointer-events: stroke; /* не блокировать клики на узлах под линией */
+  pointer-events: stroke;
   transition: opacity .2s, stroke-width .15s;
 }
+#graphContainer.has-selection .influence-link.inf-link--from-selected { stroke: #e05151; }
+#graphContainer.has-selection .influence-link.inf-link--to-selected   { stroke: #3b82f6; }
 .influence-link:hover     { stroke-width: 3.5; }
 .influence-link.link-dimmed  { opacity: 0.18; }
 

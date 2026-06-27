@@ -4216,7 +4216,7 @@ function renderGraphView() {
   // Influence links — рисуем ПОСЛЕ узлов (поверх них).
   g.selectAll('.influence-link')
     .data(infLinks, l => l.id).join('path')
-    .attr('class', 'influence-link')
+    .attr('class', l => `influence-link inf-link--${l.linkType}`)
     .attr('d', l => {
       const s = nodePos.get(`${l.sourceType}:${l.sourceId}`);
       const t = nodePos.get(`${l.targetType}:${l.targetId}`);
@@ -4491,6 +4491,7 @@ function getCurrentGraphMode() {
 function highlightGraphNode(clickedId) {
   if (_selectedNodeId === clickedId) { resetGraphHighlight(); return; }
   _selectedNodeId = clickedId;
+  document.querySelector('#graphContainer').classList.add('has-selection');
 
   const mode = getCurrentGraphMode();
   const relatedKeys = new Set(); // "type:entityId"
@@ -4623,13 +4624,16 @@ function highlightGraphNode(clickedId) {
   d3.selectAll('.graph-link')
     .classed('link-dimmed',  l => !related.has(l.source.data.id) || !related.has(l.target.data.id))
     .classed('link-context', false);
+  const selKey = `${clickedNode.data.type}:${clickedNode.data.data.id}`;
   d3.selectAll('.influence-link')
     .classed('link-dimmed', l => {
       const sk = `${l.sourceType}:${l.sourceId}`;
       const tk = `${l.targetType}:${l.targetId}`;
       return !relatedKeys.has(sk) || !relatedKeys.has(tk);
     })
-    .classed('link-context', false);
+    .classed('link-context', false)
+    .classed('inf-link--from-selected', l => `${l.sourceType}:${l.sourceId}` === selKey)
+    .classed('inf-link--to-selected',   l => `${l.targetType}:${l.targetId}` === selKey);
 
   zoomToRelated(related);
 }
@@ -4701,6 +4705,10 @@ function applyPassiveDim(mode) {
 
 function resetGraphHighlight() {
   _selectedNodeId = null;
+  document.querySelector('#graphContainer').classList.remove('has-selection');
+  d3.selectAll('.influence-link')
+    .classed('inf-link--from-selected', false)
+    .classed('inf-link--to-selected',   false);
   applyPassiveDim(getCurrentGraphMode());
 }
 
