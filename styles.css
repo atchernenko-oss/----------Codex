@@ -2425,6 +2425,24 @@ tr.selected td {
   border-color: #e05151;
 }
 
+.graph-node.gn-selected .gn-rect {
+  stroke-width: 5px;
+  paint-order: stroke;
+  vector-effect: non-scaling-stroke;
+}
+/* Светлый оттенок того же цвета — обводка в палитре типа, но воздушная */
+.graph-node.gn-selected.gn-epic     .gn-rect { stroke: #c4b5fd; }
+.graph-node.gn-selected.gn-feature  .gn-rect { stroke: #93c5fd; }
+.graph-node.gn-selected.gn-req      .gn-rect { stroke: #94a3b8; }
+.graph-node.gn-selected.gn-us       .gn-rect { stroke: #6ee7b7; }
+.graph-node.gn-selected.gn-tc       .gn-rect { stroke: #fcd34d; }
+
+.graph-node.gn-selected.gn-epic     { filter: drop-shadow(0 0 20px rgba(196,181,253,.8)); }
+.graph-node.gn-selected.gn-feature  { filter: drop-shadow(0 0 20px rgba(147,197,253,.8)); }
+.graph-node.gn-selected.gn-req      { filter: drop-shadow(0 0 20px rgba(148,163,184,.8)); }
+.graph-node.gn-selected.gn-us       { filter: drop-shadow(0 0 20px rgba(110,231,183,.8)); }
+.graph-node.gn-selected.gn-tc       { filter: drop-shadow(0 0 20px rgba(252,211,77,.8));  }
+
 .graph-node.link-source .gn-rect {
   stroke: #fff;
   stroke-width: 3;

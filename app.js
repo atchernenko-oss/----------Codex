@@ -3762,7 +3762,9 @@ function highlightGraphNode(clickedId) {
       related.add(d.data.id);
   });
 
-  d3.selectAll('.graph-node').classed('dimmed', d => !related.has(d.data.id));
+  d3.selectAll('.graph-node')
+    .classed('dimmed',      d => !related.has(d.data.id))
+    .classed('gn-selected', d => d.data.id === clickedId);
   d3.selectAll('.graph-link').classed('link-dimmed',
     l => !related.has(l.source.data.id) || !related.has(l.target.data.id)
   );
@@ -3773,6 +3775,7 @@ function highlightGraphNode(clickedId) {
 }
 
 function applyPassiveDim(mode) {
+  d3.selectAll('.graph-node').classed('gn-selected', false);
   d3.selectAll('.graph-link').classed('link-dimmed', false);
   d3.selectAll('.influence-link').classed('link-dimmed', false);
 
