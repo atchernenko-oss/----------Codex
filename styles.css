@@ -1836,6 +1836,28 @@ tr.selected td {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.glm-description {
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.5;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  white-space: pre-wrap;
+  min-height: 36px;
+}
+.glm-view-footer {
+  justify-content: space-between;
+}
+.button.danger {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+}
+.button.danger:hover {
+  background: #dc2626;
+}
 
 .us-req-row {
   display: flex;

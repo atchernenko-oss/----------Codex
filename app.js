@@ -3213,7 +3213,7 @@ document.querySelector('#sidebarTree').addEventListener('click', handleSidebarTr
   });
 }());
 
-document.querySelectorAll('.modal--resizable').forEach(modal => {
+function enableModalResize(modal) {
   const handle = document.createElement('div');
   handle.className = 'modal-resize-handle';
   modal.appendChild(handle);
@@ -3243,7 +3243,9 @@ document.querySelectorAll('.modal--resizable').forEach(modal => {
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   });
-});
+}
+
+document.querySelectorAll('.modal--resizable').forEach(enableModalResize);
 
 // ══════════════════════════════════════════════════════════════════════════════
 // EXPORT
@@ -4147,11 +4149,7 @@ function renderGraphView() {
     .on('click', (ev, l) => {
       ev.stopPropagation();
       if (_linkMode) return;
-      if (confirm('Удалить эту связь влияния?')) {
-        state.links = state.links.filter(x => x.id !== l.id);
-        saveLinks(state.links);
-        renderGraphView();
-      }
+      openGraphLinkViewModal(l);
     });
 
   // Initial fit — рассчитываем из D3-данных, не из getBBox (не работает в headless)
@@ -4231,7 +4229,7 @@ function openGraphLinkModal(srcNode, tgtNode) {
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.innerHTML = `
-    <div class="modal">
+    <div class="modal modal--resizable">
       <div class="modal-header">
         <h3>Добавить связь</h3>
         <button class="modal-close" type="button" aria-label="Закрыть">✕</button>
@@ -4267,6 +4265,7 @@ function openGraphLinkModal(srcNode, tgtNode) {
 
   document.body.appendChild(overlay);
   enableModalKeyboard(overlay);
+  enableModalResize(overlay.querySelector('.modal'));
 
   const close = () => overlay.remove();
 
@@ -4300,6 +4299,77 @@ function openGraphLinkModal(srcNode, tgtNode) {
   });
 
   requestAnimationFrame(() => overlay.querySelector('#glmLinkType').focus());
+}
+
+function openGraphLinkViewModal(link) {
+  document.getElementById('graphLinkViewModal')?.remove();
+
+  const typeLabels = { epic: 'Epic', feature: 'Feature', req: 'Req', us: 'US', tc: 'TC' };
+  const linkTypeLabel = link.linkType === 'depends_on' ? 'Зависит от' : 'Влияет на';
+
+  const entityChip = (type, id) =>
+    `<div class="glm-entity-chip">
+      <span class="inf-ms-badge inf-ms-badge--${type}">${typeLabels[type]}</span>
+      <span class="glm-entity-name">${escapeHtml(entityLabel(type, id))}</span>
+    </div>`;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'graphLinkViewModal';
+  overlay.className = 'modal-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.innerHTML = `
+    <div class="modal modal--resizable">
+      <div class="modal-header">
+        <h3>Связь влияния</h3>
+        <button class="modal-close" type="button" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="glm-body">
+          <div class="inf-field">
+            <span class="field-label">От</span>
+            ${entityChip(link.sourceType, link.sourceId)}
+          </div>
+          <div class="inf-field">
+            <span class="field-label">Тип связи</span>
+            <div class="glm-entity-chip">${escapeHtml(linkTypeLabel)}</div>
+          </div>
+          <div class="inf-field">
+            <span class="field-label">На</span>
+            ${entityChip(link.targetType, link.targetId)}
+          </div>
+          ${link.description ? `
+          <div class="inf-field">
+            <span class="field-label">Описание</span>
+            <div class="glm-description">${escapeHtml(link.description)}</div>
+          </div>` : ''}
+        </div>
+      </div>
+      <div class="modal-footer glm-view-footer">
+        <button class="button danger" id="glvDelete" type="button">Удалить связь</button>
+        <button class="button ghost" id="glvClose" type="button">Закрыть</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  enableModalKeyboard(overlay);
+  enableModalResize(overlay.querySelector('.modal'));
+
+  const close = () => overlay.remove();
+
+  overlay.querySelector('.modal-close').addEventListener('click', close);
+  overlay.querySelector('#glvClose').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  overlay.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+
+  overlay.querySelector('#glvDelete').addEventListener('click', () => {
+    state.links = state.links.filter(x => x.id !== link.id);
+    saveLinks(state.links);
+    close();
+    renderGraphView();
+  });
+
+  requestAnimationFrame(() => overlay.querySelector('#glvClose').focus());
 }
 
 function openEntityModal(nodeData) {
