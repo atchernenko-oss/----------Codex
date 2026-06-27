@@ -78,6 +78,7 @@ const elements = {
   featureAutoNumber: document.querySelector("#featureAutoNumber"),
   epicAutoNumber: document.querySelector("#epicAutoNumber"),
   reqAutoCode: document.querySelector("#reqAutoCode"),
+  tcAutoCode:  document.querySelector("#tcAutoCode"),
   autoNumberModal: document.querySelector("#autoNumberModal"),
   autoNumberClose: document.querySelector("#autoNumberClose"),
   autoNumberCancel: document.querySelector("#autoNumberCancel"),
@@ -254,6 +255,7 @@ elements.featureName.addEventListener("keydown", (e) => {
 elements.featureAutoNumber.addEventListener("click", autoAssignFeatureNumber);
 elements.epicAutoNumber.addEventListener("click", autoAssignEpicNumber);
 elements.reqAutoCode.addEventListener("click", autoAssignReqCode);
+elements.tcAutoCode.addEventListener("click", autoAssignTCCode);
 elements.autoNumberClose.addEventListener("click", closeAutoNumberModal);
 elements.autoNumberCancel.addEventListener("click", closeAutoNumberModal);
 elements.autoNumberGap.addEventListener("click", () => {
@@ -386,6 +388,7 @@ document.querySelector("#openUSFromReqBtn").addEventListener("click", () => open
 
 elements.featureNumber.addEventListener("blur", () => padNumberField(elements.featureNumber));
 elements.reqCode.addEventListener("blur", () => padNumberField(elements.reqCode));
+document.querySelector("#tcCode").addEventListener("blur", () => padNumberField(document.querySelector("#tcCode")));
 document.querySelector("#epicNumber").addEventListener("blur", () => padNumberField(document.querySelector("#epicNumber")));
 
 elements.clearSelectionBtn.addEventListener("click", () => {
@@ -670,10 +673,11 @@ function generateDemoData() {
 
   // ─── Test Cases ───────────────────────────────────────────────────────────
   const now = new Date().toISOString();
+  const tcIds = Array.from({ length: 15 }, () => crypto.randomUUID());
   const demoTC = [
     // US-001
     {
-      id: crypto.randomUUID(), usId: uIds[0], scenarioType: 'main',
+      id: tcIds[0], code: 'TC-001', usId: uIds[0], scenarioType: 'main',
       title: 'TC: Успешный вход по логину и паролю',
       status: 'Pass',
       steps: [
@@ -684,7 +688,7 @@ function generateDemoData() {
       createdAt: now,
     },
     {
-      id: crypto.randomUUID(), usId: uIds[0], scenarioType: 'alt',
+      id: tcIds[1], code: 'TC-002', usId: uIds[0], scenarioType: 'alt',
       title: 'TC: Блокировка после 5 неудачных попыток',
       status: 'Pass',
       steps: [
@@ -695,7 +699,7 @@ function generateDemoData() {
     },
     // US-002
     {
-      id: crypto.randomUUID(), usId: uIds[1], scenarioType: 'main',
+      id: tcIds[2], code: 'TC-003', usId: uIds[1], scenarioType: 'main',
       title: 'TC: Сообщение об ошибке при неверном пароле',
       status: 'Pass',
       steps: [
@@ -707,7 +711,7 @@ function generateDemoData() {
     },
     // US-003
     {
-      id: crypto.randomUUID(), usId: uIds[2], scenarioType: 'main',
+      id: tcIds[3], code: 'TC-004', usId: uIds[2], scenarioType: 'main',
       title: 'TC: Получение и ввод SMS-кода',
       status: 'Draft',
       steps: [
@@ -719,7 +723,7 @@ function generateDemoData() {
     },
     // US-004
     {
-      id: crypto.randomUUID(), usId: uIds[3], scenarioType: 'main',
+      id: tcIds[4], code: 'TC-005', usId: uIds[3], scenarioType: 'main',
       title: 'TC: Повторная отправка SMS-кода',
       status: 'Draft',
       steps: [
@@ -730,7 +734,7 @@ function generateDemoData() {
     },
     // US-005
     {
-      id: crypto.randomUUID(), usId: uIds[4], scenarioType: 'main',
+      id: tcIds[5], code: 'TC-006', usId: uIds[4], scenarioType: 'main',
       title: 'TC: Смена номера телефона в профиле',
       status: 'Draft',
       steps: [
@@ -742,7 +746,7 @@ function generateDemoData() {
     },
     // US-006
     {
-      id: crypto.randomUUID(), usId: uIds[5], scenarioType: 'main',
+      id: tcIds[6], code: 'TC-007', usId: uIds[5], scenarioType: 'main',
       title: 'TC: Смена пароля из настроек',
       status: 'Fail',
       steps: [
@@ -754,7 +758,7 @@ function generateDemoData() {
     },
     // US-007
     {
-      id: crypto.randomUUID(), usId: uIds[6], scenarioType: 'main',
+      id: tcIds[7], code: 'TC-008', usId: uIds[6], scenarioType: 'main',
       title: 'TC: Восстановление пароля через e-mail',
       status: 'Draft',
       steps: [
@@ -766,7 +770,7 @@ function generateDemoData() {
     },
     // US-008
     {
-      id: crypto.randomUUID(), usId: uIds[7], scenarioType: 'main',
+      id: tcIds[8], code: 'TC-009', usId: uIds[7], scenarioType: 'main',
       title: 'TC: Перевод между своими счетами',
       status: 'Pass',
       steps: [
@@ -777,7 +781,7 @@ function generateDemoData() {
       createdAt: now,
     },
     {
-      id: crypto.randomUUID(), usId: uIds[7], scenarioType: 'alt',
+      id: tcIds[9], code: 'TC-010', usId: uIds[7], scenarioType: 'alt',
       title: 'TC: Попытка перевести сумму больше остатка',
       status: 'Pass',
       steps: [
@@ -787,7 +791,7 @@ function generateDemoData() {
     },
     // US-009
     {
-      id: crypto.randomUUID(), usId: uIds[8], scenarioType: 'main',
+      id: tcIds[10], code: 'TC-011', usId: uIds[8], scenarioType: 'main',
       title: 'TC: Перевод по номеру карты с SMS-подтверждением',
       status: 'Draft',
       steps: [
@@ -799,7 +803,7 @@ function generateDemoData() {
     },
     // US-010
     {
-      id: crypto.randomUUID(), usId: uIds[9], scenarioType: 'main',
+      id: tcIds[11], code: 'TC-012', usId: uIds[9], scenarioType: 'main',
       title: 'TC: Перевод по телефону через СБП',
       status: 'Draft',
       steps: [
@@ -811,7 +815,7 @@ function generateDemoData() {
     },
     // US-011
     {
-      id: crypto.randomUUID(), usId: uIds[10], scenarioType: 'main',
+      id: tcIds[12], code: 'TC-013', usId: uIds[10], scenarioType: 'main',
       title: 'TC: Просмотр истории за последний месяц',
       status: 'Pass',
       steps: [
@@ -823,7 +827,7 @@ function generateDemoData() {
     },
     // US-012
     {
-      id: crypto.randomUUID(), usId: uIds[11], scenarioType: 'main',
+      id: tcIds[13], code: 'TC-014', usId: uIds[11], scenarioType: 'main',
       title: 'TC: Поиск по сумме транзакции',
       status: 'Draft',
       steps: [
@@ -834,7 +838,7 @@ function generateDemoData() {
     },
     // US-013
     {
-      id: crypto.randomUUID(), usId: uIds[12], scenarioType: 'main',
+      id: tcIds[14], code: 'TC-015', usId: uIds[12], scenarioType: 'main',
       title: 'TC: Фильтрация истории по типу «Переводы»',
       status: 'Draft',
       steps: [
@@ -846,19 +850,71 @@ function generateDemoData() {
     },
   ];
 
+  // ─── Influence Links ──────────────────────────────────────────────────────
+  const lid = (n) => `demo-link-${n}`;
+  const demoLinks = [
+    // Feature → Feature: Авторизация влияет на Переводы
+    { id: lid(1), sourceType: 'feature', sourceId: fIds[0], targetType: 'feature', targetId: fIds[2],
+      linkType: 'influences', description: 'Авторизация является обязательным предусловием для любых денежных операций — сессионный токен передаётся в каждый запрос переводов' },
+    // Feature → Feature: История зависит от Переводов
+    { id: lid(2), sourceType: 'feature', sourceId: fIds[3], targetType: 'feature', targetId: fIds[2],
+      linkType: 'depends_on', description: 'История операций отображает данные, генерируемые фичей «Переводы» — без реальных транзакций история останется пустой' },
+    // REQ → REQ: REQ-001 влияет на REQ-002 (пароль → 2FA)
+    { id: lid(3), sourceType: 'req', sourceId: rIds[0], targetType: 'req', targetId: rIds[1],
+      linkType: 'influences', description: 'Базовая аутентификация по паролю является первым шагом перед 2FA: изменение политики паролей прямо влияет на требования к SMS-коду' },
+    // REQ → REQ: REQ-005 влияет на REQ-007 (переводы → история)
+    { id: lid(4), sourceType: 'req', sourceId: rIds[4], targetType: 'req', targetId: rIds[6],
+      linkType: 'influences', description: 'Каждый перевод между счетами должен попадать в историю операций — требование к переводам определяет структуру записей истории' },
+    // US → Feature (cross-level): US-003 (SMS-вход) влияет на F-001 (Авторизация)
+    { id: lid(5), sourceType: 'us', sourceId: uIds[2], targetType: 'feature', targetId: fIds[0],
+      linkType: 'influences', description: 'Сценарий 2FA определяет требования к интеграции с SMS-шлюзом на уровне всей фичи авторизации — затрагивает инфраструктуру и таймауты' },
+    // US → Epic (cross-level): US-008 (перевод между счетами) зависит от E-001 (Личный кабинет)
+    { id: lid(6), sourceType: 'us', sourceId: uIds[7], targetType: 'epic', targetId: eIds[0],
+      linkType: 'depends_on', description: 'Для выполнения перевода пользователь должен пройти полный цикл авторизации из эпика «Личный кабинет» — без активной сессии перевод невозможен' },
+    // US → US: US-003 зависит от US-001 (SMS-вход от основного входа)
+    { id: lid(7), sourceType: 'us', sourceId: uIds[2], targetType: 'us', targetId: uIds[0],
+      linkType: 'depends_on', description: 'Получение SMS-кода — второй шаг входа, возможный только после успешного прохождения первого шага (логин/пароль)' },
+    // US → REQ (cross-level): US-006 (смена пароля) влияет на REQ-001
+    { id: lid(8), sourceType: 'us', sourceId: uIds[5], targetType: 'req', targetId: rIds[0],
+      linkType: 'influences', description: 'Сценарий смены пароля уточняет политику сложности паролей и механизм инвалидации сессий — это расширяет требования к основному входу' },
+    // TC → REQ (cross-level): TC-007 (смена пароля) зависит от REQ-001
+    { id: lid(9), sourceType: 'tc', sourceId: tcIds[6], targetType: 'req', targetId: rIds[0],
+      linkType: 'depends_on', description: 'Тест смены пароля требует предварительной авторизации — тест-кейс предполагает выполнение REQ-001 как предусловие' },
+    // TC → TC: TC-004 (SMS-код) зависит от TC-001 (успешный вход)
+    { id: lid(10), sourceType: 'tc', sourceId: tcIds[3], targetType: 'tc', targetId: tcIds[0],
+      linkType: 'depends_on', description: 'Тест 2FA предполагает успешное прохождение первого шага аутентификации из TC-001 как обязательное предусловие' },
+    // TC → US (cross-level): TC-001 влияет на US-003
+    { id: lid(11), sourceType: 'tc', sourceId: tcIds[0], targetType: 'us', targetId: uIds[2],
+      linkType: 'influences', description: 'Результаты TC-001 определяют набор предусловий и тестовых данных для всех сценариев 2FA — найденные дефекты входа блокируют тестирование SMS-флоу' },
+    // TC → Feature (cross-level): TC-013 (история) влияет на F-003 (переводы)
+    { id: lid(12), sourceType: 'tc', sourceId: tcIds[12], targetType: 'feature', targetId: fIds[2],
+      linkType: 'influences', description: 'Тест истории операций верифицирует корректность записи данных переводов — дефекты, найденные здесь, указывают на баги в фиче «Переводы»' },
+    // REQ → Feature (cross-level): REQ-002 (2FA) влияет на F-001 (Авторизация)
+    { id: lid(13), sourceType: 'req', sourceId: rIds[1], targetType: 'feature', targetId: fIds[0],
+      linkType: 'influences', description: 'Требование 2FA через SMS усложняет общую архитектуру авторизации: добавляет второй экран, интеграцию с SMS и механизм повторной отправки' },
+    // Feature → Epic (cross-level): F-003 (Переводы) влияет на E-002 (Платежи)
+    { id: lid(14), sourceType: 'feature', sourceId: fIds[2], targetType: 'epic', targetId: eIds[1],
+      linkType: 'influences', description: 'Функциональность переводов является ключевым компонентом эпика «Платежи» — готовность фичи напрямую определяет MVP-готовность всего эпика' },
+    // REQ → US (cross-level): REQ-007 (история с пагинацией) зависит от US-008
+    { id: lid(15), sourceType: 'req', sourceId: rIds[6], targetType: 'us', targetId: uIds[7],
+      linkType: 'depends_on', description: 'Для наполнения истории реальными данными необходимо наличие переводов из US-008 — без них невозможно проверить пагинацию на реальном объёме данных' },
+  ];
+
   state.requirements = demoReqs;
   state.features     = demoFeatures;
   state.epics        = demoEpics;
   state.userStories  = demoUS;
   state.testCases    = demoTC;
+  state.links        = demoLinks;
   state.selectedIds  = new Set();
   saveRequirements(demoReqs);
   saveFeatures(demoFeatures);
   saveEpics(demoEpics);
   saveUserStories(demoUS);
   saveTestCases(demoTC);
+  saveLinks(demoLinks);
   mergeOwners(demoReqs.map(r => r.owner));
-  setStatus(`Сгенерирован демонстрационный набор: ${demoReqs.length} требований, ${demoFeatures.length} Features, ${demoEpics.length} Epics, ${demoUS.length} US, ${demoTC.length} TC.`);
+  setStatus(`Сгенерирован демонстрационный набор: ${demoReqs.length} требований, ${demoFeatures.length} Features, ${demoEpics.length} Epics, ${demoUS.length} US, ${demoTC.length} TC, ${demoLinks.length} связей влияния.`);
   render();
 }
 
@@ -1069,6 +1125,11 @@ function autoAssignEpicNumber() {
 function autoAssignReqCode() {
   const nums = state.requirements.filter(r => r.id !== editingRequirementId).map(r => r.code || '');
   autoAssignNumber(elements.reqCode, nums, 'REQ-');
+}
+
+function autoAssignTCCode() {
+  const nums = state.testCases.filter(t => t.id !== editingTCId).map(t => t.code || '');
+  autoAssignNumber(document.querySelector("#tcCode"), nums, 'TC-');
 }
 
 function closeAutoNumberModal() {
@@ -1698,7 +1759,7 @@ function entityCode(type, id) {
   if (type === 'feature') return e.number || e.label || id;
   if (type === 'req')     return e.code || id;
   if (type === 'us')      return e.number ? `US-${String(e.number).replace(/^US-/i, '')}` : id;
-  if (type === 'tc')      return e.code || e.title?.slice(0, 10) || id;
+  if (type === 'tc')      return e.code || id;
   return id;
 }
 
@@ -2265,6 +2326,7 @@ function openTCModal(usId, scenarioType, steps, usTitle) {
   currentTCUsId = usId;
   currentTCScenarioType = scenarioType;
   const label = scenarioType === 'main' ? 'основной сценарий' : 'альтернативный сценарий';
+  document.querySelector("#tcCode").value = '';
   document.querySelector("#tcTitle").value = `TC: ${usTitle} (${label})`;
   document.querySelector("#tcStatus").value = "Draft";
   document.querySelector("#tcStepsList").innerHTML = "";
@@ -2281,6 +2343,7 @@ function openTCEditModal(tc) {
   editingTCId = tc.id;
   currentTCUsId = tc.usId;
   currentTCScenarioType = tc.scenarioType;
+  document.querySelector("#tcCode").value = (tc.code || '').replace(/^TC-/i, '');
   document.querySelector("#tcTitle").value = tc.title;
   document.querySelector("#tcStatus").value = tc.status || "Draft";
   document.querySelector("#tcStepsList").innerHTML = "";
@@ -2292,6 +2355,8 @@ function openTCEditModal(tc) {
 }
 
 function saveTCModal() {
+  const rawCode = document.querySelector("#tcCode").value.trim();
+  const code = rawCode ? `TC-${rawCode}` : '';
   const title = document.querySelector("#tcTitle").value.trim() || "Test Case";
   const status = document.querySelector("#tcStatus").value;
   const stepItems = document.querySelectorAll("#tcStepsList .tc-step-item");
@@ -2306,6 +2371,7 @@ function saveTCModal() {
     id: editingTCId || crypto.randomUUID(),
     usId: currentTCUsId,
     scenarioType: currentTCScenarioType,
+    code,
     title,
     status,
     steps,

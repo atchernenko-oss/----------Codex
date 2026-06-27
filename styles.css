@@ -1469,6 +1469,10 @@ tr.selected td {
   z-index: 103;
 }
 
+.modal-overlay--top4 {
+  z-index: 110;
+}
+
 .us-col {
   width: 48px;
   text-align: center !important;
