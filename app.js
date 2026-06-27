@@ -1781,7 +1781,7 @@ function buildInfluenceListHtml(entityType, entityId) {
       l.linkType === 'depends_on' ? 'Зависит от' : 'Влияет на',
       entityLabel(l.targetType, l.targetId))),
     ...inc.map(l => row(l,
-      l.linkType === 'depends_on' ? 'Нужен для' : 'Влияет ↑',
+      l.linkType === 'depends_on' ? 'Нужен для' : 'Зависит от',
       entityLabel(l.sourceType, l.sourceId))),
   ].join('');
 }
