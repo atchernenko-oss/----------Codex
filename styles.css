@@ -2715,12 +2715,18 @@ tr.selected td {
 #graphContainer.mode-hierarchy .influence-link { display: none; }
 #graphContainer.mode-influence .graph-link:not(.link-context) { display: none; }
 
-/* Сегментированная группа кнопок */
-.graph-mode-group {
-  display: flex;
+/* Единый блок: режим + (опционально) круги влияния */
+.graph-mode-block {
+  display: inline-flex;
+  flex-direction: column;
   border: 1px solid var(--line);
   border-radius: 6px;
   overflow: hidden;
+}
+
+/* Ряд кнопок режима */
+.graph-mode-group {
+  display: flex;
 }
 .graph-mode-btn {
   background: none;
@@ -2738,29 +2744,29 @@ tr.selected td {
 .graph-mode-btn:hover:not(.active) { background: var(--panel); color: var(--text); }
 .graph-mode-btn.active { background: var(--accent); color: #fff; }
 
-/* Селектор глубины кругов влияния (виден только в режиме «Влияние») */
+/* Ряд выбора глубины — второй ряд того же блока */
 .graph-depth-group {
   display: flex;
-  align-items: center;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  overflow: hidden;
+  align-items: stretch;
+  border-top: 1px solid var(--line);
 }
 .graph-depth-group.hidden { display: none; }
 .graph-depth-label {
-  padding: 5px 8px;
+  padding: 4px 8px;
   font-size: 11px;
   font-weight: 500;
   color: var(--muted);
   background: var(--panel);
   border-right: 1px solid var(--line);
   white-space: nowrap;
+  display: flex;
+  align-items: center;
 }
 .graph-depth-btn {
   background: none;
   border: none;
   border-right: 1px solid var(--line);
-  padding: 5px 10px;
+  padding: 4px 10px;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -2771,13 +2777,15 @@ tr.selected td {
 .graph-depth-btn:last-of-type { border-right: none; }
 .graph-depth-btn:hover:not(.active) { background: var(--panel); color: var(--text); }
 .graph-depth-btn.active { background: var(--accent); color: #fff; }
+/* Поле ввода N — занимает место кнопки N */
 .depth-n-input {
-  width: 44px;
-  padding: 3px 6px;
+  width: 40px;
+  padding: 4px 6px;
   font-size: 12px;
   border: none;
-  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
   color: var(--text);
+  text-align: center;
   outline: none;
 }
 .depth-n-input.hidden { display: none; }

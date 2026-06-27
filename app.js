@@ -4448,13 +4448,24 @@ document.querySelector('.graph-mode-group').addEventListener('click', ev => {
 document.querySelector('#influenceDepthGroup').addEventListener('click', ev => {
   const btn = ev.target.closest('.graph-depth-btn');
   if (!btn) return;
-  document.querySelectorAll('.graph-depth-btn').forEach(b => b.classList.toggle('active', b === btn));
   const depthInput = document.querySelector('#influenceDepthN');
+  const depthBtnN  = document.querySelector('#depthBtnN');
   const val = btn.dataset.depth;
-  depthInput.classList.toggle('hidden', val !== 'n');
-  _influenceDepth = val === 'all' ? Infinity
-                 : val === 'n'   ? (parseInt(depthInput.value, 10) || 3)
-                 : parseInt(val, 10);
+  if (val === 'n') {
+    // Кнопка N прячется — на её месте появляется поле ввода
+    document.querySelectorAll('.graph-depth-btn').forEach(b => b.classList.remove('active'));
+    depthBtnN.classList.add('hidden');
+    depthInput.classList.remove('hidden');
+    depthInput.select();
+    depthInput.focus();
+    _influenceDepth = parseInt(depthInput.value, 10) || 3;
+  } else {
+    // Любая другая кнопка → скрыть поле, показать N, отметить кнопку
+    depthBtnN.classList.remove('hidden');
+    depthInput.classList.add('hidden');
+    document.querySelectorAll('.graph-depth-btn').forEach(b => b.classList.toggle('active', b === btn));
+    _influenceDepth = val === 'all' ? Infinity : parseInt(val, 10);
+  }
   if (_selectedNodeId) {
     const prevId = _selectedNodeId;
     _selectedNodeId = null;
