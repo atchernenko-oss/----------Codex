@@ -3760,6 +3760,113 @@ function buildReqTreeNode(req) {
 const NODE_W = 148, NODE_H = 54, NODE_SEP_H = 60, NODE_SEP_V = 16;
 const NODE_TEXT_PAD = 10; // горизонтальный отступ текста внутри узла
 
+// Ищет координату y, не пересекающую ни один из заблокированных диапазонов.
+function _findClearY(prefY, blocked, margin = 6) {
+  if (!blocked.length) return prefY;
+  const ok = y => blocked.every(([lo, hi]) => y < lo - margin || y > hi + margin);
+  if (ok(prefY)) return prefY;
+  const sorted = [...blocked].sort((a, b) => a[0] - b[0]);
+  if (ok(sorted[0][0] - margin - 1)) return sorted[0][0] - margin - 1;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const c = sorted[i][1] + margin + 1;
+    if (c <= sorted[i + 1][0] - margin) return c;
+  }
+  return sorted[sorted.length - 1][1] + margin + 1;
+}
+
+// Строит SVG-путь через точки-вершины с закруглёнными углами (квадратичные безье).
+function _roundedPolyline(pts, r) {
+  if (pts.length < 2) return pts.length ? `M ${pts[0].x} ${pts[0].y}` : '';
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) {
+    const p1 = pts[i];
+    const p2 = i < pts.length - 1 ? pts[i + 1] : null;
+    if (!p2) { d += ` L ${p1.x} ${p1.y}`; continue; }
+    const p0 = pts[i - 1];
+    const dx1 = p1.x - p0.x, dy1 = p1.y - p0.y;
+    const dx2 = p2.x - p1.x, dy2 = p2.y - p1.y;
+    const l1 = Math.hypot(dx1, dy1), l2 = Math.hypot(dx2, dy2);
+    if (!l1 || !l2) { d += ` L ${p1.x} ${p1.y}`; continue; }
+    const ar = Math.min(r, l1 / 2, l2 / 2);
+    const ax = p1.x - (dx1 / l1) * ar, ay = p1.y - (dy1 / l1) * ar;
+    const bx = p1.x + (dx2 / l2) * ar, by = p1.y + (dy2 / l2) * ar;
+    d += ` L ${ax} ${ay} Q ${p1.x} ${p1.y} ${bx} ${by}`;
+  }
+  return d;
+}
+
+// Строит SVG-путь связи влияния, огибающий узлы, не участвующие в связи.
+// Маршрут проходит через «коридоры» между колонками (NODE_SEP_H = 60px),
+// где нет узлов, и выбирает y-уровень, свободный от промежуточных узлов.
+function _routeInfluencePath(l, s, t, nodePos) {
+  const allCx = [...new Set([...nodePos.values()].map(p => p.cx))].sort((a, b) => a - b);
+  const si = allCx.indexOf(s.cx), ti = allCx.indexOf(t.cx);
+  const gapMid = i => (allCx[i] + allCx[i + 1]) / 2;
+  const HW = NODE_W / 2, HH = NODE_H / 2, R = 8;
+
+  if (si === ti) {
+    // Одна колонка: C-образный маршрут через соседний коридор
+    const gi = si < allCx.length - 1 ? si : si - 1;
+    const gx = gapMid(gi);
+    const useRight = gx > s.cx; // коридор справа → выходим/входим с правого края
+    const edgeX = useRight ? s.cx + HW : s.cx - HW;
+    return _roundedPolyline([
+      { x: edgeX, y: s.cy },
+      { x: gx,    y: s.cy },
+      { x: gx,    y: t.cy },
+      { x: edgeX, y: t.cy },
+    ], R);
+  }
+
+  const goRight = si < ti;
+  const minI = goRight ? si : ti, maxI = goRight ? ti : si;
+  const gaps = [];
+  for (let i = minI; i < maxI; i++) gaps.push(gapMid(i));
+  if (!goRight) gaps.reverse();
+
+  const firstGap = gaps[0], lastGap = gaps[gaps.length - 1];
+  const srcKey = `${l.sourceType}:${l.sourceId}`;
+  const tgtKey = `${l.targetType}:${l.targetId}`;
+  const minCx = Math.min(s.cx, t.cx), maxCx = Math.max(s.cx, t.cx);
+
+  // Промежуточные узлы (не источник, не цель, между двумя крайними колонками)
+  const intNodes = [...nodePos.entries()]
+    .filter(([k, p]) => k !== srcKey && k !== tgtKey && p.cx > minCx && p.cx < maxCx)
+    .map(([, p]) => p);
+  const blocked = intNodes.map(p => [p.cy - HH, p.cy + HH]);
+  const travelY = _findClearY((s.cy + t.cy) / 2, blocked);
+
+  // Выходим из узла с нужного края, чтобы не рисовать линию через центр узла
+  const sEdge = { x: goRight ? s.cx + HW : s.cx - HW, y: s.cy };
+  const tEdge = { x: goRight ? t.cx - HW : t.cx + HW, y: t.cy };
+
+  const raw = [sEdge];
+  raw.push({ x: firstGap, y: s.cy });
+  // travelY нужен только если есть промежуточные колонки (иначе коридор один и s.cy→t.cy — прямая)
+  if (gaps.length > 1) {
+    if (Math.abs(travelY - s.cy) > 2) raw.push({ x: firstGap, y: travelY });
+    raw.push({ x: lastGap, y: travelY });
+  }
+  if (Math.abs(t.cy - (gaps.length > 1 ? travelY : s.cy)) > 2) raw.push({ x: lastGap, y: t.cy });
+  raw.push(tEdge);
+
+  // Удаляем дубли и коллинеарные промежуточные точки
+  const pts = [raw[0]];
+  for (let i = 1; i < raw.length; i++) {
+    const prev = pts[pts.length - 1];
+    if (Math.abs(raw[i].x - prev.x) < 0.5 && Math.abs(raw[i].y - prev.y) < 0.5) continue;
+    // Убираем коллинеарность: если предыдущие два и текущая — одна прямая, заменяем последнюю
+    if (pts.length >= 2) {
+      const p0 = pts[pts.length - 2], p1 = pts[pts.length - 1], p2 = raw[i];
+      const sameX = Math.abs(p0.x - p1.x) < 0.5 && Math.abs(p1.x - p2.x) < 0.5;
+      const sameY = Math.abs(p0.y - p1.y) < 0.5 && Math.abs(p1.y - p2.y) < 0.5;
+      if (sameX || sameY) { pts[pts.length - 1] = p2; continue; }
+    }
+    pts.push(raw[i]);
+  }
+  return _roundedPolyline(pts, R);
+}
+
 let _measureCtx = null;
 function measureText(text, fontSize, fontWeight = 'normal') {
   if (!_measureCtx) {
@@ -3875,7 +3982,6 @@ function renderGraphView() {
     .attr('class', 'graph-link')
     .attr('d', d3.linkHorizontal().x(d => d.y).y(d => d.x));
 
-  // Influence links ──────────────────────────────────────────────────
   // Карта позиций узлов: "type:entityId" → {cx, cy} (центр узла в координатах g)
   const nodePos = new Map();
   nodes.forEach(d => nodePos.set(`${d.data.type}:${d.data.data.id}`, { cx: d.y, cy: d.x }));
@@ -3885,23 +3991,6 @@ function renderGraphView() {
     nodePos.has(`${l.targetType}:${l.targetId}`)
   );
 
-  g.selectAll('.influence-link')
-    .data(infLinks, l => l.id).join('path')
-    .attr('class', 'influence-link')
-    .attr('d', l => {
-      const s = nodePos.get(`${l.sourceType}:${l.sourceId}`);
-      const t = nodePos.get(`${l.targetType}:${l.targetId}`);
-      return d3.linkHorizontal()({ source: [s.cx, s.cy], target: [t.cx, t.cy] });
-    })
-    .on('click', (ev, l) => {
-      ev.stopPropagation();
-      if (_linkMode) return;
-      if (confirm('Удалить эту связь влияния?')) {
-        state.links = state.links.filter(x => x.id !== l.id);
-        saveLinks(state.links);
-        renderGraphView();
-      }
-    });
 
   // Node groups
   const nodeG = g.selectAll('.graph-node')
@@ -3939,6 +4028,26 @@ function renderGraphView() {
     .each(function(d) {
       fitTextInNode(d3.select(this), d.data.sublabel, NODE_H / 2 + 10,
         { maxLines: 2, initFontSize: 10, minFontSize: 8, fontWeight: 'normal', lineH: 13 });
+    });
+
+  // Influence links — рисуем ПОСЛЕ узлов (поверх них).
+  // Маршрут огибает узлы, не участвующие в связи, через коридоры между колонками.
+  g.selectAll('.influence-link')
+    .data(infLinks, l => l.id).join('path')
+    .attr('class', 'influence-link')
+    .attr('d', l => {
+      const s = nodePos.get(`${l.sourceType}:${l.sourceId}`);
+      const t = nodePos.get(`${l.targetType}:${l.targetId}`);
+      return _routeInfluencePath(l, s, t, nodePos);
+    })
+    .on('click', (ev, l) => {
+      ev.stopPropagation();
+      if (_linkMode) return;
+      if (confirm('Удалить эту связь влияния?')) {
+        state.links = state.links.filter(x => x.id !== l.id);
+        saveLinks(state.links);
+        renderGraphView();
+      }
     });
 
   // Initial fit — рассчитываем из D3-данных, не из getBBox (не работает в headless)
