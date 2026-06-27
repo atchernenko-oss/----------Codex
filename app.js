@@ -229,6 +229,13 @@ elements.requirementsBody.addEventListener("click", (event) => {
     return;
   }
 
+  const codeLink = event.target.closest(".req-code-link");
+  if (codeLink) {
+    const req = state.requirements.find((r) => r.id === codeLink.dataset.id);
+    if (req) openRequirementModal(req);
+    return;
+  }
+
   const editBtn = event.target.closest(".row-edit-btn");
   if (editBtn) {
     const req = state.requirements.find((r) => r.id === editBtn.dataset.id);
@@ -264,6 +271,10 @@ elements.requirementsBody.addEventListener("change", (event) => {
 });
 
 document.querySelector("#addRequirementBtn").addEventListener("click", () => openRequirementModal(null));
+document.querySelector("#addEpicBtn").addEventListener("click", () => openEpicEditModal(null));
+document.querySelector("#addFeatureBtn").addEventListener("click", () => openFeatureEditModal(null));
+document.querySelector("#addUSBtn").addEventListener("click", () => { currentUSRequirementId = null; openUSEditModal(null); });
+document.querySelector("#addTCBtn").addEventListener("click", () => openTCEditModal(null));
 elements.requirementModalClose.addEventListener("click", closeRequirementModal);
 elements.requirementModalCancel.addEventListener("click", closeRequirementModal);
 elements.requirementModalSave.addEventListener("click", saveRequirement);
@@ -1091,16 +1102,17 @@ function openFeatureModal() {
 }
 
 function openFeatureEditModal(featureObj) {
-  editingFeatureId = featureObj.id;
-  document.querySelector("#featureModalTitle").textContent = "Редактировать Feature";
+  editingFeatureId = featureObj ? featureObj.id : null;
+  document.querySelector("#featureModalTitle").textContent = featureObj ? "Редактировать Feature" : "Новая Feature";
   elements.featureWarning.classList.add("hidden");
-  const num = featureObj.number || '';
+  const num = featureObj?.number || '';
   elements.featureNumber.value = num.startsWith('F-') ? num.slice(2) : num;
-  elements.featureName.value = featureObj.name;
-  elements.featureDescription.value = featureObj.description;
+  elements.featureName.value = featureObj?.name || '';
+  elements.featureDescription.value = featureObj?.description || '';
   elements.featureName.classList.remove("input-error");
   elements.featureModal.classList.remove("hidden");
-  renderInfluenceSection('featureInfluenceSection', 'feature', featureObj.id);
+  if (featureObj) renderInfluenceSection('featureInfluenceSection', 'feature', featureObj.id);
+  else document.querySelector('#featureInfluenceSection').innerHTML = '';
   requestAnimationFrame(() => elements.featureNumber.focus());
 }
 
@@ -1415,7 +1427,7 @@ function buildRequirementRow(item) {
     <td class="checkbox-cell">
       <input type="checkbox" data-id="${escapeHtml(item.id)}" ${isSelected ? "checked" : ""} />
     </td>
-    <td><strong>${escapeHtml(item.code)}</strong></td>
+    <td class="req-code-cell"><button class="req-code-link" data-id="${escapeHtml(item.id)}" type="button">${escapeHtml(item.code)}</button></td>
     <td class="requirement-text">${escapeHtml(item.text)}</td>
     <td>${item.feature ? `<span class="badge feature-badge-inline">${escapeHtml(getFeatureNumber(item.feature))}</span>` : ""}</td>
     <td><span class="badge ${statusClass(item.status)}" ${getDictBadgeStyle('reqStatus', item.status)}>${escapeHtml(item.status)}</span></td>
@@ -1573,16 +1585,17 @@ function openEpicModal() {
 }
 
 function openEpicEditModal(epicObj) {
-  editingEpicId = epicObj.id;
-  document.querySelector("#epicModalTitle").textContent = "Редактировать Epic";
+  editingEpicId = epicObj ? epicObj.id : null;
+  document.querySelector("#epicModalTitle").textContent = epicObj ? "Редактировать Epic" : "Новый Epic";
   document.querySelector("#epicWarning").classList.add("hidden");
-  const epicNum = epicObj.number || '';
+  const epicNum = epicObj?.number || '';
   document.querySelector("#epicNumber").value = epicNum.startsWith('E-') ? epicNum.slice(2) : epicNum;
-  document.querySelector("#epicName").value = epicObj.name;
-  document.querySelector("#epicDescription").value = epicObj.description;
+  document.querySelector("#epicName").value = epicObj?.name || '';
+  document.querySelector("#epicDescription").value = epicObj?.description || '';
   document.querySelector("#epicName").classList.remove("input-error");
   document.querySelector("#epicModal").classList.remove("hidden");
-  renderInfluenceSection('epicInfluenceSection', 'epic', epicObj.id);
+  if (epicObj) renderInfluenceSection('epicInfluenceSection', 'epic', epicObj.id);
+  else document.querySelector('#epicInfluenceSection').innerHTML = '';
   requestAnimationFrame(() => document.querySelector("#epicNumber").focus());
 }
 
@@ -2636,17 +2649,18 @@ function closeTCModal() {
 }
 
 function openTCEditModal(tc) {
-  editingTCId = tc.id;
-  currentTCUsId = tc.usId;
-  currentTCScenarioType = tc.scenarioType;
-  document.querySelector("#tcCode").value = (tc.code || '').replace(/^TC-/i, '');
-  document.querySelector("#tcTitle").value = tc.title;
-  populateDictSelect(document.querySelector('#tcStatus'), 'tcStatus', null, tc.status || 'Draft');
+  editingTCId = tc ? tc.id : null;
+  currentTCUsId = tc ? tc.usId : null;
+  currentTCScenarioType = tc ? tc.scenarioType : 'main';
+  document.querySelector("#tcCode").value = tc ? (tc.code || '').replace(/^TC-/i, '') : '';
+  document.querySelector("#tcTitle").value = tc ? tc.title : '';
+  populateDictSelect(document.querySelector('#tcStatus'), 'tcStatus', null, tc?.status || 'Draft');
   document.querySelector("#tcStepsList").innerHTML = "";
-  for (const step of (tc.steps || [])) addTCStepRow(step);
-  document.querySelector("#tcModalTitle").textContent = "Edit Test Case";
+  for (const step of (tc?.steps || [])) addTCStepRow(step);
+  document.querySelector("#tcModalTitle").textContent = tc ? "Редактировать Test Case" : "Новый Test Case";
   document.querySelector("#tcModal").classList.remove("hidden");
-  renderInfluenceSection('tcInfluenceSection', 'tc', tc.id);
+  if (tc) renderInfluenceSection('tcInfluenceSection', 'tc', tc.id);
+  else document.querySelector('#tcInfluenceSection').innerHTML = '';
   document.querySelector("#tcTitle").focus();
 }
 
@@ -2974,7 +2988,7 @@ function renderEpicsView() {
       return req && reqs.some(r2 => r2.id === req.id);
     }).length;
     return `<tr>
-      <td class="reg-code">${escapeHtml(epic.number || '')}</td>
+      <td>${regLink(epic.number || '', 'edit-epic', { 'epic-id': epic.id })}</td>
       <td class="reg-name">${escapeHtml(epic.name || epic.label || '')}</td>
       <td class="reg-desc">${escapeHtml(epic.description || '')}</td>
       <td class="reg-num">${features.length}</td>
@@ -3026,7 +3040,7 @@ function renderFeaturesView() {
       return us && reqs.some(r => r.id === us.requirementId);
     }).length;
     return `<tr>
-      <td class="reg-code">${escapeHtml(feature.number || '')}</td>
+      <td>${regLink(feature.number || '', 'edit-feature', { 'feature-id': feature.id })}</td>
       <td class="reg-name">${escapeHtml(feature.name || feature.label || '')}</td>
       <td>${epic ? regLink(epic.label, 'edit-epic', { 'epic-id': epic.id }) : '<span class="reg-empty-cell">—</span>'}</td>
       <td class="reg-desc">${escapeHtml(feature.description || '')}</td>
@@ -3084,7 +3098,7 @@ function renderUSView() {
       ? `<button class="reg-link" data-action="goto-tc" data-us-id="${us.id}">${mainTC + altTC} TC</button>`
       : '<span class="reg-empty-cell">—</span>';
     return `<tr>
-      <td class="reg-code">${escapeHtml(us.number || '')}</td>
+      <td>${regLink(us.number || '', 'edit-us', { 'us-id': us.id })}</td>
       <td class="reg-name">${escapeHtml(us.title || '')}</td>
       <td>${req ? regLink(req.code, 'edit-req', { 'req-id': req.id }) : '<span class="reg-empty-cell">—</span>'}</td>
       <td>${feature ? regLink(feature.label || feature.name, 'edit-feature', { 'feature-id': feature.id }) : '<span class="reg-empty-cell">—</span>'}</td>
@@ -3141,7 +3155,9 @@ function renderTCView() {
     const steps = tc.steps?.length || 0;
     const date = tc.createdAt ? new Date(tc.createdAt).toLocaleDateString('ru-RU') : '—';
     const scenLabel = tc.scenarioType === 'main' ? 'Основной' : 'Альтернативный';
+    const tcCode = tc.code || '—';
     return `<tr>
+      <td>${tc.code ? regLink(tcCode, 'edit-tc', { 'tc-id': tc.id }) : '<span class="reg-empty-cell">—</span>'}</td>
       <td class="reg-name">${escapeHtml(tc.title)}</td>
       <td>${us ? regLink(us.number ? `${us.number} ${us.title}` : us.title, 'edit-us', { 'us-id': us.id }) : '<span class="reg-empty-cell">—</span>'}</td>
       <td>${req ? regLink(req.code, 'edit-req', { 'req-id': req.id }) : '<span class="reg-empty-cell">—</span>'}</td>
@@ -3154,7 +3170,7 @@ function renderTCView() {
     </tr>`;
   });
   el.innerHTML = regTable(
-    ['Название', 'User Story', 'Требование', 'Фича', 'Эпик', 'Статус', 'Сценарий', 'Шагов', 'Создан'],
+    ['Код', 'Название', 'User Story', 'Требование', 'Фича', 'Эпик', 'Статус', 'Сценарий', 'Шагов', 'Создан'],
     rows,
     ''
   );
@@ -3178,6 +3194,9 @@ function handleViewClick(e) {
   } else if (action === 'edit-us') {
     const us = state.userStories.find(u => u.id === btn.dataset.usId);
     if (us) { currentUSRequirementId = us.requirementId; openUSEditModal(us); }
+  } else if (action === 'edit-tc') {
+    const tc = state.testCases.find(t => t.id === btn.dataset.tcId);
+    if (tc) openTCEditModal(tc);
   } else if (action === 'goto-tc') {
     switchView('testCases');
   }

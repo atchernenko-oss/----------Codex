@@ -716,6 +716,30 @@ tr:hover td {
   line-height: 1.4;
 }
 
+.req-code-cell {
+  white-space: nowrap;
+}
+
+.req-code-link {
+  font-weight: 700;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: transparent;
+  transition: color 0.12s, text-decoration-color 0.12s;
+}
+
+.req-code-link:hover {
+  color: var(--accent-strong);
+  text-decoration-color: currentColor;
+}
+
 .badge {
   display: inline-flex;
   min-height: 24px;
@@ -2571,7 +2595,7 @@ tr.selected td {
 
 /* ── registry table ── */
 .reg-table-wrap {
-  padding: 0 24px 32px;
+  padding: 0;
   min-width: max-content;
 }
 
