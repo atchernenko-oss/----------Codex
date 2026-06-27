@@ -2637,6 +2637,11 @@ tr.selected td {
 
 .graph-legend {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.graph-legend-row {
+  display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -2755,9 +2760,39 @@ tr.selected td {
 .influence-link:hover     { stroke-width: 3.5; }
 .influence-link.link-dimmed  { opacity: 0.18; }
 
-/* Legend item for influence */
-.graph-legend-item--influence::before { background: #e05151; border-radius: 50%; }
-.graph-legend-item--influence { color: #e05151; }
+/* Связь влияния: без выбора — один цвет, с выбором — два направления */
+.graph-legend-item--link-influences,
+.graph-legend-item--link-depends { display: none; }
+
+body:has(#graphContainer.has-selection) .graph-legend-item--influence      { display: none; }
+body:has(#graphContainer.has-selection) .graph-legend-item--link-influences,
+body:has(#graphContainer.has-selection) .graph-legend-item--link-depends    { display: flex; }
+
+/* Link-type legend items — линии вместо квадратов */
+.graph-legend-item--influence::before,
+.graph-legend-item--link-hier::before,
+.graph-legend-item--link-influences::before,
+.graph-legend-item--link-depends::before {
+  width: 22px;
+  height: 2px;
+  border-radius: 0;
+}
+.graph-legend-item--link-hier::before {
+  background: #7aaede;
+}
+.graph-legend-item--link-influences::before {
+  background: repeating-linear-gradient(to right, #e05151 0, #e05151 7px, transparent 7px, transparent 11px);
+}
+.graph-legend-item--link-depends::before {
+  background: repeating-linear-gradient(to right, #3b82f6 0, #3b82f6 7px, transparent 7px, transparent 11px);
+}
+.graph-legend-item--influence::before {
+  background: repeating-linear-gradient(to right, #e05151 0px, #e05151 7px, transparent 7px, transparent 11px);
+}
+.graph-legend-item--influence       { color: #e05151; }
+.graph-legend-item--link-hier      { color: #7aaede; }
+.graph-legend-item--link-influences { color: #e05151; }
+.graph-legend-item--link-depends    { color: #3b82f6; }
 
 /* Link-creation mode */
 .graph-container.link-mode { cursor: crosshair; }

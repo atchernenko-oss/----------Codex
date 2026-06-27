@@ -365,12 +365,19 @@
         <div id="graphPage" class="hidden">
           <div class="graph-toolbar">
             <div class="graph-legend">
-              <span class="graph-legend-item graph-legend-item--epic">Epic</span>
-              <span class="graph-legend-item graph-legend-item--feature">Feature</span>
-              <span class="graph-legend-item graph-legend-item--req">Требование</span>
-              <span class="graph-legend-item graph-legend-item--us">User Story</span>
-              <span class="graph-legend-item graph-legend-item--tc">Test Case</span>
-              <span class="graph-legend-item graph-legend-item--influence">Связь влияния</span>
+              <div class="graph-legend-row">
+                <span class="graph-legend-item graph-legend-item--epic">Epic</span>
+                <span class="graph-legend-item graph-legend-item--feature">Feature</span>
+                <span class="graph-legend-item graph-legend-item--req">Требование</span>
+                <span class="graph-legend-item graph-legend-item--us">User Story</span>
+                <span class="graph-legend-item graph-legend-item--tc">Test Case</span>
+              </div>
+              <div class="graph-legend-row">
+                <span class="graph-legend-item graph-legend-item--link-hier">Иерархия</span>
+                <span class="graph-legend-item graph-legend-item--influence">Связь влияния</span>
+                <span class="graph-legend-item graph-legend-item--link-influences">Влияет на</span>
+                <span class="graph-legend-item graph-legend-item--link-depends">Зависит от</span>
+              </div>
             </div>
             <div class="graph-actions">
               <div class="graph-mode-block">
