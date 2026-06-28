@@ -467,6 +467,19 @@ h2 {
   background: #c8dcf4;
 }
 
+@keyframes demo-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(26, 90, 168, 0.5); }
+  50%       { box-shadow: 0 0 0 6px rgba(26, 90, 168, 0); }
+}
+
+#generateDemoButton {
+  animation: demo-pulse 1.8s ease-in-out infinite;
+}
+
+#generateDemoButton:hover {
+  animation: none;
+}
+
 .button.ghost {
   color: var(--muted);
   border-color: var(--line);
