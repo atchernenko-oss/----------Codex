@@ -640,25 +640,92 @@
                       <span class="mock-dot mock-dot--indigo"></span>
                       <span class="mock-label">Граф связей</span>
                     </div>
-                    <div class="mock-graph">
-                      <div class="mock-graph-col">
-                        <div class="mock-node mock-node--epic">E-001</div>
-                      </div>
-                      <div class="mock-graph-col">
-                        <div class="mock-node mock-node--feat">F-001</div>
-                        <div class="mock-node mock-node--feat mock-node--dim">F-002</div>
-                      </div>
-                      <div class="mock-graph-col">
-                        <div class="mock-node mock-node--req">REQ-001</div>
-                        <div class="mock-node mock-node--req">REQ-002</div>
-                      </div>
-                      <div class="mock-graph-col">
-                        <div class="mock-node mock-node--us">US-001</div>
-                      </div>
-                      <div class="mock-graph-col">
-                        <div class="mock-node mock-node--tc">TC-001</div>
-                        <div class="mock-node mock-node--tc">TC-002</div>
-                      </div>
+                    <svg class="about-graph-svg" viewBox="0 0 582 194" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,-apple-system,sans-serif">
+                      <defs>
+                        <marker id="ag-arr-org" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                          <path d="M0,0 L6,3 L0,6 Z" fill="#f97316"/>
+                        </marker>
+                        <marker id="ag-arr-blu" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                          <path d="M0,0 L6,3 L0,6 Z" fill="#3b82f6"/>
+                        </marker>
+                      </defs>
+                      <!-- Колонки -->
+                      <text x="70"  y="13" text-anchor="middle" font-size="8" font-weight="700" fill="#94a3b8" letter-spacing="1">EPIC</text>
+                      <text x="185" y="13" text-anchor="middle" font-size="8" font-weight="700" fill="#94a3b8" letter-spacing="1">FEATURE</text>
+                      <text x="305" y="13" text-anchor="middle" font-size="8" font-weight="700" fill="#94a3b8" letter-spacing="1">REQ</text>
+                      <text x="420" y="13" text-anchor="middle" font-size="8" font-weight="700" fill="#94a3b8" letter-spacing="1">US</text>
+                      <text x="530" y="13" text-anchor="middle" font-size="8" font-weight="700" fill="#94a3b8" letter-spacing="1">TC</text>
+                      <line x1="0" y1="19" x2="582" y2="19" stroke="#f1f5f9" stroke-width="1"/>
+                      <!-- Иерархические связи -->
+                      <path d="M112,95 C127,95 127,58 143,58"     stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+                      <path d="M112,95 C127,95 127,140 143,140"   stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+                      <path d="M227,58 C245,58 245,42 263,42"     stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+                      <path d="M227,58 C245,58 245,95 263,95"     stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+                      <path d="M227,140 C245,140 245,152 263,152" stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+                      <path d="M347,42 C362,42 362,68 378,68"     stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+                      <path d="M347,95 C362,95 362,138 378,138"   stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+                      <path d="M347,152 C362,152 362,138 378,138" stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+                      <path d="M462,68 C475,68 475,45 488,45"     stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+                      <path d="M462,68 C475,68 475,102 488,102"   stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+                      <path d="M462,138 C475,138 475,158 488,158" stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+                      <!-- Связь влияния: REQ-001 → REQ-003 (кросс-ветка, оранжевая) -->
+                      <path d="M347,42 C395,42 395,152 347,152"
+                            stroke="#f97316" stroke-width="1.5" stroke-dasharray="5 3" fill="none" marker-end="url(#ag-arr-org)"/>
+                      <!-- Связь влияния: F-002 → US-001 (кросс-иерархия, синяя, дуга снизу) -->
+                      <path d="M227,156 C227,186 378,186 378,84"
+                            stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="5 3" fill="none" marker-end="url(#ag-arr-blu)"/>
+                      <!-- Связь влияния: US-002 → TC-001 (кросс-ветка, оранжевая) -->
+                      <path d="M462,138 C522,138 522,45 488,45"
+                            stroke="#f97316" stroke-width="1.5" stroke-dasharray="5 3" fill="none" marker-end="url(#ag-arr-org)"/>
+                      <!-- E-001 -->
+                      <rect x="28"  y="79"  width="84" height="32" rx="6" fill="#7c4dbc"/>
+                      <text x="70"  y="96"  text-anchor="middle" fill="white" font-size="10" font-weight="700">E-001</text>
+                      <text x="70"  y="107" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="8">Авторизация</text>
+                      <!-- F-001 -->
+                      <rect x="143" y="42"  width="84" height="32" rx="6" fill="#2563eb"/>
+                      <text x="185" y="59"  text-anchor="middle" fill="white" font-size="10" font-weight="700">F-001</text>
+                      <text x="185" y="70"  text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="8">Вход в систему</text>
+                      <!-- F-002 -->
+                      <rect x="143" y="124" width="84" height="32" rx="6" fill="#2563eb"/>
+                      <text x="185" y="141" text-anchor="middle" fill="white" font-size="10" font-weight="700">F-002</text>
+                      <text x="185" y="152" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="8">Профиль</text>
+                      <!-- REQ-001 -->
+                      <rect x="263" y="26"  width="84" height="32" rx="6" fill="#475569"/>
+                      <text x="305" y="43"  text-anchor="middle" fill="white" font-size="10" font-weight="700">REQ-001</text>
+                      <text x="305" y="54"  text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="8">Авт. по паролю</text>
+                      <!-- REQ-002 -->
+                      <rect x="263" y="79"  width="84" height="32" rx="6" fill="#475569"/>
+                      <text x="305" y="96"  text-anchor="middle" fill="white" font-size="10" font-weight="700">REQ-002</text>
+                      <text x="305" y="107" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="8">Сброс пароля</text>
+                      <!-- REQ-003 -->
+                      <rect x="263" y="136" width="84" height="32" rx="6" fill="#475569"/>
+                      <text x="305" y="153" text-anchor="middle" fill="white" font-size="10" font-weight="700">REQ-003</text>
+                      <text x="305" y="164" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="8">Смена аватара</text>
+                      <!-- US-001 -->
+                      <rect x="378" y="52"  width="84" height="32" rx="6" fill="#059669"/>
+                      <text x="420" y="69"  text-anchor="middle" fill="white" font-size="10" font-weight="700">US-001</text>
+                      <text x="420" y="80"  text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="8">Войти по паролю</text>
+                      <!-- US-002 -->
+                      <rect x="378" y="122" width="84" height="32" rx="6" fill="#059669"/>
+                      <text x="420" y="139" text-anchor="middle" fill="white" font-size="10" font-weight="700">US-002</text>
+                      <text x="420" y="150" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="8">Сменить аватар</text>
+                      <!-- TC-001 -->
+                      <rect x="488" y="29"  width="84" height="32" rx="6" fill="#d97706"/>
+                      <text x="530" y="46"  text-anchor="middle" fill="white" font-size="10" font-weight="700">TC-001</text>
+                      <text x="530" y="57"  text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="8">Успешный вход</text>
+                      <!-- TC-002 -->
+                      <rect x="488" y="86"  width="84" height="32" rx="6" fill="#d97706"/>
+                      <text x="530" y="103" text-anchor="middle" fill="white" font-size="10" font-weight="700">TC-002</text>
+                      <text x="530" y="114" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="8">Неверный пароль</text>
+                      <!-- TC-003 -->
+                      <rect x="488" y="142" width="84" height="32" rx="6" fill="#d97706"/>
+                      <text x="530" y="159" text-anchor="middle" fill="white" font-size="10" font-weight="700">TC-003</text>
+                      <text x="530" y="170" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="8">Загрузка фото</text>
+                    </svg>
+                    <div class="about-graph-legend">
+                      <span class="agl-hier">─── Иерархическая связь</span>
+                      <span class="agl-inf-out">╌╌→ Влияние (исх.)</span>
+                      <span class="agl-inf-in">╌╌→ Влияние (вх.)</span>
                     </div>
                   </div>
                 </div>

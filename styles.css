@@ -3680,7 +3680,25 @@ body:has(#graphContainer.has-selection) .graph-legend-item--link-depends    { di
   flex-shrink: 0;
 }
 
-/* Graph mock */
+/* Graph SVG mock */
+.about-graph-svg {
+  display: block;
+  width: 100%;
+  padding: 6px 12px 0;
+  box-sizing: border-box;
+}
+.about-graph-legend {
+  display: flex;
+  gap: 18px;
+  padding: 8px 14px 12px;
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+.agl-hier    { color: #94a3b8; }
+.agl-inf-out { color: #f97316; }
+.agl-inf-in  { color: #3b82f6; }
+
+/* Graph mock (legacy, kept for other mocks) */
 .mock-graph {
   display: flex;
   gap: 0;
