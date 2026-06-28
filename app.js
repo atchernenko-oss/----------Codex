@@ -4166,6 +4166,7 @@ function switchMainSection(name) {
   currentMainSection = name;
   document.querySelector('#registryContent').classList.toggle('hidden', name !== 'registry');
   document.querySelector('#graphPage').classList.toggle('hidden', name !== 'graph');
+  document.querySelector('#aboutPage').classList.toggle('hidden', name !== 'about');
 
   // Sidebar highlight
   document.querySelectorAll('.nav-section-header[data-section]').forEach(b => {
@@ -4185,6 +4186,9 @@ document.querySelectorAll('.nav-section-header[data-section]').forEach(btn => {
 // Override — re-attach after initial listener (defined earlier). We use capture.
 document.querySelector('[data-section="graph"]').addEventListener('click', () => {
   switchMainSection('graph');
+});
+document.querySelector('[data-section="about"]').addEventListener('click', () => {
+  switchMainSection('about');
 });
 // Clicking "Реестр требований" returns to registry mode
 const reqSectionBtn = document.querySelector('[data-section="requirements"]');

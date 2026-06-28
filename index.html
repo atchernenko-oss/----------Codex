@@ -56,6 +56,14 @@
             </button>
           </div>
 
+          <!-- О проекте -->
+          <div class="nav-section">
+            <button class="nav-section-header" type="button" data-section="about">
+              <span class="nav-section-arrow nav-section-arrow--ph"></span>
+              О проекте
+            </button>
+          </div>
+
           <!-- Администрирование -->
           <div class="nav-section" id="navSectionAdmin">
             <button class="nav-section-header" type="button" data-section="admin">
@@ -397,6 +405,273 @@
           </div>
           <div id="graphContainer" class="graph-container mode-all"></div>
         </div>
+
+        <!-- О проекте -->
+        <section id="aboutPage" class="about-page hidden">
+
+          <div class="about-hero">
+            <div class="about-hero-inner">
+              <div class="about-hero-eyebrow">MONS · beta</div>
+              <h1 class="about-hero-title">ReqTracker</h1>
+              <p class="about-hero-sub">Единый инструмент системного аналитика вместо набора разрозненных сервисов</p>
+            </div>
+          </div>
+
+          <!-- Зачем -->
+          <div class="about-section">
+            <h2 class="about-section-title">Почему ReqTracker?</h2>
+            <div class="about-goals-grid">
+
+              <div class="about-goal-card">
+                <div class="about-goal-icon">🔗</div>
+                <h3>Один инструмент вместо нескольких</h3>
+                <p>Excel для оценки трудозатрат, Miro для трассировок, Confluence для хранения артефактов — переключение между инструментами стоит времени и создаёт расхождения между версиями. ReqTracker объединяет всё в одном месте.</p>
+                <div class="about-replaced-row">
+                  <span class="about-replaced-tool">Excel</span>
+                  <span class="about-replaced-tool">Miro</span>
+                  <span class="about-replaced-tool">Confluence</span>
+                  <span class="about-replaced-arrow">→</span>
+                  <span class="about-replaced-result">ReqTracker</span>
+                </div>
+              </div>
+
+              <div class="about-goal-card">
+                <div class="about-goal-icon">🤖</div>
+                <h3>Данные готовы для LLM</h3>
+                <p>Требования, User Stories, тест-кейсы и связи хранятся в структурированном формате. Минимум усилий на выгрузку — данные сразу готовы к передаче в языковые модели для анализа, генерации и верификации.</p>
+                <div class="about-tags-row">
+                  <span class="about-tag">Единый формат</span>
+                  <span class="about-tag">Быстрый экспорт</span>
+                  <span class="about-tag">LLM-ready</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Возможности -->
+          <div class="about-section">
+            <h2 class="about-section-title">Возможности</h2>
+            <div class="about-features-grid">
+
+              <div class="about-feature-card">
+                <div class="about-feature-icon" style="background:#ede9fb;color:#7c4dbc">E</div>
+                <div>
+                  <h4>Реестр требований</h4>
+                  <p>Импорт из Excel, ручной ввод, статусы, приоритеты, владельцы и источники</p>
+                </div>
+              </div>
+
+              <div class="about-feature-card">
+                <div class="about-feature-icon" style="background:#dbeafe;color:#2563eb">F</div>
+                <div>
+                  <h4>Иерархия артефактов</h4>
+                  <p>Epic → Feature → Requirement → User Story → Test Case с полной трассировкой</p>
+                </div>
+              </div>
+
+              <div class="about-feature-card">
+                <div class="about-feature-icon" style="background:#e0f2fe;color:#0369a1">◎</div>
+                <div>
+                  <h4>Граф связей</h4>
+                  <p>Визуальная трассировка иерархии и произвольных связей влияния между сущностями</p>
+                </div>
+              </div>
+
+              <div class="about-feature-card">
+                <div class="about-feature-icon" style="background:#d1fae5;color:#059669">US</div>
+                <div>
+                  <h4>User Stories</h4>
+                  <p>Шаблонная запись по роли/действию/цели, критерии приёмки, правила, сценарии</p>
+                </div>
+              </div>
+
+              <div class="about-feature-card">
+                <div class="about-feature-icon" style="background:#fef3c7;color:#d97706">TC</div>
+                <div>
+                  <h4>Test Cases</h4>
+                  <p>Генерация из сценариев User Story, шаги с ожидаемым и фактическим результатом</p>
+                </div>
+              </div>
+
+              <div class="about-feature-card">
+                <div class="about-feature-icon" style="background:#f1f5f9;color:#475569">⬆</div>
+                <div>
+                  <h4>Экспорт данных</h4>
+                  <p>Выгрузка всей иерархии в структурированном виде для последующей обработки</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Пользовательские пути -->
+          <div class="about-section">
+            <h2 class="about-section-title">Основные сценарии работы</h2>
+            <div class="about-paths">
+
+              <!-- Путь 1 -->
+              <div class="about-path">
+                <div class="about-path-num">01</div>
+                <div class="about-path-body">
+                  <h3>Загрузка и ввод требований</h3>
+                  <div class="about-path-steps">
+                    <div class="about-step">
+                      <span class="about-step-dot"></span>
+                      <div><strong>Импорт из Excel</strong> — нажмите «Загрузить Excel» и выберите файл с требованиями. Коды REQ-001, REQ-002… присваиваются автоматически.</div>
+                    </div>
+                    <div class="about-step">
+                      <span class="about-step-dot"></span>
+                      <div><strong>Или создайте вручную</strong> — кнопка «+ Добавить» в реестре открывает форму. Номер можно оставить пустым — заполнится сам.</div>
+                    </div>
+                    <div class="about-step">
+                      <span class="about-step-dot"></span>
+                      <div><strong>Установите атрибуты</strong> — статус (Draft / Approved / Rejected), приоритет, владелец, источник.</div>
+                    </div>
+                  </div>
+                  <div class="about-mock">
+                    <div class="mock-bar">
+                      <span class="mock-dot mock-dot--blue"></span>
+                      <span class="mock-label">Реестр требований</span>
+                      <span class="mock-btn-sm mock-btn-sm--blue">+ Добавить</span>
+                    </div>
+                    <div class="mock-table-mini">
+                      <div class="mock-row-mini mock-row-mini--head"><span>Код</span><span>Текст требования</span><span>Статус</span><span>Приоритет</span></div>
+                      <div class="mock-row-mini"><span class="mock-code-sm">REQ-001</span><span>Система должна авторизовывать пользователя...</span><span class="mock-badge-sm mock-badge-sm--green">Approved</span><span class="mock-badge-sm mock-badge-sm--red">High</span></div>
+                      <div class="mock-row-mini"><span class="mock-code-sm">REQ-002</span><span>Пользователь может редактировать профиль...</span><span class="mock-badge-sm mock-badge-sm--gray">Draft</span><span class="mock-badge-sm mock-badge-sm--yellow">Medium</span></div>
+                      <div class="mock-row-mini mock-row-mini--add"><span class="mock-code-sm" style="color:#9ca3af">REQ-003</span><span style="color:#9ca3af">Новое требование...</span><span></span><span></span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Путь 2 -->
+              <div class="about-path">
+                <div class="about-path-num">02</div>
+                <div class="about-path-body">
+                  <h3>Построение иерархии</h3>
+                  <div class="about-path-steps">
+                    <div class="about-step">
+                      <span class="about-step-dot"></span>
+                      <div><strong>Выберите требования</strong> — отметьте чекбоксы нужных REQ и нажмите «Создать Feature». Присвойте Feature код и название.</div>
+                    </div>
+                    <div class="about-step">
+                      <span class="about-step-dot"></span>
+                      <div><strong>Сгруппируйте Features в Epic</strong> — выберите Features на вкладке Epics или из реестра → «Создать Epic».</div>
+                    </div>
+                    <div class="about-step">
+                      <span class="about-step-dot"></span>
+                      <div><strong>Следите за иерархией</strong> — боковая панель отражает дерево Epic → Feature → REQ → US → TC в реальном времени.</div>
+                    </div>
+                  </div>
+                  <div class="about-mock">
+                    <div class="mock-bar">
+                      <span class="mock-dot mock-dot--purple"></span>
+                      <span class="mock-label">Боковая панель — дерево</span>
+                    </div>
+                    <div class="mock-tree">
+                      <div class="mock-tree-item mock-tree-item--epic">▾ E-001 Авторизация</div>
+                      <div class="mock-tree-item mock-tree-item--feat">&nbsp;&nbsp;▾ F-001 Вход в систему</div>
+                      <div class="mock-tree-item mock-tree-item--req">&nbsp;&nbsp;&nbsp;&nbsp;REQ-001 Авторизация по паролю</div>
+                      <div class="mock-tree-item mock-tree-item--req">&nbsp;&nbsp;&nbsp;&nbsp;REQ-002 Сброс пароля</div>
+                      <div class="mock-tree-item mock-tree-item--feat">&nbsp;&nbsp;▾ F-002 Профиль</div>
+                      <div class="mock-tree-item mock-tree-item--req">&nbsp;&nbsp;&nbsp;&nbsp;REQ-003 Редактирование данных</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Путь 3 -->
+              <div class="about-path">
+                <div class="about-path-num">03</div>
+                <div class="about-path-body">
+                  <h3>User Stories и тест-кейсы</h3>
+                  <div class="about-path-steps">
+                    <div class="about-step">
+                      <span class="about-step-dot"></span>
+                      <div><strong>Откройте требование</strong> — кликните по коду REQ. В нижней части модалки — раздел User Stories.</div>
+                    </div>
+                    <div class="about-step">
+                      <span class="about-step-dot"></span>
+                      <div><strong>Создайте User Story</strong> — заполните роль, действие, цель, добавьте шаги основного и альтернативного сценария.</div>
+                    </div>
+                    <div class="about-step">
+                      <span class="about-step-dot"></span>
+                      <div><strong>Сгенерируйте Test Case</strong> — кнопка «+ Test Case» у сценария создаёт TC с шагами автоматически.</div>
+                    </div>
+                  </div>
+                  <div class="about-mock">
+                    <div class="mock-bar">
+                      <span class="mock-dot mock-dot--green"></span>
+                      <span class="mock-label">User Story — сценарий</span>
+                      <span class="mock-btn-sm mock-btn-sm--orange">+ Test Case</span>
+                    </div>
+                    <div class="mock-scenario">
+                      <div class="mock-scenario-head">Основной сценарий</div>
+                      <div class="mock-scenario-step"><span class="mock-step-num">1</span>Пользователь вводит логин и пароль</div>
+                      <div class="mock-scenario-step"><span class="mock-step-num">2</span>Система проверяет учётные данные</div>
+                      <div class="mock-scenario-step"><span class="mock-step-num">3</span>Система перенаправляет на главную</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Путь 4 -->
+              <div class="about-path">
+                <div class="about-path-num">04</div>
+                <div class="about-path-body">
+                  <h3>Анализ на графе связей</h3>
+                  <div class="about-path-steps">
+                    <div class="about-step">
+                      <span class="about-step-dot"></span>
+                      <div><strong>Откройте граф</strong> — кликните «Граф связей» в боковой панели. Все сущности отображаются в виде узлов по колонкам типов.</div>
+                    </div>
+                    <div class="about-step">
+                      <span class="about-step-dot"></span>
+                      <div><strong>Кликните на узел</strong> — подсвечивается связанная ветка иерархии, несвязанные узлы затемняются.</div>
+                    </div>
+                    <div class="about-step">
+                      <span class="about-step-dot"></span>
+                      <div><strong>Добавьте связь влияния</strong> — кнопка «+ Связь» позволяет соединить любые два узла стрелкой влияния для трассировки изменений.</div>
+                    </div>
+                  </div>
+                  <div class="about-mock">
+                    <div class="mock-bar">
+                      <span class="mock-dot mock-dot--indigo"></span>
+                      <span class="mock-label">Граф связей</span>
+                    </div>
+                    <div class="mock-graph">
+                      <div class="mock-graph-col">
+                        <div class="mock-node mock-node--epic">E-001</div>
+                      </div>
+                      <div class="mock-graph-col">
+                        <div class="mock-node mock-node--feat">F-001</div>
+                        <div class="mock-node mock-node--feat mock-node--dim">F-002</div>
+                      </div>
+                      <div class="mock-graph-col">
+                        <div class="mock-node mock-node--req">REQ-001</div>
+                        <div class="mock-node mock-node--req">REQ-002</div>
+                      </div>
+                      <div class="mock-graph-col">
+                        <div class="mock-node mock-node--us">US-001</div>
+                      </div>
+                      <div class="mock-graph-col">
+                        <div class="mock-node mock-node--tc">TC-001</div>
+                        <div class="mock-node mock-node--tc">TC-002</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="about-footer">
+            MONS ReqTracker · разработано для системных аналитиков
+          </div>
+
+        </section>
 
       </main>
     </div>
