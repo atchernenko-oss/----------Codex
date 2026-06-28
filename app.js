@@ -201,6 +201,7 @@ elements.clearFeatureSelectionBtn.addEventListener("click", () => {
 document.querySelector("#epicModalClose").addEventListener("click", closeEpicModal);
 document.querySelector("#epicModalCancel").addEventListener("click", closeEpicModal);
 document.querySelector("#epicModalSave").addEventListener("click", saveEpic);
+document.querySelector("#epicModalDelete").addEventListener("click", () => deleteEpic(editingEpicId));
 document.querySelector("#epicModal").addEventListener("click", (e) => {
   if (e.target === document.querySelector("#epicModal") && !window.getSelection().toString()) closeEpicModal();
 });
@@ -278,6 +279,7 @@ document.querySelector("#addTCBtn").addEventListener("click", () => openTCEditMo
 elements.requirementModalClose.addEventListener("click", closeRequirementModal);
 elements.requirementModalCancel.addEventListener("click", closeRequirementModal);
 elements.requirementModalSave.addEventListener("click", saveRequirement);
+document.querySelector('#requirementModalDelete').addEventListener('click', () => deleteRequirement(editingRequirementId));
 elements.requirementModal.addEventListener("click", (e) => {
   if (e.target === elements.requirementModal && !window.getSelection().toString()) closeRequirementModal();
 });
@@ -287,6 +289,7 @@ elements.removeFeatureBtn.addEventListener("click", removeFromFeature);
 elements.featureModalClose.addEventListener("click", closeFeatureModal);
 elements.featureModalCancel.addEventListener("click", closeFeatureModal);
 elements.featureModalSave.addEventListener("click", saveFeature);
+document.querySelector('#featureModalDelete').addEventListener('click', () => deleteFeature(editingFeatureId));
 elements.featureModal.addEventListener("click", (e) => {
   if (e.target === elements.featureModal && !window.getSelection().toString()) closeFeatureModal();
 });
@@ -417,6 +420,16 @@ document.querySelector("#usEditModal").addEventListener("click", (e) => {
   if (e.target === document.querySelector("#usEditModal") && !window.getSelection().toString()) closeUSEditModal();
 });
 document.querySelector("#usEditModalSave").addEventListener("click", saveUserStory);
+document.querySelector("#usModalDelete").addEventListener("click", () => {
+  if (!confirm('Удалить User Story?')) return;
+  const id = editingUSId;
+  closeUSEditModal();
+  state.userStories = state.userStories.filter(s => s.id !== id);
+  saveUserStories(state.userStories);
+  renderUSList();
+  updateReqUSCount();
+  render();
+});
 document.querySelector("#usAutoNumber").addEventListener("click", autoAssignUSNumber);
 document.querySelector("#tcFromMainBtn").addEventListener("click", () => openTCFromEditModal('main'));
 document.querySelector("#tcFromAltBtn").addEventListener("click", () => openTCFromEditModal('alt'));
@@ -1012,6 +1025,7 @@ function openRequirementModal(req) {
   if (usSection) usSection.classList.toggle("hidden", isNew);
 
   elements.reqText.classList.remove("input-error");
+  document.querySelector('#requirementModalDelete').classList.toggle('hidden', isNew);
   elements.requirementModal.classList.remove("hidden");
   elements.reqText.focus();
   if (!isNew) {
@@ -1111,6 +1125,7 @@ function openFeatureEditModal(featureObj) {
   elements.featureName.value = featureObj?.name || '';
   elements.featureDescription.value = featureObj?.description || '';
   elements.featureName.classList.remove("input-error");
+  document.querySelector('#featureModalDelete').classList.toggle('hidden', !featureObj);
   elements.featureModal.classList.remove("hidden");
   if (featureObj) renderInfluenceSection('featureInfluenceSection', 'feature', featureObj.id);
   else document.querySelector('#featureInfluenceSection').innerHTML = '';
@@ -1564,11 +1579,47 @@ function loadFeatures() {
 }
 
 function deleteRequirement(id) {
+  if (!confirm('Удалить требование? Связанные User Stories тоже будут удалены.')) return;
   state.requirements = state.requirements.filter((r) => r.id !== id);
   state.userStories = state.userStories.filter((us) => us.requirementId !== id);
   state.selectedIds.delete(id);
   saveRequirements(state.requirements);
   saveUserStories(state.userStories);
+  closeRequirementModal();
+  render();
+}
+
+function deleteEpic(id) {
+  if (!confirm('Удалить Epic? Привязанные Features останутся без эпика.')) return;
+  const epic = state.epics.find(e => e.id === id);
+  if (!epic) return;
+  state.features = state.features.map(f => f.epic === epic.label ? { ...f, epic: '' } : f);
+  state.epics = state.epics.filter(e => e.id !== id);
+  saveEpics(state.epics);
+  saveFeatures(state.features);
+  closeEpicModal();
+  render();
+}
+
+function deleteFeature(id) {
+  if (!confirm('Удалить Feature? Привязанные требования останутся без фичи.')) return;
+  const feat = state.features.find(f => f.id === id);
+  if (!feat) return;
+  state.requirements = state.requirements.map(r => r.feature === feat.label ? { ...r, feature: '' } : r);
+  state.features = state.features.filter(f => f.id !== id);
+  saveFeatures(state.features);
+  saveRequirements(state.requirements);
+  closeFeatureModal();
+  render();
+}
+
+function deleteTestCase(id) {
+  if (!confirm('Удалить Test Case?')) return;
+  state.testCases = state.testCases.filter(t => t.id !== id);
+  saveTestCases(state.testCases);
+  closeTCModal();
+  renderUSList();
+  reRenderCurrentView();
   render();
 }
 
@@ -1606,6 +1657,7 @@ function openEpicEditModal(epicObj) {
   document.querySelector("#epicName").value = epicObj?.name || '';
   document.querySelector("#epicDescription").value = epicObj?.description || '';
   document.querySelector("#epicName").classList.remove("input-error");
+  document.querySelector('#epicModalDelete').classList.toggle('hidden', !epicObj);
   document.querySelector("#epicModal").classList.remove("hidden");
   if (epicObj) renderInfluenceSection('epicInfluenceSection', 'epic', epicObj.id);
   else document.querySelector('#epicInfluenceSection').innerHTML = '';
@@ -2377,6 +2429,7 @@ function openUSEditModal(us) {
   }
   updateUSCombined();
   document.querySelector("#usTitle").classList.remove("input-error");
+  document.querySelector('#usModalDelete').classList.toggle('hidden', !us);
   document.querySelector("#usEditModal").classList.remove("hidden");
   if (us) renderInfluenceSection('usInfluenceSection', 'us', us.id);
   else { const s = document.getElementById('usInfluenceSection'); if (s) s.innerHTML = ''; }
@@ -2677,6 +2730,7 @@ function openTCEditModal(tc) {
   document.querySelector("#tcStepsList").innerHTML = "";
   for (const step of (tc?.steps || [])) addTCStepRow(step);
   document.querySelector("#tcModalTitle").textContent = tc ? "Редактировать Test Case" : "Новый Test Case";
+  document.querySelector('#tcModalDelete').classList.toggle('hidden', !tc);
   document.querySelector("#tcModal").classList.remove("hidden");
   if (tc) renderInfluenceSection('tcInfluenceSection', 'tc', tc.id);
   else document.querySelector('#tcInfluenceSection').innerHTML = '';
@@ -2843,6 +2897,7 @@ function renderTCScreenshot(container, src) {
 document.querySelector("#tcModalClose").addEventListener("click", closeTCModal);
 document.querySelector("#tcModalCancel").addEventListener("click", closeTCModal);
 document.querySelector("#tcModalSave").addEventListener("click", saveTCModal);
+document.querySelector("#tcModalDelete").addEventListener("click", () => deleteTestCase(editingTCId));
 document.querySelector("#tcAddStepBtn").addEventListener("click", () => addTCStepRow({}));
 document.querySelector("#tcModal").addEventListener("click", e => {
   if (e.target === document.querySelector("#tcModal")) closeTCModal();
@@ -3017,7 +3072,10 @@ function renderEpicsView() {
       <td class="reg-num">${reqs.length}</td>
       <td class="reg-num">${usCount}</td>
       <td class="reg-num">${tcCount}</td>
-      <td class="reg-actions"><button class="row-edit-btn" data-action="edit-epic" data-epic-id="${epic.id}" title="Редактировать">✎</button></td>
+      <td class="reg-actions">
+        <button class="row-edit-btn" data-action="edit-epic" data-epic-id="${epic.id}" title="Редактировать">✎</button>
+        <button class="row-delete-btn" data-action="delete-epic" data-epic-id="${epic.id}" title="Удалить">🗑</button>
+      </td>
     </tr>`;
   });
   el.innerHTML = regTable(
@@ -3069,7 +3127,10 @@ function renderFeaturesView() {
       <td class="reg-num">${reqs.length}</td>
       <td class="reg-num">${usCount}</td>
       <td class="reg-num">${tcCount}</td>
-      <td class="reg-actions"><button class="row-edit-btn" data-action="edit-feature" data-feature-id="${feature.id}" title="Редактировать">✎</button></td>
+      <td class="reg-actions">
+        <button class="row-edit-btn" data-action="edit-feature" data-feature-id="${feature.id}" title="Редактировать">✎</button>
+        <button class="row-delete-btn" data-action="delete-feature" data-feature-id="${feature.id}" title="Удалить">🗑</button>
+      </td>
     </tr>`;
   });
   el.innerHTML = regTable(
@@ -3130,7 +3191,10 @@ function renderUSView() {
       <td class="reg-owner">${escapeHtml(us.owner || '—')}</td>
       <td class="reg-scenario">${scenCell}</td>
       <td>${tcCell}</td>
-      <td class="reg-actions"><button class="row-edit-btn" data-action="edit-us" data-us-id="${us.id}" title="Редактировать">✎</button></td>
+      <td class="reg-actions">
+        <button class="row-edit-btn" data-action="edit-us" data-us-id="${us.id}" title="Редактировать">✎</button>
+        <button class="row-delete-btn" data-action="delete-us" data-us-id="${us.id}" title="Удалить">🗑</button>
+      </td>
     </tr>`;
   });
   el.innerHTML = regTable(
@@ -3189,10 +3253,14 @@ function renderTCView() {
       <td class="reg-scenario">${scenLabel}</td>
       <td class="reg-num">${steps}</td>
       <td class="reg-date">${date}</td>
+      <td class="reg-actions">
+        <button class="row-edit-btn" data-action="edit-tc" data-tc-id="${tc.id}" title="Редактировать">✎</button>
+        <button class="row-delete-btn" data-action="delete-tc" data-tc-id="${tc.id}" title="Удалить">🗑</button>
+      </td>
     </tr>`;
   });
   el.innerHTML = regTable(
-    ['Код', 'Название', 'User Story', 'Требование', 'Фича', 'Эпик', 'Статус', 'Сценарий', 'Шагов', 'Создан'],
+    ['Код', 'Название', 'User Story', 'Требование', 'Фича', 'Эпик', 'Статус', 'Сценарий', 'Шагов', 'Создан', ''],
     rows,
     ''
   );
@@ -3221,6 +3289,21 @@ function handleViewClick(e) {
     if (tc) openTCEditModal(tc);
   } else if (action === 'goto-tc') {
     switchView('testCases');
+  } else if (action === 'delete-epic') {
+    deleteEpic(btn.dataset.epicId);
+  } else if (action === 'delete-feature') {
+    deleteFeature(btn.dataset.featureId);
+  } else if (action === 'delete-us') {
+    if (!confirm('Удалить User Story?')) return;
+    state.userStories = state.userStories.filter(s => s.id !== btn.dataset.usId);
+    saveUserStories(state.userStories);
+    render();
+  } else if (action === 'delete-tc') {
+    if (!confirm('Удалить Test Case?')) return;
+    state.testCases = state.testCases.filter(t => t.id !== btn.dataset.tcId);
+    saveTestCases(state.testCases);
+    render();
+    reRenderCurrentView();
   }
 }
 

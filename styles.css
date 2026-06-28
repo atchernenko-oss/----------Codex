@@ -2053,6 +2053,9 @@ tr.selected td {
 .button.danger:hover {
   background: #dc2626;
 }
+.modal-footer .modal-delete-btn {
+  margin-right: auto;
+}
 
 .us-req-row {
   display: flex;
