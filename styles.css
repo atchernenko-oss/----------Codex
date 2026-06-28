@@ -2811,6 +2811,7 @@ tr.selected td {
 .tc-step-field {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .tc-step-field-label {
@@ -3311,10 +3312,11 @@ body:has(#graphContainer.has-selection) .graph-legend-item--link-depends    { di
 
 .tc-step-screenshot-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   margin-top: 6px;
-  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .tc-attach-btn {
@@ -3337,12 +3339,13 @@ body:has(#graphContainer.has-selection) .graph-legend-item--link-depends    { di
 
 .tc-screenshot-preview {
   position: relative;
-  display: inline-block;
+  display: block;
+  min-width: 0;
 }
 
 .tc-screenshot-img {
   display: block;
-  max-width: 200px;
+  max-width: 100%;
   max-height: 120px;
   border-radius: 4px;
   border: 1px solid var(--line);
