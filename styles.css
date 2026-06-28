@@ -2900,6 +2900,15 @@ tr.selected td {
 }
 .gn-rect:hover { opacity: .85; }
 
+/* Подложка текста в изолированных узлах */
+.gn-text-bg {
+  fill: rgba(255, 255, 255, 0.88);
+}
+.iso-node .gn-label,
+.iso-node .gn-sublabel {
+  fill: #1e293b;
+}
+
 /* Разделитель основного дерева и изолированных узлов */
 .graph-iso-sep {
   stroke: #c8cdd6;

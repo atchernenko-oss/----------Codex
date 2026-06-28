@@ -4578,7 +4578,7 @@ function renderGraphView() {
   // Node groups
   const nodeG = g.selectAll('.graph-node')
     .data(allNodeData).join('g')
-    .attr('class', d => `graph-node gn-${d.data.type}`)
+    .attr('class', d => `graph-node gn-${d.data.type}${d.data.isolated ? ' iso-node' : ''}`)
     .attr('transform', d => `translate(${d.y - NODE_W / 2},${d.x - NODE_H / 2})`)
     .style('cursor', 'pointer')
     .on('click',    (ev, d) => { ev.stopPropagation(); _linkMode ? handleLinkClick(d.data) : highlightGraphNode(d.data.id); })
@@ -4633,6 +4633,18 @@ function renderGraphView() {
     const nL = labelLines.length, nS = subLines.length;
     const blockH = nL * LABEL_LH + (nL && nS ? SUB_GAP : 0) + nS * SUB_LH;
     const blockTop = (NODE_H - blockH) / 2;
+
+    // Для изолированных узлов — белая подложка за текстом
+    if (d.data.isolated) {
+      const PAD_X = 6, PAD_Y = 4;
+      g.append('rect')
+        .attr('class', 'gn-text-bg')
+        .attr('x', NODE_TEXT_PAD - PAD_X)
+        .attr('y', blockTop - PAD_Y)
+        .attr('width', NODE_W - (NODE_TEXT_PAD - PAD_X) * 2)
+        .attr('height', blockH + PAD_Y * 2)
+        .attr('rx', 4).attr('ry', 4);
+    }
 
     if (nL) {
       const t = g.append('text').attr('class', 'gn-label').style('font-size', LABEL_FS + 'px');
