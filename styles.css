@@ -2902,7 +2902,7 @@ tr.selected td {
 
 /* Подложка текста в изолированных узлах */
 .gn-text-bg {
-  fill: rgba(255, 255, 255, 0.55);
+  fill: rgba(255, 255, 255, 0.28);
 }
 .iso-node .gn-label,
 .iso-node .gn-sublabel {
