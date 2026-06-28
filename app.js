@@ -3912,7 +3912,8 @@ function mdReq(lines, req, stories, depth) {
     if (us.scenario?.length)     lines.push(`**Основной сценарий:**\n${us.scenario.map((s,i) => `${i+1}. ${escMd(s)}`).join('\n')}\n`);
     if (us.altScenario?.length)  lines.push(`**Альтернативный сценарий:**\n${us.altScenario.map((s,i) => `${i+1}. ${escMd(s)}`).join('\n')}\n`);
     for (const tc of tcs) {
-      lines.push(`${'#'.repeat(Math.min(depth + 2, 6))} TC: ${escMd(tc.title)}\n`);
+      const tcHead = [tc.code, tc.title].filter(Boolean).join(' ');
+      lines.push(`${'#'.repeat(Math.min(depth + 2, 6))} ${escMd(tcHead)}\n`);
       lines.push(`**Тип:** ${tc.scenarioType === 'main' ? 'Основной' : 'Альтернативный'} | **Статус:** ${escMd(tc.status)}\n`);
       if (tc.steps?.length) {
         lines.push(`| Шаг | Ожидаемый результат | Фактический результат |`);
@@ -4010,7 +4011,8 @@ function confReq(parts, req, stories, depth) {
     }
 
     for (const tc of tcs) {
-      parts.push(`<h6>TC: ${eh(tc.title)} — ${tc.scenarioType === 'main' ? 'Основной' : 'Альтернативный'} ${statusTag(tc.status)}</h6>`);
+      const tcHead = [tc.code, tc.title].filter(Boolean).join(' ');
+      parts.push(`<h6>${eh(tcHead)} — ${tc.scenarioType === 'main' ? 'Основной' : 'Альтернативный'} ${statusTag(tc.status)}</h6>`);
       if (tc.steps?.length) {
         parts.push(`<table><thead><tr><th>Шаг</th><th>Ожидаемый результат</th><th>Фактический результат</th></tr></thead><tbody>`);
         for (const s of tc.steps) parts.push(`<tr><td>${eh(s.text)}</td><td>${eh(s.expected)}</td><td>${eh(s.actual)}</td></tr>`);
@@ -4030,7 +4032,7 @@ function exportExcel(reqs) {
     'Epic', 'Feature', 'REQ', 'Текст требования',
     'US', 'Заголовок US', 'User Story (как … чтобы…)',
     'Статус', 'Приоритет', 'Владелец',
-    'Бизнес-правила', 'Критерии приёмки', 'Кол-во TC',
+    'Бизнес-правила', 'Критерии приёмки', 'Основной сценарий', 'Альт. сценарий', 'Кол-во TC',
     'Аналитик (ч)', 'Фронтенд (ч)', 'Бэкенд (ч)',
     'Тестировщик (ч)', 'Дизайнер (ч)', 'DevOps (ч)',
     'Итого (ч)', 'Комментарий',
@@ -4041,7 +4043,7 @@ function exportExcel(reqs) {
 
   function addUSRows(req, stories, epicLabel, featLabel) {
     if (!stories.length) {
-      usRows.push([epicLabel, featLabel, req.code, req.text, '', '', '', req.status, req.priority, req.owner, '', '', 0, '', '', '', '', '', '', '', '']);
+      usRows.push([epicLabel, featLabel, req.code, req.text, '', '', '', req.status, req.priority, req.owner, '', '', '', '', 0, '', '', '', '', '', '', '', '']);
       return;
     }
     for (const { us, tcs } of stories) {
@@ -4052,9 +4054,11 @@ function exportExcel(reqs) {
         us.status, us.priority, us.owner,
         (us.rules || []).join('\n'),
         (us.criteria || []).join('\n'),
+        (us.scenario || []).join('\n'),
+        (us.altScenario || []).join('\n'),
         tcs.length,
         '', '', '', '', '', '',
-        { f: `SUM(N${usRows.length+1}:S${usRows.length+1})` },
+        { f: `SUM(P${usRows.length+1}:U${usRows.length+1})` },
         '',
       ]);
     }
@@ -4073,7 +4077,7 @@ function exportExcel(reqs) {
   // Column widths
   wsUS['!cols'] = [
     {wch:22},{wch:22},{wch:10},{wch:40},{wch:8},{wch:30},{wch:45},
-    {wch:12},{wch:11},{wch:18},{wch:35},{wch:35},{wch:8},
+    {wch:12},{wch:11},{wch:18},{wch:35},{wch:35},{wch:40},{wch:40},{wch:8},
     {wch:13},{wch:13},{wch:13},{wch:14},{wch:13},{wch:13},{wch:11},{wch:25},
   ];
   // Freeze header + bold
@@ -4106,7 +4110,7 @@ function exportExcel(reqs) {
   XLSX.utils.book_append_sheet(wb, wsReq, 'Требования');
 
   // ── Sheet 3: Test Cases ────────────────────────────────────────────────────
-  const tcHeader = ['Epic', 'Feature', 'REQ', 'US', 'Заголовок US', 'TC', 'Тип', 'Статус', 'Шагов', 'Шаги (текст)', 'Ожидаемые результаты'];
+  const tcHeader = ['Epic', 'Feature', 'REQ', 'US', 'Заголовок US', 'Код TC', 'Заголовок TC', 'Тип', 'Статус', 'Шагов', 'Шаги (текст)', 'Ожидаемые результаты', 'Фактические результаты'];
   const tcRows = [tcHeader];
   for (const { epic, features } of nodes) {
     for (const { feat, reqs: fReqs } of features) {
@@ -4117,11 +4121,12 @@ function exportExcel(reqs) {
               epic ? `${epic.number} ${epic.name}` : '',
               `${feat.number} ${feat.name}`,
               req.code, us.number, us.title,
-              tc.title,
+              tc.code, tc.title,
               tc.scenarioType === 'main' ? 'Основной' : 'Альтернативный',
               tc.status, (tc.steps || []).length,
               (tc.steps || []).map((s,i) => `${i+1}. ${s.text}`).join('\n'),
               (tc.steps || []).map((s,i) => `${i+1}. ${s.expected}`).join('\n'),
+              (tc.steps || []).map((s,i) => `${i+1}. ${s.actual}`).join('\n'),
             ]);
           }
         }
@@ -4131,17 +4136,18 @@ function exportExcel(reqs) {
   for (const { req, stories } of orphanReqs) {
     for (const { us, tcs } of stories) {
       for (const tc of tcs) {
-        tcRows.push(['', '', req.code, us.number, us.title, tc.title,
+        tcRows.push(['', '', req.code, us.number, us.title, tc.code, tc.title,
           tc.scenarioType === 'main' ? 'Основной' : 'Альтернативный',
           tc.status, (tc.steps||[]).length,
           (tc.steps||[]).map((s,i)=>`${i+1}. ${s.text}`).join('\n'),
           (tc.steps||[]).map((s,i)=>`${i+1}. ${s.expected}`).join('\n'),
+          (tc.steps||[]).map((s,i)=>`${i+1}. ${s.actual}`).join('\n'),
         ]);
       }
     }
   }
   const wsTC = XLSX.utils.aoa_to_sheet(tcRows);
-  wsTC['!cols'] = [{wch:22},{wch:22},{wch:10},{wch:8},{wch:30},{wch:35},{wch:13},{wch:10},{wch:7},{wch:50},{wch:50}];
+  wsTC['!cols'] = [{wch:22},{wch:22},{wch:10},{wch:8},{wch:30},{wch:8},{wch:35},{wch:13},{wch:10},{wch:7},{wch:50},{wch:50},{wch:50}];
   wsTC['!freeze'] = { xSplit: 0, ySplit: 1 };
   XLSX.utils.book_append_sheet(wb, wsTC, 'Test Cases');
 
