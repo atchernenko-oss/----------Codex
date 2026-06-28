@@ -1273,6 +1273,8 @@ function render() {
   updateSortIcons();
   reRenderCurrentView();
   renderSidebarTree();
+  const hasData = state.requirements.length > 0 || state.epics.length > 0 || state.features.length > 0;
+  elements.generateDemoButton.classList.toggle('demo-btn--pulse', !hasData);
 }
 
 function renderSelectionBar() {
