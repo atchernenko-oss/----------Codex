@@ -2800,6 +2800,7 @@ tr.selected td {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+  align-items: start;
 }
 
 @media (max-width: 560px) {
@@ -2812,6 +2813,7 @@ tr.selected td {
   display: grid;
   gap: 4px;
   min-width: 0;
+  align-content: start;
 }
 
 .tc-step-field-label {
